@@ -179,3 +179,7 @@ Subsystem packages own graph/audio policy; runtime modules are adapters, not a c
 - [Reusable gameplay, prefabs, components and scene lifecycle](04-GAMEPLAY-AUTHORING.md)
 - [Debugging, profiling, recovery and editor quality of life](05-DEBUGGING-RELIABILITY.md)
 - [Game export, input, save games, security and production readiness](06-SHIPPING-DEVELOPER-READINESS.md)
+
+## Implementation start — AA0 foundation
+
+The owner authorized Plan02 after Plan01's software work. The implementation contract and exact first-slice results are in [PLAN02-EXECUTION](../PLAN02-EXECUTION.md), with runnable APIs and limitations in [ANIMATION-AUDIO-FOUNDATION](../ANIMATION-AUDIO-FOUNDATION.md). The first slice supplies independently tested pose clocks/mixers, real buffered PCM audio, null command traces and a character/audio lab. It does not certify AA1–AA6 or erase outstanding physical acceptance from Plan01.

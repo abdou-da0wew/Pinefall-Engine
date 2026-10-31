@@ -1,0 +1,36 @@
+{
+  "scope": "Plan02 AA0 foundation; not complete Plan02",
+  "unitTests": 94,
+  "assertions": 458,
+  "newFoundationTests": 10,
+  "browserSuites": [
+    "animation-audio-browser",
+    "animation-audio-dcc",
+    "assets-browser",
+    "runtime-browser",
+    "pending-browser"
+  ],
+  "externalCharacter": {
+    "fixture": "blender_293_barbarian_7400_binary.fbx",
+    "jointsPerInstance": 38,
+    "instances": 2,
+    "prototypeParses": 1,
+    "activeMixerBindingsAcrossInstances": 124,
+    "lifecycleCycles": 100
+  },
+  "webAudio": {
+    "actualOutputMeterPassed": true,
+    "userGestureUnlockPassed": true,
+    "suspensionBlockedPlaybackPassed": true,
+    "cancellationAndDisposeReleasePassed": true,
+    "audibleQualityAccepted": false,
+    "physicalLatencyAccepted": false
+  },
+  "remaining": [
+    "AA1 authored clip binding and trim/preview",
+    "AA2 state graph/crossfades/blends",
+    "AA3 lifecycle/root-motion integration",
+    "AA4/5 authored audio, spatial/pause/streaming/scoped SDK",
+    "AA6 headless/export/tutorial/device acceptance"
+  ]
+}
