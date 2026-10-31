@@ -69,7 +69,7 @@ Validated locally: strict TypeScript; Oxlint; 6 unit/physics tests (17 assertion
 
 This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, packaged per-project exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Synchronous custom-behavior exceptions disable that instance and emit a structured error; other instances continue and cleanup still runs. This does not protect against infinite loops, asynchronous rejections, malicious plugins, or throwing event subscribers. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
 
-Generated dependencies, build outputs and packages are rebuildable. No engine GitHub repository/release has been published.
+Generated dependencies, build outputs and packages are rebuildable. Release links and validation details are below.
 
 ## 0.1.1 additions and publication
 
@@ -78,12 +78,12 @@ Generated dependencies, build outputs and packages are rebuildable. No engine Gi
 - Eight unit/physics tests (23 assertions) pass. Additional real-browser runtime integration verifies spawn/stop restoration, camera override, character movement and script exception isolation (`bun run test:runtime-browser`). Rendering tests use SwiftShader, not physical hardware.
 - Tag-triggered GitHub Actions builds Linux and Windows packages on their respective OS runners, attaches source plus SHA256 sums, and publishes a prerelease only after both packaging jobs succeed. Native gameplay testing is not performed by that workflow.
 
-**Publication remains pending authentication.** From this source folder on your authenticated development machine:
+## Release distribution
 
-```sh
-gh auth login
-gh repo create abdou-da0wew/Pinefall-Engine --public --source=. --remote=origin --push
-git push origin v0.1.1
-```
+Repository: https://github.com/abdou-da0wew/Pinefall-Engine
 
-If the repository already exists, configure its remote instead of recreating it. GitHub must allow Actions for the release workflow. Do not paste access tokens in chat or store them in source. The 0.1.0 local desktop binaries predate these improvements; CI will build 0.1.1 from its tag.
+Version 0.1.1 release: https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.1.1
+
+Assets include Linux AppImage, Windows ZIP, source ZIP and SHA256 checksums. Binaries are unsigned. Linux packaged editor start/play/stop passed under Xvfb with SwiftShader; these test-only software-rendering flags do not establish CEDAR hardware support. Windows package creation passed; Windows execution remains untested.
+
+The engine remains an experimental foundation with the feature limits listed above, not a feature-complete Unity replacement.
