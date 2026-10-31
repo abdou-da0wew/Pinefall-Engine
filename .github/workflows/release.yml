@@ -46,6 +46,6 @@ jobs:
           sha256sum *.AppImage *.zip > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
-          prerelease: true
+          prerelease: false
           generate_release_notes: true
           files: releases/*

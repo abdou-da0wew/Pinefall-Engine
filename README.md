@@ -1,107 +1,142 @@
-# Pinefall Engine 0.4.0 — flexible workspace and scene hierarchy
+# Pinefall Engine 0.4.0
 
-**New in 0.2:** named New Game workflow, reusable multi-model imports and drag/drop, player-model replacement, a DOM-free simulator sharing real physics/gameplay behaviors, JSON CLI authoring, and standalone custom-game web export. See [Creating games](docs/CREATING-GAMES.md) for the complete workflow, API, supported assets, limits and example.
+<img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
-**New in 0.3:** in-editor TypeScript script assets, multiple per-object attachments, editable JSON properties, class/factory lifecycle hooks, a typed gameplay SDK, helper-module imports, runtime spawn/destroy, script diagnostics, explicit code trust, and the same scripts running headlessly or in exported players. See [Scripting](docs/SCRIPTING.md) and `examples/projects/script-lab.scene.json`.
+**Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**New in 0.4:** local Phosphor SVG icons, resizable/dockable panels, saved layouts, multi-selection, nested organizational collections, world-preserving object parenting, collapsible/searchable scene tree, keyboard navigation, and subtree duplicate/delete. See [Workspace guide](docs/WORKSPACE.md).
+Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
-The published 0.1.1 release below predates these changes; 0.4 is currently local development.
+## Downloads
 
-A separate TypeScript 3D runtime and visual workshop, built with Bun, Three.js, Rapier and React. The original Pinefall game is unchanged. This is a small usable engine foundation, **not Unity feature parity or a production-certified engine**.
+[**0.4.0 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.4.0)
 
-## Run
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-source.zip)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/SHA256SUMS-0.4.0.txt)
+
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.4.0-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+
+## Documentation
+
+| Guide                                        | Contents                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                     |
+| [Scripting and SDK](docs/SCRIPTING.md)       | TypeScript editor, attachments, properties, hooks, helpers, events, script security |
+| [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts                 |
+| [Release notes](docs/RELEASE-0.4.0.md)       | Features, download contents, validation and known limitations                       |
+| [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                                 |
+| [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                                   |
+
+## What's included
+
+### Visual creation
+
+- **New Game**: name your game and start from a blank playable world or one of four starters: The Last Signal, Lantern Gallery, Valley Courier, Gravity Garden.
+- Hierarchy, transform gizmos, component inspector, bounded undo/redo, scene JSON import/export, local autosave and prefab subtrees.
+- Self-contained GLB models with embedded materials/textures, multi-import, viewport drag/drop and reusable instances. Swap a player's visual model without removing its behavior/physics.
+- Nested organizational collections, multi-selection, collapsible/searchable branches, world-preserving transform parenting and subtree duplication/deletion.
+- Resizable panels, bottom/right shelf drag-docking, viewport focus, saved layout preferences, keyboard navigation, reduced-motion support, and locally bundled **Phosphor SVG icons**.
+- Pinefall's diamond brand mark in warm sand (`#D8D1A7`) and sage (`#C4CFA4`), on forest green (`#14211B`) for application icons.
+
+### Programmable gameplay
+
+- Create/import/edit TypeScript in the Scripts panel; attach multiple scripts alongside a built-in behavior, with separate properties and state per attachment.
+- Class or factory scripts with `start`, `fixedUpdate`, `update`, `trigger`, and `dispose` hooks.
+- Typed SDK: input, timing, scene/entity queries, Three math/transforms, Rapier physics, spawn/destroy, events and logs. Share helper modules between scene scripts.
+- Syntax checking in the editor and real TypeScript semantic checking through the CLI. Synchronous exceptions are isolated to the failing instance.
+- Scripts travel with exported scenes and run in the editor, standalone player, or headless simulation **only after explicit code permission**.
+
+### Runtime
+
+- Real Rapier fixed-60-Hz physics, CCD, primitive colliders, sensors, kinematic character controls, gravity/jumping, arcade driving, checkpoints and collectibles.
+- Configurable orbit, first-person, follow and vehicle camera rigs.
+- Low preset: up to 960×540, 30 FPS target, shadows/post/beam effects off by default. High preset: up to 1600×900, 60 FPS play target, sun shadows and optional effects. These are targets/caps, not guaranteed performance.
+- Standard lit materials, hemisphere/sun/point/spot lights, frustum/distance culling, fog, optional five-tap glow/exposure and **approximate translucent cone beams**, not physical ray-marched volumetrics or HDR bloom.
+- Play/Stop isolation restores the authored scene and removes runtime-spawned objects.
+- Stats, a bounded event console with JSONL export, and rotating native diagnostic logs.
+
+## Quick start from source
+
+Use Bun 1.4.4 (the lockfile/package-manager version used for this release).
 
 ```sh
-bun install
-bun run dev           # editor, localhost:5173
-bun run check         # strict TypeScript + Oxlint
-bun test              # schema/history/events/real physics tests
-bun run build         # editor and standalone player
-bun run desktop       # Electron editor
-bun run desktop:linux # AppImage
-bun run desktop:windows # Windows zip
+bun install --frozen-lockfile
+bun run dev              # editor, http://localhost:5173
+bun run check            # TypeScript and Oxlint
+bun test tests           # unit / physics / headless / scripting / hierarchy
+bun run build            # browser editor and standalone player
+bun run desktop          # build and run Electron editor
+bun run desktop:linux    # build Linux AppImage
+bun run desktop:windows  # build Windows ZIP
 ```
 
-Browser tests: `bun x playwright install --with-deps chromium`, start the dev server, then `bun run test:browser`. The tests deliberately request SwiftShader for reproducible headless rendering. Do not use that flag as a hardware-performance recommendation.
+Use the appropriate OS runner for reproducible desktop packaging. Electron requires native Linux desktop libraries and a working display server. Release packages do not require Bun; source/headless tools do.
 
-## Included
+### Create and test without a GUI
 
-- Independent runtime API (no React/editor imports), optional authoring controls; React editor consumes that API. Orbit/transform controls currently live inside the runtime rather than in a separate adapter.
-- Hierarchy selection/search, translate/rotate/scale gizmos, component inspector, duplication/deletion, bounded undo/redo, local autosave, scene JSON import/export.
-- Primitive assets, self-contained embedded GLB import (2 MB/import), prefab subtree JSON export/import. Imported geometry uses manually assigned primitive collision proxies; no automatic mesh collision cooking or animation editor.
-- Rapier fixed-60-Hz physics, dynamic bodies, CCD, sensors, kinematic character movement, gravity, jumping, checkpoints, collectibles, goal triggers and arcade vehicle logic. Driving is not a realistic suspension/tire simulation.
-- Four selectable starters: **The Last Signal** (third person), **Lantern Gallery** (first person), **Valley Courier** (driving), **Gravity Garden** (physics sandbox).
-- Play/stop isolation restores the authored scene, including removal of runtime-spawned crates. Scene edits are disabled while playing.
-- Low preset: 960×540 maximum render buffer, 30 FPS target, no shadows/post/beam effects by default. High preset: 1600×900 maximum, 60 FPS play target, sun shadows and optional effects. These are caps/targets, not performance guarantees.
-- Standard lit materials, hemisphere/sun/point/spot lights, distance/frustum culling, fog, optional five-tap threshold glow and exposure. **Volumetric-style beams are translucent shader cones, not physical ray-marched volumetrics.** No HDR bloom pipeline.
-- On-screen stats and bounded 200-entry event console with JSONL export. Desktop adds rotating local startup/renderer/crash logs (512 KB rotation). This is local diagnostic logging, not a distributed tracing/SLO platform.
-- Secure-context-isolated Electron shell, native save dialogs, Linux AppImage and Windows zip build recipes. Renderer has no Node access.
+```sh
+bun run game new my-game.scene.json "My Game"
+bun run game import my-game.scene.json path/to/model.glb
+# Place the asset using the ID printed by import:
+bun run game place my-game.scene.json ASSET_ID "My prop"
+bun run game inspect my-game.scene.json
+bun run game simulate my-game.scene.json 120 KeyW
+```
 
-## Workflow
+Headless simulation uses the same scene schema, Rapier physics and shared behaviors, without DOM, Electron, a display server or GPU. It validates gameplay, not visual rendering. See the creation guide for edits, reports, custom inputs and the TypeScript API.
 
-Choose a starter in the bottom bar. Click an object or hierarchy entry; double-click to frame. Add primitives from the asset shelf. Numeric edits commit on blur/Enter. Press Play; stop before authoring. Export your scene to keep a portable backup. Browser autosave may fail when storage quota is full; exported files are authoritative backups.
-
-WASD move/drive; Space jump/brake; Shift sprint; R recover; Escape pause; drag to look. First-person double-click requests pointer lock where supported. Sandbox uses orbit controls and spawn/impulse buttons.
-
-`game.html` runs without React or the editor. Its Load scene button opens exported scenes. The editor's Player link opens the **selected stock template**, not unsaved modifications; load your exported JSON in the player to run a customized scene. Desktop: use the application menu to open the player/editor (popups are intentionally blocked).
-
-## Code-first
+### Write scripts
 
 ```ts
-import { Engine } from "./packages/runtime/src";
-import { createTemplate } from "./examples/templates";
-const engine = await Engine.create(canvas);
-engine.registerBehavior("custom", ({ engine, entity }) => ({
-  update(dt) {
-    const object = engine.objects.get(entity.id);
-    if (object) object.rotation.y += dt;
-  },
-}));
-await engine.load(createTemplate("adventure"));
-engine.play();
-// await engine.stop(); engine.dispose();
+import { Script } from "@pinefall/sdk";
+export const defaults = { speed: 1.5 };
+export default class Spinner extends Script {
+  update(dt: number) {
+    this.ctx.object.rotation.y += this.ctx.number("speed", 1.5) * dt;
+  }
+}
 ```
 
-Behavior factories support start, fixedUpdate, update, trigger, and dispose hooks; see `packages/runtime/src/behaviors.ts`. Register trusted code before loading/playing a scene. Scene JSON contains behavior names, never executable code. Camera rigs default to the template mode. Override independently with `engine.setCameraRig("orbit" | "first-person" | "follow" | "vehicle" | "auto")`; overrides are runtime settings, not serialized scene components.
+Attach this to a non-physics object. Physics bodies/controllers own their transforms; use the physics API when scripting them. The SDK reference explains how to add abilities without replacing the player controller.
 
-## Desktop / older GPUs
+```sh
+bun run game script-add my-game.scene.json examples/scripts/Boost.ts
+bun run game script-attach my-game.scene.json PLAYER_ID SCRIPT_ID '{"dashSpeed":12}'
+bun run game script-typecheck my-game.scene.json
+bun run game simulate my-game.scene.json 180 KeyW,KeyE --trust-scripts
+```
 
-Requires working WebGL 2 through Chromium/ANGLE. **No fake 2D fallback.** If unavailable, the editor explains the failure while preserving scene export. On Linux, try launching with `--legacy-gl` to request X11 + ANGLE OpenGL and disable Vulkan. This does not patch Chromium/Mesa, bypass every driver restriction, or prove CEDAR support. No GPU sandbox disabling is built in. Quality/effect settings are in the Rendering inspector. Driver startup flags currently require relaunch via command line.
+**Security:** scene JSON can contain executable TypeScript source. It is not executed during import, schema validation, syntax checking or semantic type checking. Approved scripts are **trusted code, not sandboxed**: browser code can access DOM/network/storage, and headless code can access Bun/process/filesystem capabilities. Never approve unknown scripts. Infinite loops, hostile code and resource exhaustion are not contained.
 
-Binaries are unsigned. Windows packaging is not Windows runtime validation. CEDAR/Wayland hardware is untested. Native display-server/runtime prerequisites are still required on Linux.
+### Examples and standalone export
 
-## Validation and limits
+Open `examples/projects/beacon-run.scene.json` to collect three imported-model crystals and return to the beacon. Open `examples/projects/script-lab.scene.json`, review its scripts, then approve execution to try E-to-dash, a bounce pad and a physics-crate spawner.
 
-Validated locally: strict TypeScript; Oxlint; 6 unit/physics tests (17 assertions); Chromium/SwiftShader browser smoke covering four-template play/stop, crate spawn, high effects and standalone player, with zero page errors. Screenshots in `docs/` are actual captures. Linux/Windows package generation succeeded; physical-GPU and Windows execution remain unverified. No long-duration memory/performance certification.
+```sh
+bun run build
+bun run game export-web examples/projects/beacon-run.scene.json build/beacon-run-web
+bun run game export-web examples/projects/script-lab.scene.json build/script-lab-web
+```
 
-This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, per-game desktop exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Synchronous custom-behavior exceptions disable that instance and emit a structured error; other instances continue and cleanup still runs. This does not protect against infinite loops, asynchronous rejections, malicious plugins, or throwing event subscribers. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
+Output directories must not already exist. Serve the exported directory with an **HTTP static server**, then open `index.html`; do not launch it directly as `file://`. Release assets also include ready-to-serve copies of both examples.
 
-Generated dependencies, build outputs and packages are rebuildable. Release links and validation details are below.
+The editor's Player link opens a stock template, not unsaved edits. Load your exported scene in the standalone player's file picker, or use `export-web` for automatic loading. In Electron use the application menu to open the player; popups are blocked intentionally.
 
-## 0.1.1 additions and publication
+## Saving and hardware notes
 
-- Camera rigs can be selected independently of starter type; switching to orbit no longer forces a follow camera on scenes containing a player.
-- Behavior factory/start/fixed-update/update/trigger/dispose exception isolation with entity, behavior and hook diagnostics.
-- Eight unit/physics tests (23 assertions) pass. Additional real-browser runtime integration verifies spawn/stop restoration, camera override, character movement and script exception isolation (`bun run test:runtime-browser`). Rendering tests use SwiftShader, not physical hardware.
-- Tag-triggered GitHub Actions builds Linux and Windows packages on their respective OS runners, attaches source plus SHA256 sums, and publishes a prerelease only after both packaging jobs succeed. Native gameplay testing is not performed by that workflow.
+Projects are single-scene JSON files. New Game replaces local autosave; export your old scene first. Browser storage quotas can be smaller than scene asset budgets. Exported files are the portable backups; undo history and layout preferences are not a replacement.
 
-## Release distribution
+Requires WebGL 2 through Chromium/ANGLE. There is **no fake 2D fallback**. On Linux, `--legacy-gl` requests X11 + ANGLE OpenGL and disables Vulkan. It is not a Mesa/Chromium patch or a compatibility guarantee, and does not disable the GPU sandbox. Quality/effect controls are in the Rendering inspector; driver flags require relaunch.
 
-Repository: https://github.com/abdou-da0wew/Pinefall-Engine
+Linux packaged smoke tests use Xvfb/SwiftShader. **CEDAR/Wayland hardware and Windows execution are unverified.** Software-rendering tests do not prove hardware FPS or stability. See release notes for the precise validation scope.
 
-Version 0.1.1 release: https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.1.1
+## Tests and current limits
 
-Assets include Linux AppImage, Windows ZIP, source ZIP and SHA256 checksums. Binaries are unsigned. Linux packaged editor start/play/stop passed under Xvfb with SwiftShader; these test-only software-rendering flags do not establish CEDAR hardware support. Windows package creation passed; Windows execution remains untested.
+28 unit/physics/headless/scripting/hierarchy tests (82 assertions), strict TypeScript and Oxlint pass. Browser suites cover the four starters, GLB/game creation, movement, script execution/trust, standalone exports, hierarchy and workspace interactions. Packaged Linux tests cover script import, trust gating, spawned physics bodies and Stop restoration. No long-duration memory/performance certification is claimed.
 
-The engine remains an experimental foundation with the feature limits listed above, not a feature-complete Unity replacement.
+For browser tests, start the dev server, install Chromium with `bun x playwright install --with-deps chromium`, build/export the two examples above, then run `test:browser`, `test:runtime-browser`, `test:scripting-browser`, `test:workspace`, and `bun tests/creation-browser.ts`. They explicitly use SwiftShader for repeatability.
 
-## 0.2 validation
+Limits: 500 entities, 100 collections, eight lights, 16 GLB assets (2 MB/import, 8 MB combined embedded strings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
 
-14 unit/physics/headless tests, 46 assertions; TypeScript and Oxlint pass. Browser creation test passed new game, GLB import, play/stop and custom standalone export; existing browser regression suites pass. Packaged Linux editor start/play/stop passes under Xvfb/SwiftShader. Headless tests verify all four starters, real character movement and sensors, custom behavior isolation, model validation/deduplication, and completion of the Beacon Run example. Windows packages were generated but not executed.
-
-## 0.3 validation
-
-24 unit/physics/headless/scripting tests, 67 assertions, TypeScript and Oxlint pass. New editor browser test verifies create/edit/save/attach, permission gating, execution, source-change/reload permission reset, and real script spawning in an exported player. The three Script Lab modules pass real TypeScript semantic checking. Packaged Linux script import, trust gate, physics spawning and Stop restoration pass under Xvfb/SwiftShader. Existing browser starter/runtime/creation regressions pass. Windows 0.3 packages were generated, not executed.
-
-This is a local 0.3 build; no 0.3 GitHub publication has been performed.
+Not yet implemented: skeletal-animation authoring, audio import/system, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects, full asset dependency database, automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, IDE autocomplete/debugger or script hot reload. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
