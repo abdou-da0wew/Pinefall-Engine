@@ -100,7 +100,7 @@ export function projectFiles(scene: SceneDocument) {
   metadata.modifiedAt = new Date(
     Math.max(Date.now(), Date.parse(metadata.createdAt)),
   ).toISOString();
-  metadata.editor.version = "0.5.4";
+  metadata.editor.version = "0.5.5";
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
       bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));

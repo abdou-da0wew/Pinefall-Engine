@@ -1,3 +1,4 @@
+import { assetMemory } from "./budget";
 /** Immutable, content-addressed session blobs. Disk transport must verify hashes before admission. */
 export const BLOB_PREFIX = "asset:sha256:";
 export const isBlobRef = (value: unknown): value is `asset:sha256:${string}` =>
@@ -90,4 +91,6 @@ export class BlobStore {
       }
   }
 }
+// Reserve the entire bounded session pool once; retained bytes never exceed this allowance.
+assetMemory.reserve(64 * 1024 * 1024, "session-blob-pool");
 export const blobs = new BlobStore();

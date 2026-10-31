@@ -109,3 +109,7 @@ reported separately after upload rather than assumed from the local build.
 ## Superseding 0.5.4 continuation evidence
 
 The A1 reference-document/persistent-storage work and material/clip remap portion of A5 now have implementation and tests. See `RELEASE-0.5.4.md` for exact scope, limits and the remaining gates; the historical table above describes the 0.5.3 baseline. Current evidence: 64 tests / 250 assertions, typecheck/lint/build, real IndexedDB recovery/corruption/injected-quota/cache/reload tests, browser regressions, fresh standalone export, and packaged Linux native tests. Windows packaging passed, execution untested. No physical-GPU or broad DCC acceptance claim.
+
+## 0.5.5 transactional adoption and admission
+
+Final entity/physics/hierarchy/model construction now stages separately from the live world, yields during entity construction, and rolls back on injected physics/clone failures. A shared conservative asset ledger accounts for source-pool allowance, workers, model decode/prototypes, clones and old/new world coexistence; this is not measured or OS-enforced process memory. Pressure and 100-cycle release tests pass. Exact scope and still-open A0–A6 implementation/acceptance gates are in `RELEASE-0.5.5.md`. The plan is not complete.

@@ -1,3 +1,4 @@
+import { assetMemory, type Reservation } from "../../assets/src/budget";
 import { referenceScene } from "../../assets/src/documents";
 import { UIStore } from "../../ui/src/store";
 import { UIRenderer } from "../../ui/src/renderer";
@@ -13,6 +14,33 @@ import { LOW, cloneScene, entity, parseScene } from "./schema";
 import type { SceneDocument, Entity, RenderSettings, Primitive, Vec3 } from "./schema";
 import { registerBuiltins } from "./behaviors";
 import type { BehaviorFactory, Behavior } from "./behaviors";
+interface WorldResources {
+  reservation?: Reservation;
+  root: T.Group;
+  objects: Map<string, T.Group>;
+  physics: PhysicsSystem;
+  geometries: Map<Primitive, T.BufferGeometry>;
+  materials: Map<string, T.MeshStandardMaterial>;
+  imported: Map<string, ModelLease>;
+  beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[];
+}
+function disposeWorld(world: WorldResources) {
+  world.physics.dispose();
+  for (const lease of world.imported.values()) lease.release();
+  world.imported.clear();
+  for (const b of world.beams) {
+    b.geometry.dispose();
+    b.material.dispose();
+  }
+  world.beams.length = 0;
+  world.root.clear();
+  world.objects.clear();
+  for (const g of world.geometries.values()) g.dispose();
+  for (const m of world.materials.values()) m.dispose();
+  world.geometries.clear();
+  world.materials.clear();
+  world.reservation?.release();
+}
 export interface Stats {
   fps: number;
   drawCalls: number;
@@ -22,6 +50,8 @@ export interface Stats {
   bodies: number;
   frameMs: number;
   adapter: string;
+  assetAccountedBytes: number;
+  assetPeakAccountedBytes: number;
   width: number;
   height: number;
 }
@@ -85,6 +115,7 @@ export class Engine {
   won = false;
   speed = 0;
   private root = new T.Group();
+  private worldReservation?: Reservation;
   private ambient = new T.HemisphereLight("#c4ddd7", "#405344", 2);
   private sun = new T.DirectionalLight("#ffe1b0", 2);
   private geometries = new Map<Primitive, T.BufferGeometry>();
@@ -270,8 +301,8 @@ export class Engine {
       this.events.emit("error", "WebGL context lost. Stop and reload the application.");
     });
   }
-  private geometry(primitive: Primitive) {
-    let geometry = this.geometries.get(primitive);
+  private geometry(primitive: Primitive, geometries = this.geometries) {
+    let geometry = geometries.get(primitive);
     if (!geometry) {
       geometry =
         primitive === "sphere"
@@ -283,19 +314,20 @@ export class Engine {
               : primitive === "cone"
                 ? new T.ConeGeometry(0.5, 1, 5)
                 : new T.BoxGeometry(1, 1, 1);
-      this.geometries.set(primitive, geometry);
+      geometries.set(primitive, geometry);
     }
     return geometry;
   }
-  private material(color: string) {
-    let m = this.materials.get(color);
+  private material(color: string, materials = this.materials) {
+    let m = materials.get(color);
     if (!m) {
       m = new T.MeshStandardMaterial({ color, roughness: 0.82 });
-      this.materials.set(color, m);
+      materials.set(color, m);
     }
     return m;
   }
   async load(input: SceneDocument, options: { preserveView?: boolean } = {}) {
+    const started = performance.now();
     const savedView = options.preserveView
       ? { position: this.camera.position.clone(), target: this.orbit.target.clone() }
       : null;
@@ -306,6 +338,8 @@ export class Engine {
     const controller = new AbortController();
     this.loadAbort = controller;
     const staged = new Map<string, ModelLease>();
+    let world: WorldResources | undefined;
+    let worldReservation: Reservation | undefined;
     try {
       scene = await referenceScene(scene, controller.signal);
       for (const asset of scene.assets) {
@@ -338,8 +372,57 @@ export class Engine {
         controller.signal.throwIfAborted();
         await this.renderer.compileAsync(lease.root, this.camera, this.scene);
       }
+      this.events.emit("asset", "Prepared model resources", {
+        operationId: generation,
+        elapsedMs: performance.now() - started,
+        accountedBytes: assetMemory.snapshot.used,
+      });
+      // Build the complete replacement off-scene. The active physics world/leases remain usable.
+      worldReservation = assetMemory.reserve(
+        2 * 1024 * 1024 + scene.entities.length * 32768,
+        "world",
+      );
+      world = {
+        reservation: worldReservation,
+        root: new T.Group(),
+        objects: new Map(),
+        physics: new PhysicsSystem(scene.environment.gravity),
+        geometries: new Map(),
+        materials: new Map(),
+        imported: new Map(),
+        beams: [],
+      };
+      let slice = performance.now();
+      for (const e of scene.entities) {
+        controller.signal.throwIfAborted();
+        this.addEntity(e, world);
+        if (e.mesh?.primitive === "asset") {
+          const asset = scene.assets.find((a) => a.id === e.mesh?.asset)!;
+          const lease = this.assetCache.acquire(asset.data, `entity:${generation}:${e.id}`);
+          world.imported.set(e.id, lease);
+          lease.root.traverse((o) => {
+            o.userData.entityId = e.id;
+            if (o instanceof T.Mesh) {
+              o.castShadow = true;
+              o.receiveShadow = true;
+            }
+          });
+          world.objects.get(e.id)!.add(lease.root);
+        }
+        if (performance.now() - slice > 2) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          slice = performance.now();
+        }
+      }
+      for (const e of scene.entities)
+        if (e.parent) world.objects.get(e.parent)!.add(world.objects.get(e.id)!);
+      controller.signal.throwIfAborted();
       if (this.dead || generation !== this.generation) return;
     } catch (error) {
+      if (world) {
+        disposeWorld(world);
+        world = undefined;
+      } else worldReservation?.release();
       for (const lease of staged.values()) lease.release();
       if (generation === this.generation) this.loading = false;
       if (controller.signal.aborted) return;
@@ -348,17 +431,33 @@ export class Engine {
       });
       throw error;
     } finally {
-      if (this.dead || generation !== this.generation)
+      if (this.dead || generation !== this.generation) {
+        if (world) {
+          disposeWorld(world);
+          world = undefined;
+        }
         for (const lease of staged.values()) lease.release();
+      }
     }
+    if (!world) return;
+    // No awaited work between generation check and pointer/ownership swap.
     this.playing = false;
     this.paused = false;
     this.input.clear();
     this.gizmo.detach();
     this.clear();
+    this.scene.remove(this.root);
+    this.root = world.root;
+    this.scene.add(this.root);
+    for (const [id, object] of world.objects) this.objects.set(id, object);
+    this.worldReservation = world.reservation;
+    this.physics = world.physics;
+    this.geometries = world.geometries;
+    this.materials = world.materials;
+    this.imported = world.imported;
+    this.beams = world.beams;
     this.document = cloneScene(scene);
     this.ui.load(scene.ui);
-    this.physics = new PhysicsSystem(scene.environment.gravity);
     this.scene.background = new T.Color(scene.environment.background);
     this.scene.fog = new T.Fog(
       scene.environment.fog,
@@ -370,27 +469,6 @@ export class Engine {
     this.collected.clear();
     this.won = false;
     this.speed = 0;
-    for (const e of scene.entities) this.addEntity(e);
-    for (const e of scene.entities)
-      if (e.parent) {
-        const parent = this.objects.get(e.parent),
-          child = this.objects.get(e.id);
-        if (parent && child) parent.add(child);
-      }
-    for (const e of scene.entities) {
-      if (e.mesh?.primitive !== "asset") continue;
-      const asset = scene.assets.find((a) => a.id === e.mesh?.asset)!;
-      const lease = this.assetCache.acquire(asset.data, `entity:${generation}:${e.id}`);
-      this.imported.set(e.id, lease);
-      lease.root.traverse((o) => {
-        o.userData.entityId = e.id;
-        if (o instanceof T.Mesh) {
-          o.castShadow = true;
-          o.receiveShadow = true;
-        }
-      });
-      this.objects.get(e.id)?.add(lease.root);
-    }
     for (const lease of staged.values()) lease.release();
     if (generation !== this.generation) return;
     this.orbit.enabled = true;
@@ -403,9 +481,27 @@ export class Engine {
     this.orbit.update();
     this.applySettings(this.settings);
     this.loading = false;
-    this.events.emit("scene", "Loaded " + scene.name, { entities: scene.entities.length });
+    this.events.emit("scene", "Loaded " + scene.name, {
+      entities: scene.entities.length,
+      operationId: generation,
+      elapsedMs: performance.now() - started,
+      accountedBytes: assetMemory.snapshot.used,
+      peakAccountedBytes: assetMemory.snapshot.peak,
+    });
   }
-  private addEntity(e: Entity) {
+  private liveWorld(): WorldResources {
+    return {
+      reservation: this.worldReservation,
+      root: this.root,
+      objects: this.objects,
+      physics: this.physics,
+      geometries: this.geometries,
+      materials: this.materials,
+      imported: this.imported,
+      beams: this.beams,
+    };
+  }
+  private addEntity(e: Entity, world: WorldResources = this.liveWorld()) {
     const object = new T.Group();
     object.name = e.name;
     object.userData.entityId = e.id;
@@ -416,7 +512,10 @@ export class Engine {
     object.scale.fromArray(e.transform.scale);
     object.visible = e.enabled;
     if (e.mesh && e.mesh.primitive !== "asset") {
-      const mesh = new T.Mesh(this.geometry(e.mesh.primitive), this.material(e.mesh.color));
+      const mesh = new T.Mesh(
+        this.geometry(e.mesh.primitive, world.geometries),
+        this.material(e.mesh.color, world.materials),
+      );
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.entityId = e.id;
@@ -437,13 +536,13 @@ export class Engine {
         volume.position.y = -e.light.range * 0.35;
         volume.scale.set(e.light.range * 0.4, e.light.range * 0.7, e.light.range * 0.4);
         volume.userData.volume = true;
-        this.beams.push(volume);
+        world.beams.push(volume);
         object.add(volume);
       }
     }
-    this.root.add(object);
-    this.objects.set(e.id, object);
-    this.physics.add(e);
+    world.root.add(object);
+    world.objects.set(e.id, object);
+    world.physics.add(e);
   }
   select(id: string | null) {
     this.selected = id;
@@ -751,6 +850,8 @@ export class Engine {
         entities: this.objects.size,
         bodies: this.physics.bodies.size,
         adapter: this.adapter,
+        assetAccountedBytes: assetMemory.snapshot.used,
+        assetPeakAccountedBytes: assetMemory.snapshot.peak,
         width: this.bufferSize.x,
         height: this.bufferSize.y,
       });
@@ -761,22 +862,15 @@ export class Engine {
   };
   private clear() {
     this.behaviorBuilder = undefined;
-    for (const b of this.behaviors.values()) b.dispose?.();
-    this.behaviors.clear();
-    this.physics.dispose();
-    for (const lease of this.imported.values()) lease.release();
-    this.imported.clear();
-    for (const b of this.beams) {
-      b.geometry.dispose();
-      b.material.dispose();
+    for (const b of this.behaviors.values()) {
+      try {
+        b.dispose?.();
+      } catch (error) {
+        this.events.emit("error", "Behavior cleanup failed", { error: String(error) });
+      }
     }
-    this.beams = [];
-    this.root.clear();
-    this.objects.clear();
-    for (const g of this.geometries.values()) g.dispose();
-    for (const m of this.materials.values()) m.dispose();
-    this.geometries.clear();
-    this.materials.clear();
+    this.behaviors.clear();
+    disposeWorld(this.liveWorld());
   }
   dispose() {
     this.loadAbort?.abort();

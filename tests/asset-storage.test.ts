@@ -1,3 +1,4 @@
+import { MemoryBudget } from "../packages/assets/src/budget";
 import { test, expect } from "bun:test";
 import { BlobStore, BLOB_PREFIX, hashBytes, blobs } from "../packages/assets/src/blobs";
 import { referenceScene, materializeScene } from "../packages/assets/src/documents";
@@ -109,4 +110,22 @@ test("explicit rename mapping retains identity and rejects duplicates/foreign ID
   expect(() => reconcileSubassets(report, metadata, { "material:name:new": "foreign" })).toThrow(
     "Invalid",
   );
+});
+
+test("shared admission rejects pressure before allocation and releases idempotently", () => {
+  const budget = new MemoryBudget(100),
+    old = budget.reserve(60, "old"),
+    next = budget.reserve(30, "staged");
+  expect(() => budget.reserve(11, "overflow")).toThrow("admission");
+  expect(budget.snapshot.used).toBe(90);
+  expect(() => next.resize(41)).toThrow("admission");
+  expect(budget.snapshot.used).toBe(90);
+  next.release();
+  next.release();
+  expect(budget.snapshot.used).toBe(60);
+  const retry = budget.reserve(40, "retry");
+  old.release();
+  retry.release();
+  expect(budget.snapshot.used).toBe(0);
+  expect(budget.snapshot.peak).toBe(100);
 });

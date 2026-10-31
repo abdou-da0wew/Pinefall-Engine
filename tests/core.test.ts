@@ -38,3 +38,16 @@ test("events bounded with unsubscribe", () => {
   expect(bus.entries.length).toBe(200);
   expect(bus.jsonl().split("\n").length).toBe(200);
 });
+
+test("diagnostic subscribers cannot interrupt ownership transitions", () => {
+  const events = new Events();
+  let delivered = false;
+  events.subscribe(() => {
+    throw Error("observer failure");
+  });
+  events.subscribe(() => {
+    delivered = true;
+  });
+  expect(() => events.emit("asset", "commit")).not.toThrow();
+  expect(delivered).toBe(true);
+});

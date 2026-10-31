@@ -11,7 +11,13 @@ export class Events {
     const event = { time: new Date().toISOString(), type, message: message.slice(0, 2000), data };
     this.entries.push(event);
     if (this.entries.length > 200) this.entries.shift();
-    for (const listener of this.listeners) listener(event);
+    for (const listener of this.listeners) {
+      try {
+        listener(event);
+      } catch {
+        /* diagnostic consumers cannot interrupt engine ownership transitions */
+      }
+    }
   }
   subscribe(listener: (event: EngineEvent) => void) {
     this.listeners.add(listener);

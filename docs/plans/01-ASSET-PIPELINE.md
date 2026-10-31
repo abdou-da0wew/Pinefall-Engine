@@ -207,3 +207,7 @@ acceptance are still open. Do not mark Plan 01 fully implemented from this check
 ## Continuation checkpoint — 0.5.4 candidate
 
 Implemented SHA-256 reference working documents, persistent IndexedDB source/artifact/cache/recovery storage, named-source/recipe conversion identity, current model/source/entity dependency semantics, and explicit material/clip identity remapping. PIF remains portable v3. Verified tests and outstanding gates are listed in `../RELEASE-0.5.4.md`; do not infer full Plan 01 completion or publication from the version bump. Plan 02 has not started.
+
+## 0.5.5 checkpoint — late construction rollback and admission
+
+Separate world staging and conservative shared admission are implemented and fault-tested. These close the previously demonstrated late physics/model-clone failure gap, not the whole plan. See [0.5.5 evidence and remaining gates](../RELEASE-0.5.5.md). Strict measured process bounds, normalized recipes, wider subasset identity/CLI FBX and independent DCC/hardware acceptance remain open.

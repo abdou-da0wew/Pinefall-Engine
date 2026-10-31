@@ -60,6 +60,87 @@ try {
           rejected = true;
         }
         check(rejected && engine.document.name === savedName, "failed model retains world");
+        const physicsPath = "/packages/runtime/src/physics.ts";
+        const { PhysicsSystem } = await import(physicsPath);
+        const assetMemory = engine.assetCache.budget;
+        const beforeMemory = assetMemory.snapshot.used;
+        const beforePhysics = engine.physics,
+          beforeDocument = engine.document,
+          beforeObjects = [...engine.objects.values()];
+        const originalAdd = PhysicsSystem.prototype.add;
+        let additions = 0;
+        PhysicsSystem.prototype.add = function (e: unknown) {
+          if (++additions === 3) throw Error("injected staged physics failure");
+          return originalAdd.call(this, e);
+        };
+        rejected = false;
+        try {
+          await engine.load(scene);
+        } catch {
+          rejected = true;
+        } finally {
+          PhysicsSystem.prototype.add = originalAdd;
+        }
+        check(
+          rejected && engine.physics === beforePhysics && engine.document === beforeDocument,
+          "late construction rollback retains world identity",
+        );
+        check(
+          [...engine.objects.values()].every((o, i) => o === beforeObjects[i]),
+          "rollback retains live object bindings",
+        );
+        check(
+          engine.assetCache.metrics.leases === 100 && !engine.loading,
+          "rollback releases staging leases",
+        );
+        check(assetMemory.snapshot.used === beforeMemory, "failed world releases reservations");
+        const pressure = assetMemory.reserve(
+          assetMemory.snapshot.limit - assetMemory.snapshot.used - 1024,
+          "test-pressure",
+        );
+        rejected = false;
+        try {
+          await engine.load(scene);
+        } catch {
+          rejected = true;
+        } finally {
+          pressure.release();
+        }
+        check(
+          rejected &&
+            engine.document === beforeDocument &&
+            assetMemory.snapshot.used === beforeMemory,
+          "pressure rejects without destroying active world: " +
+            JSON.stringify({
+              rejected,
+              same: engine.document === beforeDocument,
+              used: assetMemory.snapshot.used,
+              beforeMemory,
+            }),
+        );
+        const originalAcquire = engine.assetCache.acquire.bind(engine.assetCache);
+        let acquired = 0;
+        engine.assetCache.acquire = (data: string, owner: string) => {
+          if (owner.startsWith("entity:") && ++acquired === 3)
+            throw Error("injected clone failure");
+          return originalAcquire(data, owner);
+        };
+        rejected = false;
+        try {
+          await engine.load(scene);
+        } catch {
+          rejected = true;
+        } finally {
+          engine.assetCache.acquire = originalAcquire;
+        }
+        check(
+          rejected &&
+            engine.document === beforeDocument &&
+            engine.assetCache.metrics.leases === 100,
+          "clone failure rolls back partial new instances",
+        );
+        await engine.load(scene);
+        check(engine.assetCache.metrics.leases === 100, "retry after staging failures");
         engine.play();
         const entity = structuredClone(scene.entities[2]);
         entity.id = crypto.randomUUID();
@@ -72,6 +153,7 @@ try {
         await Promise.all([engine.load(scene), engine.load(later)]);
         check(engine.document.name === "Winning scene", "latest load wins");
         check(engine.assetCache.metrics.leases === 0, "old instances released");
+        const plateau = engine.assetCache.budget.snapshot.used;
         const single = structuredClone(scene);
         single.entities = single.entities.slice(0, 3);
         for (let i = 0; i < 100; i++) {
@@ -81,6 +163,10 @@ try {
         check(
           engine.assetCache.metrics.parses === 1 && engine.assetCache.metrics.leases === 0,
           "100 scene cycles plateau",
+        );
+        check(
+          engine.assetCache.budget.snapshot.used === plateau,
+          "100 cycles release world/instance reservations",
         );
       } finally {
         engine.dispose();

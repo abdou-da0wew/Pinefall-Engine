@@ -1,3 +1,4 @@
+import { assetMemory } from "./budget";
 export interface JobUpdate {
   id: string;
   stage: string;
@@ -62,6 +63,7 @@ export function workerJob<T>(
   payload: unknown,
   signal?: AbortSignal,
   onStage?: (update: JobUpdate) => void,
+  reservationBytes = 128 * 1024 * 1024,
 ): Promise<T> {
   const id = crypto.randomUUID(),
     start = performance.now();
@@ -70,10 +72,18 @@ export function workerJob<T>(
     () =>
       new Promise<T>((resolve, reject) => {
         signal?.throwIfAborted();
-        const worker = createWorker();
+        const reservation = assetMemory.reserve(reservationBytes, "import-worker");
+        let worker: Worker;
+        try {
+          worker = createWorker();
+        } catch (error) {
+          reservation.release();
+          throw error;
+        }
         let settled = false;
         const cleanup = () => {
           worker.terminate();
+          reservation.release();
           clearTimeout(timer);
           signal?.removeEventListener("abort", abort);
         };

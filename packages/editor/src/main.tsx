@@ -1386,6 +1386,11 @@ function App() {
               <section>
                 <h3>Adapter</h3>
                 <code>{stats?.adapter || "Not available"}</code>
+                <small>
+                  Asset admission: {((stats?.assetAccountedBytes || 0) / 1048576).toFixed(1)} MiB ·
+                  peak {((stats?.assetPeakAccountedBytes || 0) / 1048576).toFixed(1)} MiB.
+                  Conservative accounting, not measured process/GPU memory.
+                </small>
                 <p className="hint">
                   SwiftShader / llvmpipe means CPU software rendering, not your physical GPU.
                 </p>

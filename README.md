@@ -1,10 +1,10 @@
-# Pinefall Engine 0.5.4
+# Pinefall Engine 0.5.5
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.5.4 candidate:** reference-only editor documents, verified persistent asset cache/recovery, and explicit material/clip reimport mapping. GitHub publication is pending authentication. See [candidate notes](docs/RELEASE-0.5.4.md). Plan 01 still has open acceptance gates.
+**0.5.5:** includes persistent reference-only recovery from 0.5.4, complete replacement-world staging before teardown, conservative shared asset admission, and fault-injection tests. This is another tested Plan 01 checkpoint, not full completion. See [release notes](docs/RELEASE-0.5.5.md).
 
 **0.5.3:** worker-based model parsing, cached instances, cancellable import/reimport, experimental FBX + PNG/JPEG conversion, and PIF v3 source provenance. This is a tested first asset-pipeline slice, not full Plan 01 completion. See [release notes](docs/RELEASE-0.5.3.md).
 
@@ -24,15 +24,15 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 These are the intended release destinations; links become available after authenticated publication.
 
-[**0.5.3 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.3)
+[**0.5.5 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.5)
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-source.zip)
-- [Asset Pipeline PIF v3 sample](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Asset-Pipeline-0.5.3.pif)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/SHA256SUMS-0.5.3.txt)
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.5/Pinefall-Engine-0.5.5-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.5/Pinefall-Engine-0.5.5-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.5/Pinefall-Engine-0.5.5-source.zip)
+- [Asset Pipeline PIF v3 sample](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.5/Asset-Pipeline-0.5.5.pif)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.5/SHA256SUMS-0.5.5.txt)
 
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.3-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.5-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
 
 ## Documentation
 

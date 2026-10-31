@@ -47,7 +47,13 @@ export class UIStore implements UIAPI {
   }
   private changed() {
     this.revision++;
-    for (const fn of this.observers) fn();
+    for (const fn of this.observers) {
+      try {
+        fn();
+      } catch (error) {
+        this.error(error);
+      }
+    }
   }
   subscribe(fn: () => void) {
     this.observers.add(fn);
