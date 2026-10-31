@@ -19,7 +19,13 @@ export interface ScriptAttachment {
   enabled: boolean;
   props: Record<string, ScriptValue>;
 }
+export interface Collection {
+  id: string;
+  name: string;
+  parent?: string;
+}
 export interface Entity {
+  collection?: string;
   scripts?: ScriptAttachment[];
   id: string;
   name: string;
@@ -45,6 +51,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  collections?: Collection[];
   scripts?: ScriptAsset[];
   version: 1;
   name: string;
@@ -175,6 +182,31 @@ export function parseScene(value: unknown): SceneDocument {
     )
       fail("script IDs/budget");
   }
+  let collections: Collection[] | undefined;
+  if (value.collections !== undefined) {
+    if (!Array.isArray(value.collections) || value.collections.length > 100)
+      fail("collection limit");
+    collections = value.collections.map((c) => {
+      if (!record(c)) fail("collection");
+      return {
+        id: text(c.id, "collection ID"),
+        name: text(c.name, "collection name"),
+        ...(c.parent !== undefined ? { parent: text(c.parent, "collection parent") } : {}),
+      };
+    });
+    if (new Set(collections.map((c) => c.id)).size !== collections.length)
+      fail("duplicate collections");
+    for (const c of collections) {
+      const seen = new Set([c.id]);
+      let parent = c.parent;
+      while (parent) {
+        const item = collections.find((c) => c.id === parent);
+        if (!item || seen.has(parent)) fail("missing/cyclic collection");
+        seen.add(parent);
+        parent = item.parent;
+      }
+    }
+  }
   const entities: Entity[] = value.entities.map((e) => {
     if (!record(e) || !record(e.transform) || typeof e.enabled !== "boolean") fail("entity");
     const out: Entity = {
@@ -205,6 +237,10 @@ export function parseScene(value: unknown): SceneDocument {
       });
       if (new Set(out.scripts.map((a) => a.id)).size !== out.scripts.length)
         fail("duplicate attachment IDs");
+    }
+    if (e.collection !== undefined) {
+      out.collection = text(e.collection, "collection reference");
+      if (!collections?.some((c) => c.id === out.collection)) fail("missing collection");
     }
     if (e.parent !== undefined) out.parent = text(e.parent, "parent");
     if (e.tag !== undefined) out.tag = text(e.tag, "tag");
@@ -250,6 +286,7 @@ export function parseScene(value: unknown): SceneDocument {
     return out;
   });
   const ids = new Set(entities.map((e) => e.id));
+  if (collections?.some((c) => ids.has(c.id))) fail("collection/entity ID collision");
   if (ids.size !== entities.length) fail("duplicate IDs");
   if (new Set(assets.map((a) => a.id)).size !== assets.length) fail("duplicate assets");
   if (entities.filter((e) => e.light).length > 8) fail("maximum eight lights");
@@ -270,6 +307,7 @@ export function parseScene(value: unknown): SceneDocument {
     entities,
     assets,
     ...(scripts ? { scripts } : {}),
+    ...(collections ? { collections } : {}),
     environment: {
       background: color(env.background),
       fog: color(env.fog),

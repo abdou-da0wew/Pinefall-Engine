@@ -11,11 +11,11 @@ try {
   await page.waitForFunction(
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
-  await page.getByRole("button", { name: "＋ New game", exact: true }).click();
+  await page.getByRole("button", { name: "New game", exact: true }).click();
   await page.getByLabel("Game name", { exact: true }).fill("Script Workshop");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
-  await page.getByRole("button", { name: "{ } Scripts", exact: true }).click();
-  await page.getByRole("button", { name: "＋ New TypeScript", exact: true }).click();
+  await page.getByRole("button", { name: "Scripts", exact: true }).click();
+  await page.getByRole("button", { name: "New TypeScript", exact: true }).click();
   await page
     .getByLabel("TypeScript source")
     .fill(
@@ -34,7 +34,7 @@ try {
   await page.getByRole("button", { name: "Stop scene", exact: true }).click();
   await page.getByRole("button", { name: /Console \(/ }).click();
   await expect(page.locator(".console")).toContainText("script-browser-ok");
-  await page.getByRole("button", { name: "{ } Scripts", exact: true }).click();
+  await page.getByRole("button", { name: "Scripts", exact: true }).click();
   await page.screenshot({ path: "docs/scripting-editor.png" });
   await page
     .getByLabel("TypeScript source")

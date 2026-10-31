@@ -1,3 +1,4 @@
+import { Icon } from "./icons";
 import { useRef, useState } from "react";
 import type { Entity, SceneDocument } from "../../runtime/src/schema";
 import { compileScript } from "../../scripting/src/compiler";
@@ -56,10 +57,10 @@ export function ScriptPanel({
     <div className="script-workbench">
       <div className="script-list">
         <button disabled={disabled} onClick={() => add()}>
-          ＋ New TypeScript
+          <Icon name="plus" /> New TypeScript
         </button>
         <button disabled={disabled} onClick={() => input.current?.click()}>
-          ↥ Import .ts
+          <Icon name="upload" /> Import .ts
         </button>
         {scene.scripts?.map((s) => (
           <button
@@ -171,7 +172,9 @@ export function ScriptAttachments({
   const [message, setMessage] = useState("");
   return (
     <section>
-      <h3>⌘ Custom scripts</h3>
+      <h3>
+        <Icon name="code" /> Custom scripts
+      </h3>
       <select
         aria-label="Attach script"
         value=""
@@ -185,7 +188,7 @@ export function ScriptAttachments({
             });
         }}
       >
-        <option value="">＋ Attach a script…</option>
+        <option value="">Attach a script…</option>
         {scene.scripts?.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}

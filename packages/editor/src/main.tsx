@@ -1,3 +1,7 @@
+import { descendants } from "./hierarchy-model";
+import { Hierarchy } from "./hierarchy";
+import { Icon } from "./icons";
+import { useWorkspaceLayout } from "./layout";
 import { ScriptPanel, ScriptAttachments } from "./scripting";
 import { hasSceneScripts } from "../../scripting/src/runtime";
 import { createGame, importModel, placeModel } from "../../project/src";
@@ -64,11 +68,11 @@ function App() {
     [error, setError] = useState(""),
     [status, setStatus] = useState("Initializing physics and renderer…"),
     [ready, setReady] = useState(false),
-    [search, setSearch] = useState(""),
     [stats, setStats] = useState<Stats | null>(null),
     [score, setScore] = useState({ collected: 0, total: 5, won: false, speed: 0 }),
     [revision, setRevision] = useState(0),
     [tool, setTool] = useState<"translate" | "rotate" | "scale">("translate");
+  const workspace = useWorkspaceLayout(tab === "scripts");
   const canvas = useRef<HTMLCanvasElement>(null),
     engine = useRef<Engine | null>(null),
     history = useRef(new History()),
@@ -166,7 +170,10 @@ function App() {
   }, []);
   useEffect(() => {
     current.current = scene;
-    if (engine.current && ready) void engine.current.load(scene).catch((e) => setError(String(e)));
+    if (engine.current && ready)
+      void engine.current
+        .load(scene, { preserveView: engine.current.document?.name === scene.name })
+        .catch((e) => setError(String(e)));
     const timer = setTimeout(() => {
       try {
         localStorage.setItem("pinefall-engine.scene.v1", serializeScene(scene));
@@ -202,33 +209,6 @@ function App() {
     );
     commit((d) => d.entities.push(e));
     setSelected(e.id);
-  }
-  function duplicate() {
-    const source = scene.entities.find((e) => e.id === selected);
-    if (!source) return;
-    const e = structuredClone(source);
-    e.id = crypto.randomUUID();
-    e.name += " copy";
-    e.transform.position[0] += 2;
-    commit((d) => d.entities.push(e));
-    setSelected(e.id);
-  }
-  function remove() {
-    if (!selected) return;
-    commit((d) => {
-      const ids = new Set([selected]);
-      let added = true;
-      while (added) {
-        added = false;
-        for (const e of d.entities)
-          if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
-            ids.add(e.id);
-            added = true;
-          }
-      }
-      d.entities = d.entities.filter((e) => !ids.has(e.id));
-    });
-    setSelected(null);
   }
   function undo(redo = false) {
     if (playing) return;
@@ -328,7 +308,7 @@ function App() {
         }
     }
     const items = structuredClone(scene.entities.filter((e) => ids.has(e.id)));
-    delete items[0].parent;
+    for (const item of items) if (item.id === e.id) delete item.parent;
     await download(
       e.name + ".prefab.json",
       serializeScene({ ...scene, name: e.name, entities: items }),
@@ -342,7 +322,20 @@ function App() {
       if (f.size > 9_000_000) throw new Error("Prefab too large");
       const prefab = parseScene(JSON.parse(await f.text()));
       const mapping = new Map(prefab.entities.map((e) => [e.id, crypto.randomUUID()]));
+      const collectionMap = new Map(
+        (prefab.collections || []).map((c) => [c.id, crypto.randomUUID()]),
+      );
       commit((d) => {
+        if (prefab.collections?.length) {
+          d.collections ??= [];
+          d.collections.push(
+            ...prefab.collections.map((c) => ({
+              ...c,
+              id: collectionMap.get(c.id)!,
+              parent: c.parent ? collectionMap.get(c.parent) : undefined,
+            })),
+          );
+        }
         for (const script of prefab.scripts || []) {
           d.scripts ??= [];
           if (!d.scripts.some((s) => s.id === script.id)) d.scripts.push(script);
@@ -353,6 +346,7 @@ function App() {
           const item = structuredClone(e);
           item.id = mapping.get(e.id)!;
           item.parent = e.parent ? mapping.get(e.parent) : undefined;
+          item.collection = e.collection ? collectionMap.get(e.collection) : undefined;
           d.entities.push(item);
         }
       });
@@ -360,10 +354,9 @@ function App() {
       setStatus(String(e));
     }
   }
+  const selectedCollection = scene.collections?.find((c) => c.id === selected);
   const chosen = scene.entities.find((e) => e.id === selected);
-  const displayed = scene.entities.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase()),
-  );
+
   function num(
     label: string,
     value: number,
@@ -419,7 +412,12 @@ function App() {
     );
   }
   return (
-    <div className={"workbench " + (tab === "scripts" ? "scripting-open" : "")}>
+    <div
+      style={workspace.style}
+      className={"workbench " + workspace.className + (tab === "scripts" ? " scripting-open" : "")}
+    >
+      {workspace.handles}
+      {workspace.dockTargets}
       {newGameOpen && (
         <div className="project-modal" role="dialog" aria-modal="true" aria-label="New game">
           <form
@@ -472,27 +470,30 @@ function App() {
 
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">◈</span>
+          <span className="brand-mark">
+            <Icon name="cube" size={32} />
+          </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.3</small>
+            <small>WORKSHOP / 0.4</small>
           </div>
         </div>
         <div className="project-path">
           Projects <span>/</span> {scene.name} <i>LOCAL</i>
         </div>
         <div className="top-actions">
+          {workspace.toolbar}
           <button disabled={playing} onClick={() => setNewGameOpen(true)}>
-            ＋ New game
+            <Icon name="plus" /> New game
           </button>
           <button disabled={playing} onClick={() => file.current?.click()}>
-            ↥ Open scene
+            <Icon name="upload" /> Open scene
           </button>
           <button onClick={() => void download(scene.name + ".scene.json", serializeScene(scene))}>
-            ↧ Export scene
+            <Icon name="download" /> Export scene
           </button>
           <a href={`./game.html?template=${scene.template}`} target="_blank" rel="noreferrer">
-            ↗ Player
+            <Icon name="external" /> Player
           </a>
         </div>
       </header>
@@ -522,7 +523,15 @@ function App() {
             disabled={!ready}
             onClick={() => void run()}
           >
-            {playing ? "■ Stop" : "▶ Play"}
+            {playing ? (
+              <>
+                <Icon name="stop" /> Stop
+              </>
+            ) : (
+              <>
+                <Icon name="play" /> Play
+              </>
+            )}
           </button>
           <button
             aria-label="Pause simulation"
@@ -535,71 +544,33 @@ function App() {
               }
             }}
           >
-            Ⅱ
+            <Icon name="pause" />
           </button>
         </div>
         <div className="history-controls">
           <button disabled={playing || !history.current.canUndo} onClick={() => undo()}>
-            ↶ Undo
+            <Icon name="undo" /> Undo
           </button>
           <button disabled={playing || !history.current.canRedo} onClick={() => undo(true)}>
-            ↷ Redo
+            <Icon name="redo" /> Redo
           </button>
           <span className="saved-dot" /> {playing ? "Runtime isolated" : "Local autosave"}
         </div>
       </div>
-      <aside className="hierarchy">
-        <div className="panel-title">
-          SCENE HIERARCHY <span>{scene.entities.length}</span>
-        </div>
-        <input
-          className="search"
-          aria-label="Search entities"
-          placeholder="⌕  Find an object…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="scene-root">
-          ▾ <span>◈</span> {scene.name}
-        </div>
-        <div className="entity-list">
-          {displayed.map((e) => (
-            <button
-              key={e.id}
-              className={"entity-row " + (selected === e.id ? "selected" : "")}
-              style={{ paddingLeft: e.parent ? 30 : 14, opacity: e.enabled ? 1 : 0.45 }}
-              onClick={() => {
-                setSelected(e.id);
-                setInspector("entity");
-              }}
-              onDoubleClick={() => engine.current?.focus(e.id)}
-            >
-              <span
-                className={
-                  e.light ? "icon-light" : e.tag === "player" ? "icon-player" : "icon-object"
-                }
-              >
-                {e.light ? "☀" : e.tag === "player" ? "◉" : e.physics?.sensor ? "◇" : "⬡"}
-              </span>
-              <span>{e.name}</span>
-              {e.physics && (
-                <i>{e.physics.type === "dynamic" ? "●" : e.physics.sensor ? "◌" : "·"}</i>
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="hierarchy-footer">
-          <button disabled={playing} onClick={() => add("box")}>
-            ＋ Object
-          </button>
-          <button disabled={playing || !chosen} onClick={duplicate}>
-            Duplicate
-          </button>
-          <button disabled={playing || !chosen} onClick={remove}>
-            Delete
-          </button>
-        </div>
-      </aside>
+      <Hierarchy
+        key={scene.name}
+        scene={scene}
+        selected={selected}
+        onSelect={(id) => {
+          setSelected(id);
+          setInspector("entity");
+        }}
+        commit={commit}
+        disabled={playing}
+        focus={(id) => engine.current?.focus([...descendants(scene, [id])])}
+        add={() => add("box")}
+        notify={setStatus}
+      />
       <main className="viewport">
         <div className="viewport-toolbar">
           <div>
@@ -607,6 +578,13 @@ function App() {
             <span className="dim">{playing ? templateNames[scene.template] : "Perspective"}</span>
           </div>
           <div className="tools">
+            <button
+              aria-label="Toggle viewport focus"
+              title="Maximize / restore viewport"
+              onClick={workspace.toggleFocus}
+            >
+              <Icon name="maximize" />
+            </button>
             {(["translate", "rotate", "scale"] as const).map((t, i) => (
               <button
                 key={t}
@@ -618,7 +596,7 @@ function App() {
                   engine.current?.transformMode(t);
                 }}
               >
-                {["↔", "↻", "⤢"][i]}
+                <Icon name={(["move", "rotate", "scale"] as const)[i]} />
               </button>
             ))}
             <button
@@ -627,7 +605,9 @@ function App() {
             >
               Frame
             </button>
-            <button onClick={() => setInspector("render")}>☷ Render</button>
+            <button onClick={() => setInspector("render")}>
+              <Icon name="settings" /> Render
+            </button>
           </div>
         </div>
         <div
@@ -663,7 +643,9 @@ function App() {
               <div>THE LAST LIGHT COLLECTION</div>
               <h1>{scene.name}</h1>
               <p>A small world. A reusable foundation.</p>
-              <button onClick={() => void run()}>▶ Explore in play mode</button>
+              <button onClick={() => void run()}>
+                <Icon name="play" /> Explore in play mode
+              </button>
             </div>
           )}
           {playing && (
@@ -691,8 +673,12 @@ function App() {
               </p>
               {scene.template === "sandbox" && (
                 <div>
-                  <button onClick={() => engine.current?.spawnBox()}>＋ Spawn crate</button>
-                  <button onClick={() => engine.current?.impulse()}>↑ Apply impulse</button>
+                  <button onClick={() => engine.current?.spawnBox()}>
+                    <Icon name="plus" /> Spawn crate
+                  </button>
+                  <button onClick={() => engine.current?.impulse()}>
+                    <Icon name="up" /> Apply impulse
+                  </button>
                 </div>
               )}
             </div>
@@ -745,7 +731,9 @@ function App() {
             chosen ? (
               <>
                 <div className="selected-heading">
-                  <span>⬡</span>
+                  <span>
+                    <Icon name="cube" size={25} />
+                  </span>
                   <div>
                     <input
                       aria-label="Entity name"
@@ -774,7 +762,9 @@ function App() {
                   />
                 </div>
                 <section>
-                  <h3>⌖ Transform</h3>
+                  <h3>
+                    <Icon name="move" /> Transform
+                  </h3>
                   {vector("position")}
                   {vector("rotation")}
                   {vector("scale")}
@@ -784,7 +774,9 @@ function App() {
                 </section>
                 {chosen.mesh && (
                   <section>
-                    <h3>⬡ Mesh renderer</h3>
+                    <h3>
+                      <Icon name="cube" /> Mesh renderer
+                    </h3>
                     <label className="row-field">
                       Library model
                       <select
@@ -835,7 +827,9 @@ function App() {
                   </section>
                 )}
                 <section>
-                  <h3>◉ Physics body</h3>
+                  <h3>
+                    <Icon name="physics" /> Physics body
+                  </h3>
                   {chosen.physics ? (
                     <>
                       <label className="row-field">
@@ -951,13 +945,15 @@ function App() {
                           })
                         }
                       >
-                        ＋ Add rigid body
+                        <Icon name="plus" /> Add rigid body
                       </button>
                     </>
                   )}
                 </section>
                 <section>
-                  <h3>⌘ Behavior</h3>
+                  <h3>
+                    <Icon name="code" /> Behavior
+                  </h3>
                   <select
                     aria-label="Behavior"
                     value={chosen.behavior || ""}
@@ -1010,7 +1006,9 @@ function App() {
                 />
                 {chosen.light && (
                   <section>
-                    <h3>☀ Light</h3>
+                    <h3>
+                      <Icon name="light" /> Light
+                    </h3>
                     {num(
                       "Light intensity",
                       chosen.light.intensity,
@@ -1052,14 +1050,22 @@ function App() {
                   disabled={playing}
                   onClick={() => void exportPrefab()}
                 >
-                  ↧ Export selected prefab
+                  <Icon name="download" /> Export selected prefab
                 </button>
               </>
             ) : (
               <div className="empty-inspector">
-                <span>⌖</span>
-                <h3>A place for every detail.</h3>
-                <p>Select an object in the scene or hierarchy to inspect its components.</p>
+                <span>
+                  <Icon name="focus" size={32} />
+                </span>
+                <h3>
+                  {selectedCollection ? selectedCollection.name : "A place for every detail."}
+                </h3>
+                <p>
+                  {selectedCollection
+                    ? "Organizational collection. Drag objects or nested collections here; transforms and physics remain unchanged. Double-click to collapse. Rename with F2."
+                    : "Select an object in the scene or hierarchy to inspect its components."}
+                </p>
                 <button
                   onClick={() =>
                     setSelected(
@@ -1179,16 +1185,27 @@ function App() {
       </aside>
       <section className="bottom-panel">
         <div className="bottom-tabs">
+          {workspace.dockGrip}
           <div>
             {(["assets", "console", "scripts", "guide"] as const).map((t) => (
               <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-                {t === "assets"
-                  ? "◫ Asset library"
-                  : t === "console"
-                    ? `›_ Console (${logs.length})`
-                    : t === "scripts"
-                      ? "{ } Scripts"
-                      : "⌘ Quick start"}
+                {t === "assets" ? (
+                  <>
+                    <Icon name="assets" /> Asset library
+                  </>
+                ) : t === "console" ? (
+                  <>
+                    <Icon name="console" /> Console ({logs.length})
+                  </>
+                ) : t === "scripts" ? (
+                  <>
+                    <Icon name="code" /> Scripts
+                  </>
+                ) : (
+                  <>
+                    <Icon name="guide" /> Quick start
+                  </>
+                )}
               </button>
             ))}
           </div>
@@ -1196,10 +1213,10 @@ function App() {
             {tab === "assets" ? (
               <>
                 <button disabled={playing} onClick={() => glb.current?.click()}>
-                  ↥ Import GLB
+                  <Icon name="upload" /> Import GLB
                 </button>
                 <button disabled={playing} onClick={() => prefabFile.current?.click()}>
-                  ↥ Import prefab
+                  <Icon name="upload" /> Import prefab
                 </button>
               </>
             ) : tab === "console" ? (
@@ -1236,7 +1253,9 @@ function App() {
         ) : tab === "assets" ? (
           <div className="asset-content">
             <div className="asset-folders">
-              <span className="active">▾ Built-in library</span>
+              <span className="active">
+                <Icon name="folderOpen" /> Built-in library
+              </span>
               <span>　Primitives</span>
               <span>　Game templates</span>
               <span>　Embedded assets ({scene.assets.length})</span>
@@ -1244,7 +1263,12 @@ function App() {
             <div className="asset-grid">
               {(["box", "sphere", "capsule", "cylinder", "cone"] as const).map((p, i) => (
                 <button className="asset-card" disabled={playing} key={p} onClick={() => add(p)}>
-                  <span className={"asset-icon shape-" + p}>{["⬡", "●", "◉", "▥", "▲"][i]}</span>
+                  <span className={"asset-icon shape-" + p}>
+                    <Icon
+                      name={(["cube", "sphere", "capsule", "cylinder", "cone"] as const)[i]}
+                      size={32}
+                    />
+                  </span>
                   <strong>{p}</strong>
                   <small>PRIMITIVE · ADD</small>
                 </button>
@@ -1259,7 +1283,9 @@ function App() {
                   setSelected(e.id);
                 }}
               >
-                <span className="asset-icon">☀</span>
+                <span className="asset-icon">
+                  <Icon name="light" size={32} />
+                </span>
                 <strong>Spot light</strong>
                 <small>LIGHT · ADD</small>
               </button>
@@ -1275,7 +1301,9 @@ function App() {
                     setSelected(e.id);
                   }}
                 >
-                  <span className="asset-icon">◇</span>
+                  <span className="asset-icon">
+                    <Icon name="cube" size={32} />
+                  </span>
                   <strong>{a.name}</strong>
                   <small>GLB · INSTANCE</small>
                 </button>

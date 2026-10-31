@@ -265,7 +265,10 @@ export class Engine {
     }
     return m;
   }
-  async load(input: SceneDocument) {
+  async load(input: SceneDocument, options: { preserveView?: boolean } = {}) {
+    const savedView = options.preserveView
+      ? { position: this.camera.position.clone(), target: this.orbit.target.clone() }
+      : null;
     const scene = parseScene(input),
       generation = ++this.generation;
     this.playing = false;
@@ -322,6 +325,10 @@ export class Engine {
     this.orbit.enabled = true;
     this.orbit.target.set(0, 1, -4);
     this.camera.position.set(22, 17, 25);
+    if (savedView) {
+      this.camera.position.copy(savedView.position);
+      this.orbit.target.copy(savedView.target);
+    }
     this.orbit.update();
     this.applySettings(this.settings);
     this.events.emit("scene", "Loaded " + scene.name, { entities: scene.entities.length });
@@ -380,14 +387,22 @@ export class Engine {
   transformMode(mode: "translate" | "rotate" | "scale") {
     this.gizmo.setMode(mode);
   }
-  focus(id: string) {
-    const object = this.objects.get(id);
-    if (object) {
-      object.getWorldPosition(this.follow);
-      this.orbit.target.copy(this.follow);
-      this.camera.position.copy(this.follow).add(new T.Vector3(7, 5, 8));
-      this.orbit.update();
+  focus(id: string | string[]) {
+    const bounds = new T.Box3();
+    for (const key of Array.isArray(id) ? id : [id]) {
+      const o = this.objects.get(key);
+      if (o) bounds.expandByObject(o);
     }
+    if (bounds.isEmpty()) return;
+    const center = bounds.getCenter(new T.Vector3()),
+      size = bounds.getSize(new T.Vector3());
+    const radius = Math.max(2, size.length() * 0.5),
+      distance = radius / Math.sin(T.MathUtils.degToRad(this.camera.fov * 0.5));
+    this.orbit.target.copy(center);
+    this.camera.position
+      .copy(center)
+      .add(new T.Vector3(1, 0.7, 1).normalize().multiplyScalar(Math.min(105, distance * 1.1)));
+    this.orbit.update();
   }
   pick(x: number, y: number) {
     const rect = this.canvas.getBoundingClientRect(),

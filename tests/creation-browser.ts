@@ -11,7 +11,7 @@ try {
   await page.waitForFunction(
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
-  await page.getByRole("button", { name: "＋ New game", exact: true }).click();
+  await page.getByRole("button", { name: "New game", exact: true }).click();
   await page.getByLabel("Game name", { exact: true }).fill("Asset Workshop Test");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await expect(page.locator(".scene-caption h1")).toHaveText("Asset Workshop Test");

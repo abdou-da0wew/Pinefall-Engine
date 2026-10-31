@@ -7,3 +7,5 @@ export type { Behavior, BehaviorContext, BehaviorFactory, SimulationHost } from 
 export { Events } from "./events";
 
 export type { ScriptAsset, ScriptAttachment, ScriptValue } from "./schema";
+
+export type { Collection } from "./schema";

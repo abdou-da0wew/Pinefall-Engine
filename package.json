@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -20,12 +20,14 @@
     "test:browser": "bun tests/browser.ts",
     "test:runtime-browser": "bun tests/runtime-browser.ts",
     "game": "bun scripts/game.ts",
-    "test:scripting-browser": "bun tests/scripting-browser.ts"
+    "test:scripting-browser": "bun tests/scripting-browser.ts",
+    "test:workspace": "bun tests/workspace-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
     "@fontsource/dm-sans": "5.3.0",
     "@fontsource/space-grotesk": "5.3.0",
+    "@phosphor-icons/react": "^2.1.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sucrase": "3.35.0",

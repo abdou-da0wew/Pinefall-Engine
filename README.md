@@ -1,10 +1,12 @@
-# Pinefall Engine 0.3.0 — attachable TypeScript scripting
+# Pinefall Engine 0.4.0 — flexible workspace and scene hierarchy
 
 **New in 0.2:** named New Game workflow, reusable multi-model imports and drag/drop, player-model replacement, a DOM-free simulator sharing real physics/gameplay behaviors, JSON CLI authoring, and standalone custom-game web export. See [Creating games](docs/CREATING-GAMES.md) for the complete workflow, API, supported assets, limits and example.
 
 **New in 0.3:** in-editor TypeScript script assets, multiple per-object attachments, editable JSON properties, class/factory lifecycle hooks, a typed gameplay SDK, helper-module imports, runtime spawn/destroy, script diagnostics, explicit code trust, and the same scripts running headlessly or in exported players. See [Scripting](docs/SCRIPTING.md) and `examples/projects/script-lab.scene.json`.
 
-The published 0.1.1 release below predates these changes; 0.3 is currently local development.
+**New in 0.4:** local Phosphor SVG icons, resizable/dockable panels, saved layouts, multi-selection, nested organizational collections, world-preserving object parenting, collapsible/searchable scene tree, keyboard navigation, and subtree duplicate/delete. See [Workspace guide](docs/WORKSPACE.md).
+
+The published 0.1.1 release below predates these changes; 0.4 is currently local development.
 
 A separate TypeScript 3D runtime and visual workshop, built with Bun, Three.js, Rapier and React. The original Pinefall game is unchanged. This is a small usable engine foundation, **not Unity feature parity or a production-certified engine**.
 

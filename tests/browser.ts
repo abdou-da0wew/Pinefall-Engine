@@ -17,7 +17,7 @@ for (const template of ["adventure", "first-person", "driving", "sandbox"]) {
   await page.getByRole("button", { name: "Play scene", exact: true }).click();
   await page.waitForTimeout(800);
   if (template === "sandbox")
-    await page.getByRole("button", { name: "＋ Spawn crate", exact: true }).click();
+    await page.getByRole("button", { name: "Spawn crate", exact: true }).click();
   await page.getByRole("button", { name: "Stop scene", exact: true }).click();
 }
 await page.getByRole("button", { name: "Rendering", exact: true }).click();
