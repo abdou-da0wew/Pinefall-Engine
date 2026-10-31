@@ -1,27 +1,29 @@
-# Pinefall Engine 0.5.0
+# Pinefall Engine 0.5.1
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**Local 0.5.0 update:** visual game-UI designer, eight interactive widgets, TypeScript UI SDK, trigger/action/game-loop updates, and DOM-free UI tests. Includes the 0.4.1 color-picker fix. See [Game UI toolkit](docs/UI-TOOLKIT.md). Public release links below still point to 0.4.0; this update has not been published.
+**0.5.1:** real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
 ## Work in progress: 0.6
 
-The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first milestone adds real XZ `.pif` project containers with separate resources, cancellable worker open/save, and project keyboard shortcuts. See [PIF format and current limitations](docs/PIF.md). FBX, custom shaders and the expanded graphics pipeline are still pending. The existing 0.5.0 desktop artifacts do not include this source-only milestone.
+The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first milestone adds real XZ `.pif` project containers with separate resources, cancellable worker open/save, and project keyboard shortcuts. See [PIF format and current limitations](docs/PIF.md). FBX, custom shaders and the expanded graphics pipeline are still pending. The 0.5.1 packages include this milestone; 0.5.0 packages contain the UI toolkit but not PIF support.
 
 ## Downloads
 
-[**0.4.0 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.4.0)
+These are the intended release destinations; links become available after authenticated publication.
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/Pinefall-Engine-0.4.0-source.zip)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.4.0/SHA256SUMS-0.4.0.txt)
+[**0.5.1 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.1)
 
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.4.0-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-source.zip)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/SHA256SUMS-0.5.1.txt)
+
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.1-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
 
 ## Documentation
 
@@ -30,7 +32,7 @@ Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pin
 | [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                     |
 | [Scripting and SDK](docs/SCRIPTING.md)       | TypeScript editor, attachments, properties, hooks, helpers, events, script security |
 | [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts                 |
-| [Release notes](docs/RELEASE-0.4.0.md)       | Features, download contents, validation and known limitations                       |
+| [Release notes](docs/RELEASE-0.5.1.md)       | Features, download contents, validation and known limitations                       |
 | [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                                 |
 | [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                                   |
 

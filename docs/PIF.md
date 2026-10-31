@@ -64,4 +64,4 @@ The byte array can be regenerated from the matching package binary at `node_modu
 
 Six dedicated archive tests cover real XZ magic, script/model round trips, invalid manifest/resources, traversal/duplicates/checksums/truncation, corrupt/concatenated streams and expansion-budget rejection. Browser tests exercise worker open/save, Ctrl+S, cancellation, error recovery and trust revocation. Linux Electron tests exercise the production worker bundle and binary save IPC. System `xz -t` and `tar -tJf` independently recognize the output.
 
-This is source/live-preview work in progress. The previous 0.5.0 desktop downloads do **not** contain it; new release packages await the remaining planned phases. Windows execution and physical Radeon testing remain unverified.
+This project-format milestone is packaged as **0.5.1**, independently of the remaining 0.6 roadmap. The 0.5.0 desktop packages do **not** contain it. Windows execution and physical Radeon testing remain unverified.

@@ -2,7 +2,13 @@ import { _electron, expect } from "@playwright/test";
 import { packProject, unpackProject } from "../packages/project/src/pif";
 import { parseScene } from "../packages/runtime/src/schema";
 const app = await _electron.launch({
-  args: [".", "--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
+  args: [
+    ...(process.env.TEST_DESKTOP_EXECUTABLE ? [] : ["."]),
+    "--no-sandbox",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+  ],
   cwd: process.cwd(),
 });
 try {

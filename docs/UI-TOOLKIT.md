@@ -145,7 +145,7 @@ NATIVE_UI=1 xvfb-run -a bun tests/ui-browser.ts # packaged Linux build
 - Limits: 128 widgets, panel-only acyclic parents, finite bounded coordinates/styles, text and option length limits. Plain text only; no external fonts, image widgets, rich HTML, nine-slice images, animation/tween system or arbitrary custom widget renderer yet.
 - UI controls suppress game movement keys while focused; click the viewport to return keyboard input to gameplay. Pointer-lock games may require Escape to release the pointer before using the HUD.
 - Designer authoring still uses the engine's existing scene reload path on committed edits. Runtime UI updates do not reload the scene or recreate physics. Dirty rendering and node reuse reduce work, but there is no physical CEDAR performance certification or long-session memory guarantee.
-- Linux desktop is tested with Xvfb/SwiftShader; Windows packages are built but not executed in this environment. Both desktop distributions remain unsigned. 0.5.0 has not been published to GitHub.
+- Linux desktop is tested with Xvfb/SwiftShader; Windows packages are built but not executed in this environment. Both desktop distributions remain unsigned. Check the GitHub releases page for publication status.
 
 ## Validation for this local build
 

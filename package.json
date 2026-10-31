@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -61,7 +61,10 @@
       "dist/**/*",
       "build-desktop/**/*",
       "package.json",
-      "!node_modules/**/*"
+      "!node_modules/**/*",
+      "docs/licenses/**/*",
+      "THIRD_PARTY.md",
+      "docs/PIF.md"
     ],
     "linux": {
       "target": "AppImage",
@@ -71,6 +74,7 @@
     "win": {
       "target": "zip",
       "icon": "desktop/icon.ico"
-    }
+    },
+    "npmRebuild": false
   }
 }

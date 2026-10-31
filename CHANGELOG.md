@@ -1,14 +1,14 @@
 # Changelog
 
-## Unreleased — 0.6 project-format milestone
+## 0.5.1 — PIF project-format milestone
 
 - Plan saved before implementation in docs/PLAN-0.6.md.
 - Genuine XZ-compressed TAR .pif projects with scene definition, binary GLB resources and separate TypeScript files; strict bounded decoder and archive validation.
 - Cancellable worker open/save, editor project commands and Ctrl/Cmd+S/O, standalone PIF loading, binary desktop save IPC and CLI pack/unpack.
 - Reopening projects revokes script trust; failed or stale imports preserve the current scene; autosave preserves meaningful operation status.
-- FBX/nonblocking model parsing, shaders/materials/UV/reflections, lighting/volumetrics and broader QoL phases remain pending. No new desktop release yet.
+- FBX/nonblocking model parsing, shaders/materials/UV/reflections, lighting/volumetrics and broader QoL phases remain pending. Packaged as 0.5.1; this is not completion of the full 0.6 roadmap.
 
-## 0.5.0 (local update)
+## 0.5.0 — UI toolkit
 
 - Visual UI designer: eight widgets, viewport selection/drag/resize, 8px snapping, undo/redo, anchors, reference-canvas sizing, parent panels and row/column layouts.
 - Style controls including custom color picker, background alpha, font size, text alignment, borders, radius, padding, visibility and enabled state.

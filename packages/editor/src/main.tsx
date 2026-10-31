@@ -565,7 +565,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.5</small>
+            <small>WORKSHOP / 0.5.1</small>
           </div>
         </div>
         <div className="project-path">
