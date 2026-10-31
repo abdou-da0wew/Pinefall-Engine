@@ -1,4 +1,4 @@
-# Pinefall Engine 0.1 — experimental foundation
+# Pinefall Engine 0.1.1 — experimental foundation
 
 A separate TypeScript 3D runtime and visual workshop, built with Bun, Three.js, Rapier and React. The original Pinefall game is unchanged. This is a small usable engine foundation, **not Unity feature parity or a production-certified engine**.
 
@@ -55,7 +55,7 @@ engine.play();
 // await engine.stop(); engine.dispose();
 ```
 
-Behavior factories support start, fixedUpdate, update, trigger, and dispose hooks; see `packages/runtime/src/behaviors.ts`. Register trusted code before loading/playing a scene. Scene JSON contains behavior names, never executable code. Runtime camera rigs currently use the scene's template mode; arbitrary camera-component authoring is future work.
+Behavior factories support start, fixedUpdate, update, trigger, and dispose hooks; see `packages/runtime/src/behaviors.ts`. Register trusted code before loading/playing a scene. Scene JSON contains behavior names, never executable code. Camera rigs default to the template mode. Override independently with `engine.setCameraRig("orbit" | "first-person" | "follow" | "vehicle" | "auto")`; overrides are runtime settings, not serialized scene components.
 
 ## Desktop / older GPUs
 
@@ -67,6 +67,23 @@ Binaries are unsigned. Windows packaging is not Windows runtime validation. CEDA
 
 Validated locally: strict TypeScript; Oxlint; 6 unit/physics tests (17 assertions); Chromium/SwiftShader browser smoke covering four-template play/stop, crate spawn, high effects and standalone player, with zero page errors. Screenshots in `docs/` are actual captures. Linux/Windows package generation succeeded; physical-GPU and Windows execution remain unverified. No long-duration memory/performance certification.
 
-This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, packaged per-project exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Custom behaviors are trusted and can throw; no plugin sandbox. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
+This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, packaged per-project exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Synchronous custom-behavior exceptions disable that instance and emit a structured error; other instances continue and cleanup still runs. This does not protect against infinite loops, asynchronous rejections, malicious plugins, or throwing event subscribers. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
 
 Generated dependencies, build outputs and packages are rebuildable. No engine GitHub repository/release has been published.
+
+## 0.1.1 additions and publication
+
+- Camera rigs can be selected independently of starter type; switching to orbit no longer forces a follow camera on scenes containing a player.
+- Behavior factory/start/fixed-update/update/trigger/dispose exception isolation with entity, behavior and hook diagnostics.
+- Eight unit/physics tests (23 assertions) pass. Additional real-browser runtime integration verifies spawn/stop restoration, camera override, character movement and script exception isolation (`bun run test:runtime-browser`). Rendering tests use SwiftShader, not physical hardware.
+- Tag-triggered GitHub Actions builds Linux and Windows packages on their respective OS runners, attaches source plus SHA256 sums, and publishes a prerelease only after both packaging jobs succeed. Native gameplay testing is not performed by that workflow.
+
+**Publication remains pending authentication.** From this source folder on your authenticated development machine:
+
+```sh
+gh auth login
+gh repo create abdou-da0wew/Pinefall-Engine --public --source=. --remote=origin --push
+git push origin v0.1.1
+```
+
+If the repository already exists, configure its remote instead of recreating it. GitHub must allow Actions for the release workflow. Do not paste access tokens in chat or store them in source. The 0.1.0 local desktop binaries predate these improvements; CI will build 0.1.1 from its tag.

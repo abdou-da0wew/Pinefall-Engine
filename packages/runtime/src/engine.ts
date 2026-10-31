@@ -1,3 +1,4 @@
+import { safeBehavior } from "./behavior-safety";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -26,7 +27,26 @@ export interface EngineOptions {
   onTransform?: (id: string, transform: Entity["transform"]) => void;
   onStats?: (stats: Stats) => void;
 }
+export type CameraRig = "auto" | "orbit" | "first-person" | "follow" | "vehicle";
 export class Engine {
+  private requestedRig: CameraRig = "auto";
+  get cameraRig(): Exclude<CameraRig, "auto"> {
+    if (this.requestedRig !== "auto") return this.requestedRig;
+    const mode = this.document?.template;
+    return mode === "sandbox"
+      ? "orbit"
+      : mode === "driving"
+        ? "vehicle"
+        : mode === "first-person"
+          ? "first-person"
+          : "follow";
+  }
+  setCameraRig(rig: CameraRig) {
+    this.requestedRig = rig;
+    this.orbit.enabled = !this.playing || this.cameraRig === "orbit";
+    this.events.emit("camera", "Camera rig changed", { rig });
+  }
+
   readonly events = new Events();
   readonly input = new Set<string>();
   readonly objects = new Map<string, T.Group>();
@@ -196,7 +216,7 @@ export class Engine {
         this.options.onSelect?.(this.pick(e.clientX, e.clientY));
     });
     this.listen(window, "pointermove", (event) => {
-      if (!this.playing || this.paused || this.document.template === "sandbox") return;
+      if (!this.playing || this.paused || this.cameraRig === "orbit") return;
       const e = event as PointerEvent;
       if (document.pointerLockElement === this.canvas || this.dragging) {
         this.look.yaw -= e.movementX * 0.003;
@@ -204,7 +224,7 @@ export class Engine {
       }
     });
     this.listen(this.canvas, "dblclick", () => {
-      if (this.playing && this.document.template === "first-person")
+      if (this.playing && this.cameraRig === "first-person")
         void this.canvas
           .requestPointerLock()
           ?.catch(() =>
@@ -421,14 +441,21 @@ export class Engine {
       if (!e.enabled || !e.behavior) continue;
       const factory = this.registry.get(e.behavior);
       if (factory) {
-        const b = factory({ engine: this, entity: e });
+        const b = safeBehavior(factory, { engine: this, entity: e }, (hook, error) =>
+          this.events.emit("error", "Behavior disabled after exception", {
+            entity: e.id,
+            behavior: e.behavior || "",
+            hook,
+            error: String(error).slice(0, 1000),
+          }),
+        );
         this.behaviors.set(e.id, b);
         b.start?.();
       } else this.events.emit("warning", "Behavior not registered: " + e.behavior);
     }
     const player = this.document.entities.find((e) => e.tag === "player");
     if (player) this.checkpoint = [...player.transform.position];
-    this.orbit.enabled = this.document.template === "sandbox";
+    this.orbit.enabled = this.cameraRig === "orbit";
     this.events.emit("gameplay", "Play started — " + this.document.name);
     this.canvas.focus();
   }
@@ -564,13 +591,13 @@ export class Engine {
         object = player && this.objects.get(player.id);
       if (object) {
         if (object.position.y < -20) this.respawn();
-        if (this.document.template === "first-person") {
+        if (this.cameraRig === "first-person") {
           this.camera.position.copy(object.position).add(new T.Vector3(0, 0.55, 0));
           this.camera.rotation.set(this.look.pitch, this.look.yaw, 0, "YXZ");
-        } else {
+        } else if (this.cameraRig !== "orbit") {
           const offset = new T.Vector3(0, 5, 9).applyAxisAngle(
             new T.Vector3(0, 1, 0),
-            this.document.template === "driving" ? object.rotation.y : this.look.yaw,
+            this.cameraRig === "vehicle" ? object.rotation.y : this.look.yaw,
           );
           this.follow.copy(object.position).add(offset);
           this.camera.position.lerp(this.follow, 1 - Math.exp(-5 * dt));
@@ -588,7 +615,7 @@ export class Engine {
         object.visible =
           e.enabled &&
           !this.collected.has(e.id) &&
-          !(this.playing && this.document.template === "first-person" && e.tag === "player") &&
+          !(this.playing && this.cameraRig === "first-person" && e.tag === "player") &&
           this.follow.distanceToSquared(this.camera.position) <
             (this.settings.viewDistance + Math.max(...e.transform.scale) * 2) ** 2;
         if (object.visible) visible++;

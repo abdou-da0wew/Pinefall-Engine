@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -11,13 +11,14 @@
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt --write .",
     "check": "bun run typecheck && bun run lint",
-    "test": "bun test tests/core.test.ts tests/physics.test.ts",
+    "test": "bun test tests",
     "preview": "bun --bun vite preview --host 0.0.0.0",
     "desktop:build": "bun run build && bun scripts/desktop.ts",
     "desktop": "bun run desktop:build && electron .",
     "desktop:linux": "bun run desktop:build && electron-builder --linux AppImage",
     "desktop:windows": "bun run desktop:build && electron-builder --win zip",
-    "test:browser": "bun tests/browser.ts"
+    "test:browser": "bun tests/browser.ts",
+    "test:runtime-browser": "bun tests/runtime-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
