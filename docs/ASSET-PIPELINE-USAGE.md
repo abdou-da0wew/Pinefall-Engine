@@ -28,11 +28,19 @@ The explicit `--allow-unsandboxed-converter` flag exists for isolated test hosts
 
 The editor's model sources, artifacts and placed consumers are represented by `sceneDependencyGraph`; model conversion caching keys all selected source/companion hashes and recipes. Generic material/prefab/scene chains are exercised through the scheduler API. This does not silently add the material/prefab authoring features assigned to later plans.
 
+`prepareReimports(scene, requests, signal)` connects this graph to real model cooking and is also used by editor reimport. Each request names an existing asset ID, replacement files, and an optional recipe. Source filenames are scoped to the asset, retained companions remain available, and a recipe/source-inventory node handles recipe changes and renamed files. Up to eight source sets are prepared sequentially under a 64 MiB accounting reservation. The result contains `prepared` imports and `rebuilt` graph IDs; no authored scene is mutated. Existing review and revision-checked `adoptImport` remain the publication boundary. Failed batches may leave reusable immutable cache entries but never a partly adopted scene. Callers must keep the original target revisions and apply the same stale-result checks as the editor.
+
+## Host reconstruction and ownership
+
+Geometry bounds are computed in the worker. Typed animation buffers transfer without JSON float arrays, including cubic tangents; the host preserves glTF cubic-spline quaternion normalization. Materials, tracks and hierarchy objects reconstruct in cooperative slices. `ModelCache.acquireAsync` pins prototypes during cancellable instance construction and remaps only newly owned skeletons. Synchronous `acquire` remains available for explicit immediate spawning; it is not a nonblocking API.
+
+The ObjectLoader adapter is pinned to Three r185: runtime `parseObject` takes five arguments although the corresponding type declaration omits textures. Tests must pass before a Three upgrade. The supported final `parse` entry performs bounded skeleton/light binding against already reconstructed resources; individual bindings, constructors and GPU/driver calls cannot be preempted. No physical latency guarantee follows from cooperative scheduling alone.
+
 ## Compatibility and explicit unsupported cases
 
 PIF **v4** is required for recipe-v2 provenance and expanded identities. 0.6.0 reads v1/v2/v3/v4; older provenance remains v3 and projects without provenance remain v2. Older engines reject v4 instead of silently losing settings. Portable scene JSON remains embedded; reference-only working documents still require their blob database.
 
-Current limits remain 4 MB selected source/companions, 2 MB cooked GLB, 2048px images, 64 MiB inspected decoded model data, and the existing project budgets. Large Samba/Mixamo examples which exceed cooked output limits are rejected, not counted as fidelity passes. Sparse/compressed required extensions without supported decoders, partially shared scene roots during normalization, incompatible animation/skin/index data and missing companions reject explicitly.
+Current limits remain 4 MB selected source/companions, 2 MB cooked GLB, 2048px images, 64 MiB inspected decoded model data, and the existing project budgets. Large Samba/Mixamo examples which exceed cooked output limits are rejected, not counted as fidelity passes. Sparse/compressed required extensions without supported decoders, partially shared scene roots during normalization, incompatible animation/skin/index data and missing companions reject explicitly. The importer also rejects EXT_mesh_gpu_instancing, even when optional; use engine instances. Total unique and expanded skeleton joint bindings are each limited to 8192.
 
 FBX loader/exporter warnings are captured into bounded import reports, in addition to the experimental-conversion warning. Constraints, proprietary shading, some interpolation/conversion cases and morph normals are not universally lossless. Supported importer behavior and rejection policy must not be confused with full FBX specification coverage.
 
@@ -45,6 +53,7 @@ bun tests/dcc-fidelity.ts --fetch
 bun tests/cli-parity.ts
 bun tests/dcc-browser.ts
 bun tests/normalization-browser.ts
+bun tests/reimport-batch-browser.ts
 ```
 
 Browser suites require the development server; `TEST_BASE_URL` selects it. External fixture hashes/URLs are pinned in `tests/fixtures/dcc-manifest.json`. The external binaries are cached, not redistributed. Five DCC-exported OBJ poses independently check skinned vertices from Blender and Maya; the Blender morph-character regression catches the numeric-to-named morph binding mismatch fixed in this implementation. These are numerical/functional tests, not independent human visual approval of every material or exporter feature.

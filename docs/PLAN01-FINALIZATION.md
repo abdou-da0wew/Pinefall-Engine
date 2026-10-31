@@ -21,3 +21,7 @@ Steps 1 and the enforceable accounting portion of step 2 are implemented and reg
 ## Revised execution order after owner override
 
 Do not pause after a partial feature release. Implement normalized recipes and strict version migration first, then expanded stable identities, shared editor/CLI FBX conversion, dependency scheduling, independent fixture harness and physical acceptance tooling. Every change must have behavior tests. Use a versioned provenance/PIF schema rather than silently placing new semantics in v3. Axis settings must distinguish the already-corrected FBX loader output from raw source coordinates, to prevent double correction. Original bytes always remain unchanged.
+
+## Dependency orchestration audit work order
+
+Connect the tested transactional DAG to actual model reimport rather than leaving it only as an SDK primitive. Add a bounded batch preparation service with explicit asset-scoped source replacements, retained companions, recipe dependency nodes, sequential shared-worker cooking, and no scene mutation until existing review/adoption succeeds. New/renamed sources must invalidate the model; unchanged inputs should avoid conversion. Failed/cancelled batches may populate immutable content caches but must not expose a partially changed authored document. Wire ordinary editor reimport through the same service. Test real conversions, batch failure/rollback, retry and recipe-only changes. This does not implement the material/prefab importers assigned to other plans or certify physical acceptance.

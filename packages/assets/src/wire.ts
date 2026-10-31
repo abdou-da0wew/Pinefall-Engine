@@ -1,3 +1,4 @@
+import { encodeClip, decodeTrack, type WireClip } from "./animation-wire";
 import * as T from "three";
 import { LIMITS } from "./glb";
 export interface WireAttribute {
@@ -11,12 +12,14 @@ export interface WireGeometry {
   morph: Record<string, WireAttribute[]>;
   relative: boolean;
   groups: T.BufferGeometry["groups"];
+  bounds: { min: number[]; max: number[]; center: number[]; radius: number };
 }
 export interface ModelWire {
   json: T.Object3DJSON & Record<string, unknown>;
   geometries: WireGeometry[];
   images: { id: string; bitmap: ImageBitmap }[];
   bytes: number;
+  animations: WireClip[];
 }
 function attribute(
   a: T.BufferAttribute | T.InterleavedBufferAttribute,
@@ -81,6 +84,8 @@ export function encodeModel(root: T.Object3D): ModelWire {
         ...Object.values(morph).flat(),
       ])
         bytes += a.array.byteLength;
+      g.computeBoundingBox();
+      g.computeBoundingSphere();
       geometries.push({
         id: g.uuid,
         attributes,
@@ -88,6 +93,12 @@ export function encodeModel(root: T.Object3D): ModelWire {
         morph,
         relative: g.morphTargetsRelative,
         groups: g.groups,
+        bounds: {
+          min: g.boundingBox!.min.toArray(),
+          max: g.boundingBox!.max.toArray(),
+          center: g.boundingSphere!.center.toArray(),
+          radius: g.boundingSphere!.radius,
+        },
       });
       meta.geometries[g.uuid] = { uuid: g.uuid, type: "BufferGeometry", data: { attributes: {} } };
     }
@@ -121,11 +132,17 @@ export function encodeModel(root: T.Object3D): ModelWire {
     }
   }
   if (bytes > LIMITS.decoded) throw Error("Animation/geometry/image budget");
+  const animations = root.animations.map(encodeClip);
+  for (const clip of root.animations)
+    meta.animations[clip.uuid] = { uuid: clip.uuid } as ReturnType<T.AnimationClip["toJSON"]>;
   const json: T.Object3DJSON & Record<string, unknown> = { ...root.toJSON(meta) };
-  for (const key of ["materials", "textures", "skeletons", "animations"] as const)
+  for (const key of ["materials", "textures", "skeletons"] as const)
     json[key] = Object.values(meta[key]);
   // Geometries/images are supplied by the staged loader, not reconstructed from JSON arrays.
-  return { json, geometries, images, bytes };
+  json.animations = [];
+  bytes += JSON.stringify(json).length * 2;
+  if (bytes > LIMITS.decoded) throw Error("Model metadata/decoded budget");
+  return { json, geometries, images, bytes, animations };
 }
 export function transfers(wire: ModelWire): Transferable[] {
   const set = new Set<Transferable>();
@@ -136,6 +153,11 @@ export function transfers(wire: ModelWire): Transferable[] {
       ...Object.values(g.morph).flat(),
     ])
       set.add(a.array.buffer);
+  for (const clip of wire.animations)
+    for (const track of clip.tracks) {
+      set.add(track.times.buffer);
+      set.add(track.values.buffer);
+    }
   for (const image of wire.images) set.add(image.bitmap);
   return [...set];
 }
@@ -186,15 +208,48 @@ export async function decodeModel(wire: ModelWire, signal: AbortSignal): Promise
       );
       geometry.morphTargetsRelative = g.relative;
       geometry.groups = g.groups;
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
+      geometry.boundingBox = new T.Box3(
+        new T.Vector3().fromArray(g.bounds.min),
+        new T.Vector3().fromArray(g.bounds.max),
+      );
+      geometry.boundingSphere = new T.Sphere(
+        new T.Vector3().fromArray(g.bounds.center),
+        g.bounds.radius,
+      );
       if (performance.now() - slice > 2) {
         await yieldHost();
         slice = performance.now();
       }
     }
     for (const i of wire.images) images[i.id] = new T.Source(i.bitmap);
+    const textures: Record<string, T.Texture> = {},
+      materials: Record<string, T.Material> = {},
+      animations: Record<string, T.AnimationClip> = {};
+    let finalPass = false;
+    const checkpoint = async () => {
+      signal.throwIfAborted();
+      if (performance.now() - slice > 2) {
+        await yieldHost();
+        slice = performance.now();
+      }
+    };
     class StagedLoader extends T.ObjectLoader {
+      override parseAnimations() {
+        return animations;
+      }
+      override parseObject(...args: Parameters<T.ObjectLoader["parseObject"]>) {
+        return finalPass ? root! : super.parseObject(...args);
+      }
+      shallow(data: unknown) {
+        // Pinned r185 runtime has five arguments; its declaration mistakenly omits textures.
+        return Reflect.apply(T.ObjectLoader.prototype.parseObject, this, [
+          data,
+          geometries,
+          materials,
+          textures,
+          animations,
+        ]) as T.Object3D;
+      }
       override parseGeometries() {
         return geometries;
       }
@@ -202,26 +257,68 @@ export async function decodeModel(wire: ModelWire, signal: AbortSignal): Promise
         return images;
       }
       override parseTextures(json: unknown, sources: Record<string, T.Source<unknown>>) {
-        const textures = super.parseTextures(json, sources);
-        for (const t of Object.values(textures)) allocated.add(t);
-        return textures;
+        if (finalPass) return textures;
+        const texturesResult = super.parseTextures(json, sources);
+        for (const t of Object.values(texturesResult)) allocated.add(t);
+        return texturesResult;
       }
-      override parseMaterials(json: unknown, textures: Record<string, T.Texture>) {
-        const materials = super.parseMaterials(json, textures);
-        for (const m of Object.values(materials)) allocated.add(m);
-        return materials;
+      override parseMaterials(json: unknown, textureSources: Record<string, T.Texture>) {
+        if (finalPass) return materials;
+        const materialsResult = super.parseMaterials(json, textureSources);
+        for (const m of Object.values(materialsResult)) allocated.add(m);
+        return materialsResult;
       }
     }
     signal.throwIfAborted();
-    root = new StagedLoader().parse(wire.json);
+    const loader = new StagedLoader();
+    for (const clip of wire.animations) {
+      const tracks: T.KeyframeTrack[] = [];
+      for (const track of clip.tracks) {
+        tracks.push(decodeTrack(track));
+        await checkpoint();
+      }
+      const restored = new T.AnimationClip(clip.name, clip.duration, tracks, clip.blendMode);
+      Object.assign(restored, { uuid: clip.id });
+      animations[clip.id] = restored;
+    }
+    for (const texture of (wire.json.textures || []) as unknown[]) {
+      Object.assign(textures, loader.parseTextures([texture], images));
+      await checkpoint();
+    }
+    for (const material of (wire.json.materials || []) as unknown[]) {
+      Object.assign(materials, loader.parseMaterials([material], textures));
+      await checkpoint();
+    }
+    type NodeData = Record<string, unknown> & { children?: NodeData[] };
+    const stack: { data: NodeData; parent?: T.Object3D }[] = [
+      { data: wire.json.object as unknown as NodeData },
+    ];
+    while (stack.length) {
+      const { data, parent } = stack.pop()!;
+      const object = loader.shallow({ ...data, children: undefined });
+      if (parent) parent.add(object);
+      else root = object;
+      const children = data.children || [];
+      for (let i = children.length - 1; i >= 0; i--)
+        stack.push({ data: children[i], parent: object });
+      await checkpoint();
+    }
+    signal.throwIfAborted();
+    finalPass = true;
+    // The final supported parse entry binds skeletons/light targets to the already assembled tree.
+    root = loader.parse(wire.json);
     return root;
   } catch (error) {
-    if (root) disposeModel(root);
-    else {
-      for (const g of Object.values(geometries)) g.dispose();
-      for (const resource of allocated) resource.dispose();
-      closeWire(wire);
+    if (root) {
+      const skeletons = new Set<T.Skeleton>();
+      root.traverse((o) => {
+        if (o instanceof T.SkinnedMesh && o.skeleton) skeletons.add(o.skeleton);
+      });
+      for (const skeleton of skeletons) skeleton.dispose();
     }
+    for (const geometry of Object.values(geometries)) geometry.dispose();
+    for (const resource of allocated) resource.dispose();
+    closeWire(wire);
     throw error;
   }
 }

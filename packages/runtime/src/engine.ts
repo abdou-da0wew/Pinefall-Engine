@@ -351,7 +351,11 @@ export class Engine {
           });
         });
         // Pin the prototype across preparation of the remaining assets.
-        const lease = this.assetCache.acquire(asset.data, `staging:${generation}:${asset.id}`);
+        const lease = await this.assetCache.acquireAsync(
+          asset.data,
+          `staging:${generation}:${asset.id}`,
+          controller.signal,
+        );
         staged.set(asset.id, lease);
         const textures = new Set<T.Texture>();
         lease.root.traverse((o) => {
@@ -398,7 +402,11 @@ export class Engine {
         this.addEntity(e, world);
         if (e.mesh?.primitive === "asset") {
           const asset = scene.assets.find((a) => a.id === e.mesh?.asset)!;
-          const lease = this.assetCache.acquire(asset.data, `entity:${generation}:${e.id}`);
+          const lease = await this.assetCache.acquireAsync(
+            asset.data,
+            `entity:${generation}:${e.id}`,
+            controller.signal,
+          );
           world.imported.set(e.id, lease);
           lease.root.traverse((o) => {
             o.userData.entityId = e.id;

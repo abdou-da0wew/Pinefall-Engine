@@ -117,3 +117,46 @@ test("GLB skin/animation validation rejects missing joints and nonmonotonic time
   data.setFloat32((view.byteOffset || 0) + (accessor.byteOffset || 0) + 4, -1, true);
   expect(() => inspectGlb(makeGlb(fresh.doc, fresh.bin))).toThrow("times");
 });
+test("scene roots and primitive instancing expansion are bounded before loader allocation", () => {
+  expect(() =>
+    inspectGlb(makeGlb({ asset: { version: "2.0" }, nodes: [{}], scenes: [{ nodes: [0, 0] }] })),
+  ).toThrow("roots");
+  expect(() =>
+    inspectGlb(makeGlb({ asset: { version: "2.0" }, nodes: [{}], scenes: [{ nodes: [999] }] })),
+  ).toThrow("root");
+  const bytes = skinnedTriangle(),
+    v = new DataView(bytes.buffer),
+    size = v.getUint32(12, true),
+    doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + size))),
+    bin = bytes.slice(28 + size);
+  doc.meshes[0].primitives = Array.from({ length: 128 }, () =>
+    structuredClone(doc.meshes[0].primitives[0]),
+  );
+  doc.nodes = Array.from({ length: 32 }, () => ({ mesh: 0 }));
+  doc.skins = [];
+  doc.animations = [];
+  doc.scenes = [{ nodes: doc.nodes.map((_: unknown, i: number) => i) }];
+  expect(() => inspectGlb(makeGlb(doc, bin))).toThrow("Expanded");
+});
+
+test("optional GPU instancing cannot bypass expanded-object admission", () => {
+  const bytes = makeGlb({
+    asset: { version: "2.0" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ extensions: { EXT_mesh_gpu_instancing: { attributes: { TRANSLATION: 0 } } } }],
+  });
+  expect(() => inspectGlb(bytes)).toThrow("GPU instancing");
+});
+
+test("shared accessors cannot hide aggregate skeleton matrix expansion", () => {
+  const joints = Array.from({ length: 2048 }, (_, i) => i);
+  const bytes = makeGlb({
+    asset: { version: "2.0" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: joints.map(() => ({})),
+    skins: Array.from({ length: 5 }, () => ({ joints })),
+  });
+  expect(() => inspectGlb(bytes)).toThrow("Aggregate skeleton joint budget");
+});

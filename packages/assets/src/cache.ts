@@ -1,3 +1,4 @@
+import { cloneModel } from "./clone";
 import { assetMemory, type Reservation } from "./budget";
 import { fromDataURI } from "./glb";
 import * as T from "three";
@@ -68,7 +69,7 @@ export class ModelCache {
       }
       let instanceBytes = 0;
       root.traverse((o) => {
-        instanceBytes += 2048;
+        instanceBytes += 2048 + JSON.stringify(o.userData).length * 2;
         if (o instanceof T.SkinnedMesh) instanceBytes += o.skeleton.bones.length * 256;
       });
       // Keep a conservative host/GPU resource allowance after transient decode ends.
@@ -108,6 +109,40 @@ export class ModelCache {
     entry.owners.add(owner);
     entry.touched = performance.now();
     this.metrics.leases++;
+    return this.finishLease(root, entry, owner, reservation);
+  }
+  async acquireAsync(data: string, owner: string, signal: AbortSignal): Promise<ModelLease> {
+    signal.throwIfAborted();
+    const entry = this.entries.get(data);
+    if (!entry || this.dead) throw Error("Model not prepared");
+    if (entry.owners.has(owner)) throw Error("Duplicate asset lease owner");
+    const reservation = this.budget.reserve(entry.instanceBytes, "model-instance");
+    entry.owners.add(owner);
+    this.metrics.leases++;
+    let root: T.Object3D | undefined;
+    try {
+      root = await cloneModel(entry.root, signal);
+      signal.throwIfAborted();
+      if (this.dead || this.entries.get(data) !== entry) throw Error("Cache disposed");
+      entry.touched = performance.now();
+      return this.finishLease(root, entry, owner, reservation);
+    } catch (error) {
+      if (root)
+        root.traverse((o) => {
+          if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
+        });
+      entry.owners.delete(owner);
+      this.metrics.leases--;
+      reservation.release();
+      throw error;
+    }
+  }
+  private finishLease(
+    root: T.Object3D,
+    entry: Entry,
+    owner: string,
+    reservation: Reservation,
+  ): ModelLease {
     let released = false;
     return {
       root,

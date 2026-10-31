@@ -1,3 +1,5 @@
+import { version as engineVersion } from "../../../package.json";
+import { prepareReimports } from "../../assets/src/reimport";
 import { defaultRecipe, type ImportRecipe } from "../../assets/src/recipe";
 import { sceneDependencyGraph } from "../../assets/src/dependencies";
 import { ReimportReview } from "./ReimportReview";
@@ -72,6 +74,8 @@ function App() {
   const [review, setReview] = useState<React.ComponentProps<typeof ReimportReview> | null>(null);
   const checkpointRevision = useRef(0);
   const [loadBusy, setLoadBusy] = useState(false);
+  const [loadedScene, setLoadedScene] = useState<SceneDocument | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [importBusy, setImportBusy] = useState(false);
   const [importOnly, setImportOnly] = useState(false);
   const importAbort = useRef<AbortController | null>(null);
@@ -248,7 +252,7 @@ function App() {
         }
       },
     })
-      .then(async (instance) => {
+      .then((instance) => {
         if (disposed) {
           instance.dispose();
           return;
@@ -258,7 +262,6 @@ function App() {
           setLogs((old) => [...old.slice(-199), event]);
           if (event.type === "error") setStatus(event.message);
         });
-        await instance.load(current.current);
         if (!disposed) {
           setReady(true);
           setStatus(bootNotice || "Ready · reference-only recovery in local asset database");
@@ -284,8 +287,17 @@ function App() {
       setLoadBusy(true);
       void engine.current
         .load(scene, { preserveView: engine.current.document?.name === scene.name })
+        .then(() => {
+          if (active) setLoadedScene(scene);
+        })
         .catch((e) => {
-          if (active) setError(String(e));
+          if (active) {
+            setLoadedScene(null);
+            setStatus(
+              "Scene load failed; previous world retained. Retry after freeing resources: " +
+                String(e),
+            );
+          }
         })
         .finally(() => {
           if (active) setLoadBusy(false);
@@ -315,7 +327,7 @@ function App() {
       active = false;
       clearTimeout(timer);
     };
-  }, [scene, ready]);
+  }, [scene, ready, loadAttempt]);
   useEffect(() => {
     engine.current?.select(selected);
   }, [selected, scene, ready]);
@@ -366,7 +378,7 @@ function App() {
     setRevision((r) => r + 1);
   }
   async function run() {
-    if (!engine.current || !ready) return;
+    if (!engine.current || !ready || loadedScene !== scene) return;
     if (playing) {
       await engine.current.stop();
       setPlaying(false);
@@ -436,14 +448,20 @@ function App() {
         ? current.current.assets.find((a) => a.id === target.id)
         : undefined;
       const inputs = previousAsset ? reimportInputs(previousAsset, files) : files;
-      const result = await prepareImport(
-        inputs,
-        controller.signal,
-        (u) => setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`),
-        target && !overrideRecipe
-          ? current.current.assets.find((a) => a.id === target.id)?.import?.recipe || recipe
-          : recipe,
-      );
+      const selectedRecipe =
+        target && !overrideRecipe ? previousAsset?.import?.recipe || recipe : recipe;
+      const progress = (u: import("../../assets/src/jobs").JobUpdate) =>
+        setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`);
+      const result = previousAsset?.import
+        ? (
+            await prepareReimports(
+              current.current,
+              [{ assetId: previousAsset.id, files, recipe: selectedRecipe }],
+              controller.signal,
+              progress,
+            )
+          ).prepared.get(previousAsset.id)!
+        : await prepareImport(inputs, controller.signal, progress, selectedRecipe);
       // Validate and stage actual renderer resources before committing the authored document.
       await engine.current?.assetCache.prepare(result.data, controller.signal, (u) =>
         setStatus(`Preparing model: ${u.stage}`),
@@ -683,7 +701,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.5.3</small>
+            <small>WORKSHOP / {engineVersion}</small>
           </div>
         </div>
         <div className="project-path">
@@ -743,7 +761,7 @@ function App() {
           <button
             aria-label={playing ? "Stop scene" : "Play scene"}
             className={playing ? "stop" : "play"}
-            disabled={!ready || importBusy || loadBusy}
+            disabled={!ready || importBusy || loadBusy || loadedScene !== scene}
             onClick={() => void run()}
           >
             {playing ? (
@@ -756,6 +774,9 @@ function App() {
               </>
             )}
           </button>
+          {ready && loadedScene !== scene && !loadBusy ? (
+            <button onClick={() => setLoadAttempt((n) => n + 1)}>Retry scene load</button>
+          ) : null}
           <button
             aria-label="Pause simulation"
             disabled={!playing}

@@ -77,13 +77,11 @@ try {
   const file = Bun.file(model),
     bytes = await file.bytes();
   if (bytes.length > 4_000_000) throw Error("Fixture exceeds source budget");
-  await page
-    .locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]')
-    .setInputFiles({
-      name: basename(model),
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from(bytes),
-    });
+  await page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]').setInputFiles({
+    name: basename(model),
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from(bytes),
+  });
   // Input probes run while work is active and for a short steady-state interval. Report raw samples, not an invented SLO pass.
   for (let i = 0; i < 20; i++) {
     await page.locator("#acceptance-probe").click();
@@ -136,13 +134,15 @@ try {
     manualVisualReview: "pending",
     softwareDetected,
     details,
+    rendererStatsText: await page.locator(".viewport-stats").innerText(),
     fixture: {
       name: basename(model),
       sha256: createHash("sha256").update(bytes).digest("hex"),
       bytes: bytes.length,
     },
     timing: {
-      frameMs: summary(timing.frames),
+      animationFrameIntervalMs: summary(timing.frames),
+      note: "requestAnimationFrame intervals measure UI scheduling, not GPU execution or the engine's capped render rate",
       inputToNextFrameMs: summary(timing.inputFeedback),
       longTasksOver50ms: timing.longTasks.filter((n) => n > 50),
       raw: timing,

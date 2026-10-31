@@ -1,6 +1,6 @@
 import { chromium, expect } from "@playwright/test";
 import { resolve, sep } from "node:path";
-const root = resolve("build/ui-lab-web");
+const root = resolve(process.env.TEST_EXPORT_DIR || "build/ui-lab-web");
 const server = Bun.serve({
   port: 0,
   hostname: "127.0.0.1",

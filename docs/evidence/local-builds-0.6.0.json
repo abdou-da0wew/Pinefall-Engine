@@ -1,0 +1,27 @@
+{
+  "status": "local unpublished candidates",
+  "artifacts": [
+    {
+      "name": "Pinefall Engine-0.6.0.AppImage",
+      "bytes": 127266147,
+      "sha256": "5a222eb888a406ca4a7ea25eb0d1424cec3c252362ca3fd948f3241ca62c495b"
+    },
+    {
+      "name": "Pinefall Engine-0.6.0-win.zip",
+      "bytes": 154841418,
+      "sha256": "bc743ac7091f283c64463585aac0756b3ea4d20b267e20ae08667bc3fc62df6c"
+    }
+  ],
+  "executed": [
+    "packaged Linux model worker/render/PlayStop/PIF v4",
+    "packaged Linux PIF binary IPC",
+    "Linux software-test hardware collector"
+  ],
+  "notExecuted": [
+    "Windows native execution",
+    "physical CEDAR",
+    "independent human acceptance"
+  ],
+  "unitTests": 81,
+  "assertions": 384
+}

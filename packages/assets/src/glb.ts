@@ -253,6 +253,10 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
     if (n.mesh !== undefined && !meshes[integer(n.mesh)]) throw Error("Missing mesh");
+    if (n.extensions !== undefined && object(n.extensions).EXT_mesh_gpu_instancing !== undefined)
+      throw Error(
+        "GPU instancing extension is unsupported by the bounded importer; place engine instances instead",
+      );
     if (n.skin !== undefined && !skins[integer(n.skin)]) throw Error("Missing skin");
     if (n.children !== undefined) {
       if (!Array.isArray(n.children)) throw Error("Invalid children");
@@ -285,6 +289,26 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       at = parent.get(at);
     }
   }
+  const scenes = list(doc.scenes, 32);
+  if (doc.scene !== undefined && !scenes[integer(doc.scene)]) throw Error("Missing default scene");
+  for (const scene of scenes) {
+    if (scene.nodes === undefined) continue;
+    if (
+      !Array.isArray(scene.nodes) ||
+      scene.nodes.length > LIMITS.nodes ||
+      new Set(scene.nodes).size !== scene.nodes.length
+    )
+      throw Error("Invalid scene roots");
+    for (const root of scene.nodes) if (!nodes[integer(root)]) throw Error("Missing scene root");
+  }
+  let expandedNodes = nodes.length;
+  for (const node of nodes)
+    if (node.mesh !== undefined) {
+      const count = list(meshes[integer(node.mesh)].primitives, 512).length;
+      if (count > 1) expandedNodes += count;
+    }
+  if (expandedNodes > LIMITS.nodes) throw Error("Expanded model object budget");
+  let jointBindings = 0;
   for (const skin of skins) {
     if (
       !Array.isArray(skin.joints) ||
@@ -293,6 +317,8 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       new Set(skin.joints).size !== skin.joints.length
     )
       throw Error("Invalid skin joints");
+    jointBindings += skin.joints.length;
+    if (jointBindings > 8192) throw Error("Aggregate skeleton joint budget");
     for (const joint of skin.joints)
       if (!nodes[integer(joint)]) throw Error("Missing skin joint node");
     if (skin.skeleton !== undefined && !nodes[integer(skin.skeleton)])
@@ -308,10 +334,13 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
         throw Error("Invalid inverse bind matrices");
     }
   }
+  let instanceJoints = 0;
   for (const node of nodes)
     if (node.skin !== undefined) {
       const skin = skins[integer(node.skin)],
         mesh = meshes[integer(node.mesh)];
+      instanceJoints += (skin.joints as number[]).length * list(mesh?.primitives, 512).length;
+      if (instanceJoints > 8192) throw Error("Expanded skeleton joint budget");
       if (!mesh) throw Error("Skin requires a mesh");
       for (const primitive of list(mesh.primitives, 512)) {
         const attrs = object(primitive.attributes),

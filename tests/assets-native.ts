@@ -1,6 +1,6 @@
 import { _electron, expect } from "@playwright/test";
 import { triangle, binaryFbx } from "./asset-fixtures";
-import { unpackProject } from "../packages/project/src/pif";
+import { unpackProject, inspectProject } from "../packages/project/src/pif";
 const app = await _electron.launch({
   executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
   args: [
@@ -42,11 +42,14 @@ try {
   }, path);
   await page.getByRole("button", { name: "Save project", exact: true }).click();
   await expect(page.locator(".statusbar")).toContainText("PIF project saved");
-  const scene = await unpackProject(await Bun.file(path).bytes());
+  const archived = await Bun.file(path).bytes();
+  const scene = await unpackProject(archived);
+  expect((await inspectProject(archived)).formatVersion).toBe(4);
+  expect(scene.assets[0].import?.version).toBe(2);
   expect(scene.assets.some((a) => a.name === "native.glb" && a.import?.revision === 1)).toBe(true);
   expect(errors).toEqual([]);
   console.log(
-    "PASS production Linux Electron model worker, renderer adoption, Play/Stop, PIF v3 binary save",
+    "PASS packaged Electron model worker, renderer adoption, Play/Stop, PIF v4 binary save",
   );
 } finally {
   await app.close();

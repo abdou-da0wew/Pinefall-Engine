@@ -12,3 +12,6 @@ export type { AssetImport, SourceFile } from "./record";
 export { referenceScene, materializeScene } from "./documents";
 export { ModelCache } from "./cache";
 export { AssetDatabase } from "./database";
+
+export { prepareReimports } from "./reimport";
+export type { ReimportRequest } from "./reimport";

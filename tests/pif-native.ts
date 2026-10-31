@@ -15,9 +15,7 @@ try {
   const page = await app.firstWindow();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.waitForFunction(
-    () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
-  );
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const scene = parseScene(await Bun.file("examples/projects/ui-lab.scene.json").json()),
     bytes = await packProject(scene);
   await page.locator('input[accept=".pif,.json"]').setInputFiles({

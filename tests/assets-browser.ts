@@ -118,12 +118,16 @@ try {
               beforeMemory,
             }),
         );
-        const originalAcquire = engine.assetCache.acquire.bind(engine.assetCache);
+        const originalAcquire = engine.assetCache.acquireAsync.bind(engine.assetCache);
         let acquired = 0;
-        engine.assetCache.acquire = (data: string, owner: string) => {
+        engine.assetCache.acquireAsync = async (
+          data: string,
+          owner: string,
+          signal: AbortSignal,
+        ) => {
           if (owner.startsWith("entity:") && ++acquired === 3)
             throw Error("injected clone failure");
-          return originalAcquire(data, owner);
+          return originalAcquire(data, owner, signal);
         };
         rejected = false;
         try {
@@ -131,7 +135,7 @@ try {
         } catch {
           rejected = true;
         } finally {
-          engine.assetCache.acquire = originalAcquire;
+          engine.assetCache.acquireAsync = originalAcquire;
         }
         check(
           rejected &&
@@ -344,6 +348,29 @@ try {
   await expect(page.locator(".statusbar")).toContainText("Reimported triangle.glb");
   expect(errors).toEqual([]);
   console.log("PASS editor import/reimport UI");
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
+  await page.evaluate(async () => {
+    const path = "/packages/assets/src/budget.ts",
+      { assetMemory } = await import(path);
+    const reservation = assetMemory.reserve(
+      assetMemory.snapshot.limit - assetMemory.snapshot.used,
+      "editor-fault-injection",
+    );
+    Object.assign(window, { releaseTestPressure: () => reservation.release() });
+  });
+  await page.getByRole("button", { name: "box PRIMITIVE · ADD", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Retry scene load", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeDisabled();
+  await expect(page.getByText("3D renderer unavailable", { exact: false })).toHaveCount(0);
+  await page.evaluate(() =>
+    (window as unknown as { releaseTestPressure: () => void }).releaseTestPressure(),
+  );
+  await page.getByRole("button", { name: "Retry scene load", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
+  expect(errors).toEqual([]);
+  console.log(
+    "PASS editor memory rejection retains renderer, prevents stale Play, and retries successfully",
+  );
 } finally {
   await browser.close();
 }

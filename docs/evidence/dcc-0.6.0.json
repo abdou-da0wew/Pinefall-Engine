@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-31T14:31:29.279Z",
+  "date": "2026-10-31T15:10:32.979Z",
   "scope": "Independent vertex/skin animation poses, not artist visual approval or physical GPU certification",
   "evidence": [
     {
@@ -7,7 +7,7 @@
       "exporter": "Blender",
       "sourceHash": "d30acc615d59a2dc6c68ba6794849cd9d968b1beb883799c66c88a90525a9287",
       "artifactHash": "453ff77eff318210557c9d8d4a1d51f07e8eebd2cab6d7e920cced1ad136e647",
-      "elapsedMs": 553.351072,
+      "elapsedMs": 583.128143,
       "poses": [
         {
           "reference": "blender_279_sausage_base_0.obj",
@@ -34,7 +34,7 @@
       "exporter": "Maya",
       "sourceHash": "b84398b1876edb4a718615985a801393fcc0548e8e65a5c3ba133f30993c3b0e",
       "artifactHash": "7015691f7783260f94f3b487ccb947f30fe754f001dc2ddc98a3c7ebfdb8e330",
-      "elapsedMs": 880.8970119999999,
+      "elapsedMs": 953.903208,
       "poses": [
         {
           "reference": "maya_kenney_character_4.obj",
@@ -55,7 +55,15 @@
       "exporter": "Blender",
       "sourceHash": "bd78a4fc05abe83cb3bb26e4ca649a3c5e7cb1e0c6f523fcd599e48cd0435e04",
       "artifactHash": "dc98fcd7754393dfd2e96b4012e52dec800ad1b18096fe9e89f5a8b410198874",
-      "elapsedMs": 801.591602,
+      "elapsedMs": 907.8670709999999,
+      "poses": []
+    },
+    {
+      "name": "monkey_embedded_texture.fbx",
+      "exporter": "Blender 4.4.3",
+      "sourceHash": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973",
+      "artifactHash": "3eb04acd85fa31f5629ddba9adcbc4b4511cd1efd26f9bc95ce0fe8abae53e74",
+      "elapsedMs": 439.212121,
       "poses": []
     }
   ]

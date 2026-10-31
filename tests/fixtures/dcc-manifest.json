@@ -1,5 +1,5 @@
 {
-  "provenance": "ufbx v0.23.0 external test corpus; FBX and independent DCC-exported OBJ samples. See upstream file histories/credits. Binary fixtures are downloaded to excluded cache, not redistributed in Pinefall. Repository license: https://github.com/ufbx/ufbx/blob/v0.23.0/LICENSE; individual artwork provenance is not independently certified.",
+  "provenance": "ufbx v0.23.0 external test corpus; FBX and independent DCC-exported OBJ samples. See upstream file histories/credits. Binary fixtures are downloaded to excluded cache, not redistributed in Pinefall. Repository license: https://github.com/ufbx/ufbx/blob/v0.23.0/LICENSE; individual artwork provenance is not independently certified. Additional embedded-texture conversion sample is from Three r185 examples/models/fbx; its per-fixture URL and digest are pinned below. Upstream repository licensing does not independently establish individual artwork rights.",
   "fixtures": [
     {
       "name": "blender_279_sausage_7400_binary.fbx",
