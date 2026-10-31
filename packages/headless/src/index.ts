@@ -1,3 +1,4 @@
+import { UIStore } from "../../ui/src/store";
 import { Group, MathUtils } from "three";
 import { initPhysics, PhysicsSystem } from "../../runtime/src/physics";
 import { parseScene, cloneScene } from "../../runtime/src/schema";
@@ -9,6 +10,10 @@ import { createBehaviorSession } from "../../scripting/src/runtime";
 /** DOM-free simulation: same physics, scene schema and behaviors as the graphical engine. */
 export class HeadlessEngine implements SimulationHost {
   allowSceneScripts = false;
+  paused = false;
+  readonly ui = new UIStore((error) =>
+    this.events.emit("error", "UI callback failed", { error: String(error) }),
+  );
   private behaviorBuilder?: (entity: Entity) => Behavior;
   readonly input = new Set<string>();
   readonly objects = new Map<string, Group>();
@@ -33,6 +38,7 @@ export class HeadlessEngine implements SimulationHost {
   }
   private constructor(scene: SceneDocument) {
     this.document = cloneScene(scene);
+    this.ui.load(scene.ui);
     this.physics = new PhysicsSystem(scene.environment.gravity);
     for (const e of scene.entities) {
       this.physics.add(e);
@@ -59,6 +65,7 @@ export class HeadlessEngine implements SimulationHost {
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
     this.playing = true;
+    this.ui.interactive = true;
     for (const e of [...this.document.entities]) {
       if (!e.enabled) continue;
       const instance = createBehavior(e);
@@ -117,6 +124,7 @@ export class HeadlessEngine implements SimulationHost {
     this.play();
 
     for (let i = 0; i < ticks; i++) {
+      if (this.paused) break;
       for (const b of this.behaviors.values()) b.fixedUpdate?.(1 / 60);
       this.physics.step((a, b, started) => {
         const ea = this.document.entities.find((e) => e.id === a),
@@ -159,6 +167,7 @@ export class HeadlessEngine implements SimulationHost {
   }
   report() {
     return {
+      ui: this.ui.snapshot(),
       ticks: this.ticks,
       seconds: this.ticks / 60,
       bodies: this.physics.bodies.size,
@@ -179,5 +188,6 @@ export class HeadlessEngine implements SimulationHost {
     this.behaviors.clear();
     this.objects.clear();
     this.physics.dispose();
+    this.ui.dispose();
   }
 }

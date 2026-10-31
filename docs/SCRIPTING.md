@@ -173,3 +173,7 @@ The `.ts` examples are also individually importable from `examples/scripts/`. Ex
 Importing scenes, parsing scripts, syntax checking and type checking do not execute script code. Module initialization happens only during approved Play/step. Scene JSON stores TypeScript source, not pre-approved executable permissions.
 
 Limits: 32 script assets, 64,000 source characters per script, 512,000 combined characters; 16 attachments per entity; 8,000 JSON property characters per attachment, nesting depth 10. This first editor uses a plain text code field; it does not provide IDE autocomplete, debugger breakpoints, editor-side semantic type checking, or hot reload. Scripts are synchronous and can still hang a host; use source control and backups.
+
+## Game UI SDK (0.5.0)
+
+Scripts now expose `ctx.ui` for typed widget queries, creation/removal, text/value/style changes, visibility, interaction events and named actions. It works in `start`, `fixedUpdate`, `update`, `trigger`, and event callbacks, both graphically and headlessly. UI subscriptions clean up with their attachment; Play-time UI changes reset on Stop. See [Game UI toolkit](UI-TOOLKIT.md) for the full API, editor workflow, runnable UI Lab and limitations.

@@ -1,10 +1,10 @@
-# Pinefall Engine 0.4.1
+# Pinefall Engine 0.5.0
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**Local 0.4.1 patch:** material and light colors use a custom, viewport-bounded picker instead of the native clipped popup. See [Color editor](docs/COLOR-PICKER.md). The release/download links below still refer to published 0.4.0; 0.4.1 has not been published.
+**Local 0.5.0 update:** visual game-UI designer, eight interactive widgets, TypeScript UI SDK, trigger/action/game-loop updates, and DOM-free UI tests. Includes the 0.4.1 color-picker fix. See [Game UI toolkit](docs/UI-TOOLKIT.md). Public release links below still point to 0.4.0; this update has not been published.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
@@ -40,6 +40,14 @@ Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pin
 - Nested organizational collections, multi-selection, collapsible/searchable branches, world-preserving transform parenting and subtree duplication/deletion.
 - Resizable panels, bottom/right shelf drag-docking, viewport focus, saved layout preferences, keyboard navigation, reduced-motion support, and locally bundled **Phosphor SVG icons**.
 - Pinefall's diamond brand mark in warm sand (`#D8D1A7`) and sage (`#C4CFA4`), on forest green (`#14211B`) for application icons.
+
+### Game UI toolkit
+
+- Author panels, text, buttons, progress bars, toggles, sliders, text inputs and selects directly over the 3D viewport.
+- Drag/resize with 8px snapping, editable anchors and reference resolution, nested panels, row/column layouts, typography, colors, background alpha, padding, borders and visibility.
+- Typed `ctx.ui` APIs, lifecycle-scoped events and named actions. Updates work from `update`, `fixedUpdate`, physics `trigger`, event handlers and scripts.
+- One-click sample HUD/controller, a runnable `examples/projects/ui-lab.scene.json`, Play/Stop isolation and headless `engine.ui.dispatch` testing.
+- [Full UI authoring and SDK guide](docs/UI-TOOLKIT.md).
 
 ### Programmable gameplay
 

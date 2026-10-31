@@ -1,3 +1,5 @@
+import { UIStore } from "../../ui/src/store";
+import { UIRenderer } from "../../ui/src/renderer";
 import { validateGlb } from "../../project/src";
 import { createBehaviorSession } from "../../scripting/src/runtime";
 import * as T from "three";
@@ -24,12 +26,21 @@ export interface Stats {
   height: number;
 }
 export interface EngineOptions {
+  onUISelect?: (id: string) => void;
+  onUITransform?: (
+    id: string,
+    patch: Pick<import("../../ui/src/schema").UIElement, "x" | "y" | "width" | "height">,
+  ) => void;
   onSelect?: (id: string | null) => void;
   onTransform?: (id: string, transform: Entity["transform"]) => void;
   onStats?: (stats: Stats) => void;
 }
 export type CameraRig = "auto" | "orbit" | "first-person" | "follow" | "vehicle";
 export class Engine {
+  readonly ui = new UIStore((error) =>
+    this.events.emit("error", "UI callback failed", { error: String(error) }),
+  );
+  private uiRenderer: UIRenderer;
   allowSceneScripts = false;
   private behaviorBuilder?: (entity: Entity) => Behavior;
   private requestedRig: CameraRig = "auto";
@@ -155,9 +166,19 @@ export class Engine {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(canvas);
     registerBuiltins(this);
+    this.uiRenderer = new UIRenderer(
+      this.ui,
+      canvas,
+      options.onUISelect,
+      () => this.input.clear(),
+      options.onUITransform,
+    );
     this.bindInput();
     this.resize();
     this.raf = requestAnimationFrame(this.tick);
+  }
+  selectUI(id: string) {
+    this.uiRenderer.setSelection(id);
   }
   registerBehavior(name: string, factory: BehaviorFactory) {
     this.registry.set(name, factory);
@@ -169,6 +190,12 @@ export class Engine {
   private bindInput() {
     this.listen(window, "keydown", (event) => {
       const e = event as KeyboardEvent;
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-pinefall-ui]") &&
+        e.code !== "Escape"
+      )
+        return;
       if (
         !this.playing ||
         e.target instanceof HTMLInputElement ||
@@ -277,6 +304,7 @@ export class Engine {
     this.gizmo.detach();
     this.clear();
     this.document = cloneScene(scene);
+    this.ui.load(scene.ui);
     this.physics = new PhysicsSystem(scene.environment.gravity);
     this.scene.background = new T.Color(scene.environment.background);
     this.scene.fog = new T.Fog(
@@ -427,6 +455,7 @@ export class Engine {
     this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
     this.playing = true;
+    this.ui.interactive = true;
     this.paused = false;
     this.gizmo.detach();
     this.look = { yaw: 0, pitch: 0 };
@@ -574,6 +603,7 @@ export class Engine {
     });
   }
   private resize() {
+    this.uiRenderer?.resized();
     const rect = this.canvas.getBoundingClientRect(),
       cap = this.settings.preset === "low" ? [960, 540] : [1600, 900],
       ratio = Math.min(
@@ -603,6 +633,7 @@ export class Engine {
     const dt = Math.min(0.1, this.last ? (now - this.last) / 1000 : 1 / 30);
     this.last = now;
     const start = performance.now();
+    this.uiRenderer.draw();
     if (this.playing && !this.paused && this.document) {
       this.accumulator = Math.min(this.accumulator + dt, 0.1);
       while (this.accumulator >= 1 / 60) {
@@ -730,6 +761,8 @@ export class Engine {
     this.orbit.dispose();
     this.effects?.dispose();
     this.clear();
+    this.uiRenderer.dispose();
+    this.ui.dispose();
     this.sun.shadow.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();

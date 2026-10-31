@@ -1,3 +1,4 @@
+import type { UIAPI, UIEvent } from "../../ui/src/store";
 import * as THREE from "three";
 import * as SDK from "./sdk";
 import { compileScript } from "./compiler";
@@ -123,7 +124,48 @@ export function createBehaviorSession(
       const cleanup = new Set<() => void>();
       let inactive = false;
       const time = { elapsed: 0, delta: 0, fixedDelta: 1 / 60, frame: 0 };
+      const guardedUI = (listener: (event: UIEvent) => void) => (event: UIEvent) => {
+        if (inactive) return;
+        try {
+          listener(event);
+        } catch (error) {
+          inactive = true;
+          report(asset.name, "ui-event", error);
+        }
+      };
+      const scopedUI: UIAPI = {
+        get: (id) => host.ui.get(id),
+        find: (name) => host.ui.find(name),
+        snapshot: () => host.ui.snapshot(),
+        create: (e) => host.ui.create(e),
+        remove: (id) => host.ui.remove(id),
+        patch: (id, patch) => host.ui.patch(id, patch),
+        setText: (id, text) => host.ui.setText(id, text),
+        setValue: (id, value) => host.ui.setValue(id, value),
+        setVisible: (id, value) => host.ui.setVisible(id, value),
+        show: (id) => host.ui.show(id),
+        hide: (id) => host.ui.hide(id),
+        setEnabled: (id, value) => host.ui.setEnabled(id, value),
+        setStyle: (id, style) => host.ui.setStyle(id, style),
+        on: (id, type, listener) => {
+          const off = host.ui.on(id, type, guardedUI(listener));
+          cleanup.add(off);
+          return () => {
+            off();
+            cleanup.delete(off);
+          };
+        },
+        onAction: (action, listener) => {
+          const off = host.ui.onAction(action, guardedUI(listener));
+          cleanup.add(off);
+          return () => {
+            off();
+            cleanup.delete(off);
+          };
+        },
+      };
       const context: ScriptContext = {
+        ui: scopedUI,
         engine: host,
         entity,
         object: host.objects.get(entity.id)!,

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 (local update)
+
+- Visual UI designer: eight widgets, viewport selection/drag/resize, 8px snapping, undo/redo, anchors, reference-canvas sizing, parent panels and row/column layouts.
+- Style controls including custom color picker, background alpha, font size, text alignment, borders, radius, padding, visibility and enabled state.
+- DOM-free validated UI schema/store, shared by graphical and headless engines; additive optional scene.ui keeps old scenes compatible.
+- Typed SDK UI queries, creation, removal, patches, text/value/style updates, show/hide, events and named actions. Script listeners clean up on disposal; callback failures are isolated.
+- Keyed, dirty-updated DOM renderer, safe text content, keyboard-focus preservation, gameplay input suppression while controls are focused, and actionable pause menus.
+- Sample HUD/controller and UI Lab with a real physics-trigger hazard; headless reports include live UI state.
+- No-op authoring edits no longer consume undo history. Desktop Linux/Windows distributions retained.
+- Validation: 38 unit/integration tests (144 assertions), strict TypeScript/Oxlint, browser UI suite, packaged Linux UI suite and standalone UI export pass. Windows package built but not executed.
+- Includes all 0.4.1 changes. Not yet published to GitHub.
+
 ## 0.4.1 (local patch)
 
 - Replace native material/light color inputs with a custom portal-mounted picker, clamped to the viewport and repositioned on resize/scroll.

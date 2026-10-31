@@ -1,3 +1,5 @@
+import { parseUI } from "../../ui/src/schema";
+import type { UIDocument } from "../../ui/src/schema";
 export type Vec3 = [number, number, number];
 export type Template = "adventure" | "first-person" | "driving" | "sandbox";
 export type Primitive = "box" | "sphere" | "capsule" | "cylinder" | "cone" | "asset";
@@ -51,6 +53,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  ui?: UIDocument;
   collections?: Collection[];
   scripts?: ScriptAsset[];
   version: 1;
@@ -308,6 +311,7 @@ export function parseScene(value: unknown): SceneDocument {
     assets,
     ...(scripts ? { scripts } : {}),
     ...(collections ? { collections } : {}),
+    ...(value.ui !== undefined ? { ui: parseUI(value.ui) } : {}),
     environment: {
       background: color(env.background),
       fog: color(env.fog),

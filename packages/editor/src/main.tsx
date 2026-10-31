@@ -1,3 +1,4 @@
+import { UIEditor } from "./ui-editor";
 import { ColorPicker } from "./color-picker";
 import { descendants } from "./hierarchy-model";
 import { Hierarchy } from "./hierarchy";
@@ -53,6 +54,7 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [uiSelected, setUISelected] = useState("");
   const [trustedSignature, setTrustedSignature] = useState<string | null>(null),
     [scriptId, setScriptId] = useState("");
   const [newGameOpen, setNewGameOpen] = useState(false),
@@ -63,7 +65,7 @@ function App() {
     [playing, setPlaying] = useState(false),
     [paused, setPaused] = useState(false),
     [settings, setSettings] = useState<RenderSettings>({ ...LOW }),
-    [tab, setTab] = useState<"assets" | "console" | "guide" | "scripts">("assets"),
+    [tab, setTab] = useState<"assets" | "console" | "guide" | "scripts" | "ui">("assets"),
     [inspector, setInspector] = useState<"entity" | "render">("entity"),
     [logs, setLogs] = useState<EngineEvent[]>([]),
     [error, setError] = useState(""),
@@ -73,7 +75,7 @@ function App() {
     [score, setScore] = useState({ collected: 0, total: 5, won: false, speed: 0 }),
     [revision, setRevision] = useState(0),
     [tool, setTool] = useState<"translate" | "rotate" | "scale">("translate");
-  const workspace = useWorkspaceLayout(tab === "scripts");
+  const workspace = useWorkspaceLayout(tab === "scripts" || tab === "ui");
   const canvas = useRef<HTMLCanvasElement>(null),
     engine = useRef<Engine | null>(null),
     history = useRef(new History()),
@@ -88,6 +90,7 @@ function App() {
         gameStarter === "blank" ? createGame(gameName) : createTemplate(gameStarter as Template);
       next.name = gameName;
       const checked = parseScene(next);
+      if (JSON.stringify(checked) === JSON.stringify(current.current)) return;
       history.current.commit(current.current);
       current.current = checked;
       setScene(checked);
@@ -99,12 +102,16 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    engine.current?.selectUI(uiSelected);
+  }, [uiSelected, revision]);
   function commit(fn: (scene: SceneDocument) => void) {
     if (playing) return;
     try {
       const next = cloneScene(current.current);
       fn(next);
       const checked = parseScene(next);
+      if (JSON.stringify(checked) === JSON.stringify(current.current)) return;
       history.current.commit(current.current);
       current.current = checked;
       setScene(checked);
@@ -122,6 +129,15 @@ function App() {
     const node = canvas.current;
     if (!node) return;
     void Engine.create(node, {
+      onUITransform: (id, patch) =>
+        applyRef.current((s) => {
+          const e = s.ui?.elements.find((e) => e.id === id);
+          if (e) Object.assign(e, patch);
+        }),
+      onUISelect: (id) => {
+        setUISelected(id);
+        setTab("ui");
+      },
       onSelect: (id) => {
         setSelected(id);
         setInspector("entity");
@@ -476,7 +492,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.4</small>
+            <small>WORKSHOP / 0.5</small>
           </div>
         </div>
         <div className="project-path">
@@ -639,7 +655,7 @@ function App() {
             {settings.preset === "low" ? "LOW / LEGACY GPU" : "HIGH / OPTIONAL FX"}
             <small>{settings.volumetrics ? "BEAM VOLUMES ON" : "VOLUMETRICS OFF"}</small>
           </div>
-          {!playing && ready && (
+          {!playing && ready && !scene.ui?.elements.length && (
             <div className="scene-caption">
               <div>THE LAST LIGHT COLLECTION</div>
               <h1>{scene.name}</h1>
@@ -649,7 +665,7 @@ function App() {
               </button>
             </div>
           )}
-          {playing && (
+          {playing && !scene.ui?.elements.length && (
             <div className="game-hud" data-testid="game-status">
               <span>
                 {paused
@@ -1188,7 +1204,7 @@ function App() {
         <div className="bottom-tabs">
           {workspace.dockGrip}
           <div>
-            {(["assets", "console", "scripts", "guide"] as const).map((t) => (
+            {(["assets", "console", "ui", "scripts", "guide"] as const).map((t) => (
               <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
                 {t === "assets" ? (
                   <>
@@ -1197,6 +1213,11 @@ function App() {
                 ) : t === "console" ? (
                   <>
                     <Icon name="console" /> Console ({logs.length})
+                  </>
+                ) : t === "ui" ? (
+                  <>
+                    <Icon name="assets" />
+                    UI designer
                   </>
                 ) : t === "scripts" ? (
                   <>
@@ -1241,7 +1262,15 @@ function App() {
             ) : null}
           </div>
         </div>
-        {tab === "scripts" ? (
+        {tab === "ui" ? (
+          <UIEditor
+            scene={scene}
+            selected={uiSelected}
+            onSelect={setUISelected}
+            commit={commit}
+            disabled={playing}
+          />
+        ) : tab === "scripts" ? (
           <ScriptPanel
             key={scriptId + (scene.scripts?.find((s) => s.id === scriptId)?.source || "")}
             scene={scene}

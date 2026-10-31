@@ -1,3 +1,7 @@
+import type { UIAPI } from "../../ui/src/store";
+export { createUIElement, emptyUI } from "../../ui/src/schema";
+export type { UIElement, UIDocument, UIKind, UIStyle } from "../../ui/src/schema";
+export type { UIAPI, UIEvent, UIEventType } from "../../ui/src/store";
 import type { Behavior, SimulationHost } from "../../runtime/src/behaviors";
 import type { Entity, ScriptValue, Vec3 } from "../../runtime/src/schema";
 import type { EngineEvent } from "../../runtime/src/events";
@@ -8,6 +12,7 @@ export { RAPIER } from "../../runtime/src/physics";
 export type { Entity, Vec3, SceneDocument, ScriptValue } from "../../runtime/src/schema";
 export type { Behavior, SimulationHost } from "../../runtime/src/behaviors";
 export interface ScriptContext {
+  readonly ui: UIAPI;
   readonly engine: SimulationHost;
   readonly entity: Entity;
   readonly object: Group;
