@@ -133,16 +133,22 @@ export function projectFiles(scene: SceneDocument) {
     encoder.encode(
       JSON.stringify({
         format: "pinefall-project",
-        version: checked.assets.some((a) => a.import?.version === 2)
-          ? 4
-          : checked.assets.some((a) => a.import)
-            ? 3
-            : 2,
-        minimumReader: checked.assets.some((a) => a.import?.version === 2)
-          ? 4
-          : checked.assets.some((a) => a.import)
-            ? 3
-            : 2,
+        version:
+          checked.version === 3 || checked.entities.some((e) => e.animator)
+            ? 5
+            : checked.assets.some((a) => a.import?.version === 2)
+              ? 4
+              : checked.assets.some((a) => a.import)
+                ? 3
+                : 2,
+        minimumReader:
+          checked.version === 3 || checked.entities.some((e) => e.animator)
+            ? 5
+            : checked.assets.some((a) => a.import?.version === 2)
+              ? 4
+              : checked.assets.some((a) => a.import)
+                ? 3
+                : 2,
         scene: "scene.json",
         project: metadata,
       }),
@@ -171,7 +177,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3, 4].includes(manifest.version) ||
+    ![1, 2, 3, 4, 5].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
@@ -202,6 +208,13 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
     (scene.scripts !== undefined && (!Array.isArray(scene.scripts) || scene.scripts.length > 64))
   )
     throw Error("Invalid project resource list");
+  if (
+    manifest.version < 5 &&
+    Array.isArray(scene.entities) &&
+    scene.entities.some((e: Record<string, unknown>) => e.animator !== undefined)
+  )
+    throw Error("Animator definitions require PIF v5");
+  if (scene.version === 3 && manifest.version < 5) throw Error("Scene v3 requires PIF v5");
   scene.assets = scene.assets.map((a: Record<string, unknown>) => {
     if (!a || "data" in a || typeof a.file !== "string" || !a.file.startsWith("assets/"))
       throw Error("PIF assets must reference files");
@@ -249,7 +262,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
   return parseScene(scene);
 }
-export const PIF_VERSION = 4;
+export const PIF_VERSION = 5;
 export async function sha256(bytes: Uint8Array) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -284,7 +297,7 @@ export async function sceneFromFiles(
     if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
     return decodeFiles(files);
   }
-  if (![2, 3, 4].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
+  if (![2, 3, 4, 5].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
   const proofBytes = files.get("integrity.json");
   if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");
   const proof = JSON.parse(decoder.decode(proofBytes));

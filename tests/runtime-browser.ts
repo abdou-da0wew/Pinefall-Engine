@@ -21,7 +21,9 @@ try {
       const count = engine.document.entities.length;
       engine.play();
       engine.spawnBox();
-      check(engine.document.entities.length === count + 1, "spawn");
+      check(engine.document.entities.length === count, "spawn queued until boundary");
+      await wait(200);
+      check(engine.document.entities.length === count + 1, "spawn admitted");
       await engine.stop();
       check(engine.document.entities.length === count, "stop restores authored count");
       await engine.load(createTemplate("adventure"));

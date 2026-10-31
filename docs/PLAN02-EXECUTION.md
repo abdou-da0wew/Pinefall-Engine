@@ -30,3 +30,15 @@ Implemented and executed: bounded marker clock (including loop/seek/direction-ch
 Validation: **94 tests / 458 assertions**, typecheck/Oxlint and production editor/player build pass. Animation/audio browser and external-character suites pass; assets/runtime and persistent-recovery browser regressions also pass. The large production chunk warning remains. No new desktop release is claimed: these subsystem modules and development lab are not yet authored scene/editor integration.
 
 Next implementation boundary: AA1 stable clip-subasset binding and trim/preview contracts; AA2 state graph and fades. AA3–AA6 remain as listed above. Crossfades, controller root motion, spatial/streaming audio, pause classes, versioned authored graph/cue storage and full engine/headless/SDK integration are not implemented by this foundation. See `ANIMATION-AUDIO-FOUNDATION.md` for runnable APIs, precise limitations and test commands.
+
+## Full-plan completion work order
+
+The owner now requests all of Plan02, not another isolated lab milestone. Implement authored clip recipes and bounded graph definitions first, using Plan01 subasset IDs and non-destructive trim sampling. Introduce PIF v5 rather than silently allowing old readers to discard animator definitions. Integrate the same graph evaluator with staged graphical worlds and headless simulation. Define interruption as a frozen evaluated source pose blending into the new target; only the selected action owns gameplay markers. Add a dedicated editor panel, scoped script controls, and roundtrip/runtime tests before moving to audio schema and scheduling.
+
+Then implement root-motion proposals and fixed-boundary mutation ordering, followed by audio assets/cues/buses, device epochs and pause/spatial/persistent ownership; finish shared export/tutorial/native tests. No section is complete merely because an API or checkbox exists. Unsupported features and external audible/device acceptance must stay explicit. Every implementation change must preserve failed-load rollback and existing project behavior.
+
+## Integrated animator + fixed-boundary checkpoint (2026-10-31)
+
+Implemented strict scene3/PIF5 animator definitions, stable clip recipes, per-instance graph evaluation, headless mathematical rig evaluation, scoped SDK and dedicated editor authoring/preview. Added a shared fixed dispatcher and queued structural lifecycle, including pending-destroy callback suppression and rollback tests. See [PLAN02-INTEGRATION.md](PLAN02-INTEGRATION.md) for exact semantics, evidence and remaining scope.
+
+Verified 105 unit tests / 524 assertions; integrated skinned browser parity and 100 Play/Stop cycles; editor, asset, runtime browser suites; check and build. **This is not full Plan02 acceptance.** Root-motion controller proposals/path preview, authored production audio and AA6 tutorial/export/native integration remain incomplete. No new native binary or public release has been certified.

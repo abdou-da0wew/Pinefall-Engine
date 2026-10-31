@@ -125,7 +125,7 @@ export function createBehaviorSession(
       let inactive = false;
       const time = { elapsed: 0, delta: 0, fixedDelta: 1 / 60, frame: 0 };
       const guardedUI = (listener: (event: UIEvent) => void) => (event: UIEvent) => {
-        if (inactive) return;
+        if (inactive || host.fixed.pendingDestroy.has(entity.id)) return;
         try {
           listener(event);
         } catch (error) {
@@ -164,14 +164,53 @@ export function createBehaviorSession(
           };
         },
       };
+      const animator = () => {
+        if (inactive || host.fixed.pendingDestroy.has(entity.id))
+          throw Error("Script scope disposed/disabled");
+        const value = host.animators.get(entity.id);
+        if (!value) throw Error("Entity has no animator");
+        return value;
+      };
       const context: ScriptContext = {
+        animation: {
+          get snapshot() {
+            return host.animators.get(entity.id)?.graph.snapshot;
+          },
+          setParameter: (name, value) => animator().graph.setParameter(name, value),
+          play: (state) => animator().graph.play(state),
+          crossFade: (state, seconds) => animator().graph.play(state, seconds),
+          onEvent: (listener) => {
+            const off = host.events.subscribe((event) => {
+              if (
+                inactive ||
+                host.fixed.pendingDestroy.has(entity.id) ||
+                event.type !== "animation" ||
+                event.data?.entity !== entity.id
+              )
+                return;
+              try {
+                listener(event);
+              } catch (error) {
+                inactive = true;
+                report(asset.name, "animation event", error);
+              }
+            });
+            cleanup.add(off);
+            return () => {
+              off();
+              cleanup.delete(off);
+            };
+          },
+        },
         ui: scopedUI,
         engine: host,
         entity,
         object: host.objects.get(entity.id)!,
         props,
         state: {},
-        input: host.input,
+        get input() {
+          return host.fixed.inputSnapshot;
+        },
         time,
         number: (name, fallback = 0) =>
           typeof props[name] === "number" && Number.isFinite(props[name])
@@ -212,7 +251,12 @@ export function createBehaviorSession(
         emit: (name, data) => host.events.emit("custom:" + name, name, data),
         onEvent(name, listener) {
           const off = host.events.subscribe((event) => {
-            if (inactive || event.type !== "custom:" + name) return;
+            if (
+              inactive ||
+              host.fixed.pendingDestroy.has(entity.id) ||
+              event.type !== "custom:" + name
+            )
+              return;
             try {
               listener(event);
             } catch (error) {
@@ -261,20 +305,21 @@ export function createBehaviorSession(
           wrapped.start?.();
         },
         fixedUpdate(dt) {
-          if (inactive) return;
+          if (inactive || host.fixed.pendingDestroy.has(entity.id)) return;
           time.delta = dt;
           time.fixedDelta = dt;
           time.elapsed += dt;
           wrapped.fixedUpdate?.(dt);
         },
         update(dt) {
-          if (inactive) return;
+          if (inactive || host.fixed.pendingDestroy.has(entity.id)) return;
           time.delta = dt;
           time.frame++;
           wrapped.update?.(dt);
         },
         trigger(other, started) {
-          if (!inactive) wrapped.trigger?.(other, started);
+          if (!inactive && !host.fixed.pendingDestroy.has(entity.id))
+            wrapped.trigger?.(other, started);
         },
         dispose() {
           inactive = true;
@@ -286,16 +331,28 @@ export function createBehaviorSession(
     }
     return {
       start() {
-        for (const b of instances) b.start?.();
+        for (const b of instances) {
+          if (host.fixed.pendingDestroy.has(entity.id)) break;
+          b.start?.();
+        }
       },
       fixedUpdate(dt) {
-        for (const b of instances) b.fixedUpdate?.(dt);
+        for (const b of instances) {
+          if (host.fixed.pendingDestroy.has(entity.id)) break;
+          b.fixedUpdate?.(dt);
+        }
       },
       update(dt) {
-        for (const b of instances) b.update?.(dt);
+        for (const b of instances) {
+          if (host.fixed.pendingDestroy.has(entity.id)) break;
+          b.update?.(dt);
+        }
       },
       trigger(other, started) {
-        for (const b of instances) b.trigger?.(other, started);
+        for (const b of instances) {
+          if (host.fixed.pendingDestroy.has(entity.id)) break;
+          b.trigger?.(other, started);
+        }
       },
       dispose() {
         for (const b of instances) b.dispose?.();

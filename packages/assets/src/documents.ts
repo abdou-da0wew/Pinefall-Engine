@@ -12,7 +12,7 @@ export function sceneReferences(scene: SceneDocument) {
 /** Portable JSON is explicitly materialized. Internal working documents contain only references. */
 export function materializeScene(input: SceneDocument): SceneDocument {
   const scene = structuredClone(input);
-  scene.version = 1;
+  scene.version = input.version === 3 ? 3 : 1;
   for (const a of scene.assets) {
     if (isBlobRef(a.data)) a.data = toDataURI(blobs.read(a.data));
     for (const s of a.import?.sources || [])
@@ -47,6 +47,6 @@ export async function referenceScene(
     if (total > 8_000_000) throw Error("Project decoded source/artifact budget exceeds 8 MB");
   }
   signal?.throwIfAborted();
-  scene.version = 2;
+  scene.version = input.version === 3 ? 3 : 2;
   return scene;
 }

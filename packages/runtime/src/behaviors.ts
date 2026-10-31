@@ -18,6 +18,9 @@ export type SimulationHost = Pick<
   | "document"
   | "physics"
   | "objects"
+  | "animators"
+  | "fixed"
+  | "behaviors"
   | "speed"
   | "collected"
   | "goalCount"
@@ -39,9 +42,13 @@ export function registerBuiltins(engine: SimulationHost) {
       grounded = false;
     return {
       fixedUpdate(dt) {
-        const speed = engine.input.has("Shift") ? 7 : 4;
-        let x = (engine.input.has("KeyD") ? 1 : 0) - (engine.input.has("KeyA") ? 1 : 0),
-          z = (engine.input.has("KeyS") ? 1 : 0) - (engine.input.has("KeyW") ? 1 : 0);
+        const speed = engine.fixed.inputSnapshot.has("Shift") ? 7 : 4;
+        let x =
+            (engine.fixed.inputSnapshot.has("KeyD") ? 1 : 0) -
+            (engine.fixed.inputSnapshot.has("KeyA") ? 1 : 0),
+          z =
+            (engine.fixed.inputSnapshot.has("KeyS") ? 1 : 0) -
+            (engine.fixed.inputSnapshot.has("KeyW") ? 1 : 0);
         const length = Math.hypot(x, z) || 1;
         x /= length;
         z /= length;
@@ -71,10 +78,16 @@ export function registerBuiltins(engine: SimulationHost) {
       fall = 0;
     return {
       fixedUpdate(dt) {
-        const throttle = (engine.input.has("KeyW") ? 1 : 0) - (engine.input.has("KeyS") ? 1 : 0),
-          steer = (engine.input.has("KeyA") ? 1 : 0) - (engine.input.has("KeyD") ? 1 : 0);
+        const throttle =
+            (engine.fixed.inputSnapshot.has("KeyW") ? 1 : 0) -
+            (engine.fixed.inputSnapshot.has("KeyS") ? 1 : 0),
+          steer =
+            (engine.fixed.inputSnapshot.has("KeyA") ? 1 : 0) -
+            (engine.fixed.inputSnapshot.has("KeyD") ? 1 : 0);
         speed += throttle * 12 * dt;
-        speed *= Math.exp(-(engine.input.has("Space") ? 7 : throttle ? 0.25 : 1.4) * dt);
+        speed *= Math.exp(
+          -(engine.fixed.inputSnapshot.has("Space") ? 7 : throttle ? 0.25 : 1.4) * dt,
+        );
         speed = Math.max(-7, Math.min(18, speed));
         yaw += steer * speed * 0.07 * dt;
         fall = Math.max(-20, fall + engine.document.environment.gravity * dt);

@@ -11,14 +11,22 @@ export { entity, cloneScene, parseScene } from "../../runtime/src/schema";
 export { RAPIER } from "../../runtime/src/physics";
 export type { Entity, Vec3, SceneDocument, ScriptValue } from "../../runtime/src/schema";
 export type { Behavior, SimulationHost } from "../../runtime/src/behaviors";
+export interface AnimationAPI {
+  readonly snapshot: import("../../animation/src/graph").AnimationGraph["snapshot"] | undefined;
+  setParameter(name: string, value: number | boolean): void;
+  play(state: string): void;
+  crossFade(state: string, seconds: number): void;
+  onEvent(listener: (event: EngineEvent) => void): () => void;
+}
 export interface ScriptContext {
+  readonly animation: AnimationAPI;
   readonly ui: UIAPI;
   readonly engine: SimulationHost;
   readonly entity: Entity;
   readonly object: Group;
   readonly props: Record<string, ScriptValue>;
   readonly state: Record<string, unknown>;
-  readonly input: Set<string>;
+  readonly input: ReadonlySet<string>;
   readonly time: { elapsed: number; delta: number; fixedDelta: number; frame: number };
   number(name: string, fallback?: number): number;
   string(name: string, fallback?: string): string;

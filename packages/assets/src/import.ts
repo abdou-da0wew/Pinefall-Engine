@@ -100,7 +100,7 @@ export function adoptImport(
   mapping?: Record<string, string>,
 ) {
   const next = cloneScene(scene);
-  if (result.data.startsWith("asset:sha256:")) next.version = 2;
+  if (result.data.startsWith("asset:sha256:") && next.version !== 3) next.version = 2;
   const old = target ? next.assets.find((a) => a.id === target.id) : undefined;
   if (
     target &&

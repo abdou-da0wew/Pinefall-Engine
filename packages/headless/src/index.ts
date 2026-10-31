@@ -1,3 +1,6 @@
+import { FixedSimulation } from "../../runtime/src/fixed";
+import { AnimationGraphPlayer } from "../../animation/src/graph-player";
+import { HeadlessModels } from "../../animation/src/headless-models";
 import { UIStore } from "../../ui/src/store";
 import { Group, MathUtils } from "three";
 import { initPhysics, PhysicsSystem } from "../../runtime/src/physics";
@@ -9,6 +12,9 @@ import type { Behavior, BehaviorFactory, SimulationHost } from "../../runtime/sr
 import { createBehaviorSession } from "../../scripting/src/runtime";
 /** DOM-free simulation: same physics, scene schema and behaviors as the graphical engine. */
 export class HeadlessEngine implements SimulationHost {
+  readonly fixed = new FixedSimulation();
+  readonly animators = new Map<string, AnimationGraphPlayer>();
+  private models = new HeadlessModels();
   allowSceneScripts = false;
   paused = false;
   readonly ui = new UIStore((error) =>
@@ -34,27 +40,57 @@ export class HeadlessEngine implements SimulationHost {
   private dead = false;
   static async create(scene: SceneDocument) {
     await initPhysics();
-    return new HeadlessEngine(parseScene(scene));
+    const engine = new HeadlessEngine(parseScene(scene));
+    try {
+      for (const asset of engine.document.assets)
+        if (asset.import?.report.clips.length) await engine.models.prepare(asset.id, asset.data);
+      for (const e of engine.document.entities) engine.attachAnimator(e);
+      return engine;
+    } catch (error) {
+      engine.dispose();
+      throw error;
+    }
   }
   private constructor(scene: SceneDocument) {
     this.document = cloneScene(scene);
     this.ui.load(scene.ui);
     this.physics = new PhysicsSystem(scene.environment.gravity);
-    for (const e of scene.entities) {
-      this.physics.add(e);
-      const node = new Group();
-      node.position.fromArray(e.transform.position);
-      node.rotation.set(...(e.transform.rotation.map(MathUtils.degToRad) as Vec3));
-      node.scale.fromArray(e.transform.scale);
-      node.visible = e.enabled;
-      this.objects.set(e.id, node);
+    try {
+      for (const e of scene.entities) {
+        this.physics.add(e);
+        const node = new Group();
+        node.position.fromArray(e.transform.position);
+        node.rotation.set(...(e.transform.rotation.map(MathUtils.degToRad) as Vec3));
+        node.scale.fromArray(e.transform.scale);
+        node.visible = e.enabled;
+        this.objects.set(e.id, node);
+      }
+      for (const e of scene.entities)
+        if (e.parent) this.objects.get(e.parent)?.add(this.objects.get(e.id)!);
+      this.goalCount = scene.entities.filter(
+        (e) => e.enabled && e.behavior === "collectible",
+      ).length;
+      const player = scene.entities.find((e) => e.tag === "player");
+      if (player) this.checkpoint = [...player.transform.position];
+    } catch (error) {
+      this.physics.dispose();
+      this.objects.clear();
+      this.ui.dispose();
+      throw error;
     }
-    for (const e of scene.entities)
-      if (e.parent) this.objects.get(e.parent)?.add(this.objects.get(e.id)!);
-    this.goalCount = scene.entities.filter((e) => e.enabled && e.behavior === "collectible").length;
-    const player = scene.entities.find((e) => e.tag === "player");
-    if (player) this.checkpoint = [...player.transform.position];
     registerBuiltins(this);
+  }
+  private attachAnimator(entity: Entity) {
+    if (!entity.animator) return;
+    const asset = this.document.assets.find((a) => a.id === entity.mesh?.asset)!;
+    const root = this.models.acquire(asset.id);
+    try {
+      this.animators.set(entity.id, new AnimationGraphPlayer(root, entity.animator, asset.import!));
+      this.objects.get(entity.id)!.add(root);
+    } catch (error) {
+      this.models.release(root);
+      throw error;
+    }
   }
   registerBehavior(name: string, factory: BehaviorFactory) {
     this.registry.set(name, factory);
@@ -64,10 +100,15 @@ export class HeadlessEngine implements SimulationHost {
     if (this.playing) return;
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
+    this.fixed.clear();
     this.playing = true;
     this.ui.interactive = true;
+    for (const animator of this.animators.values()) {
+      animator.graph.reset();
+      animator.sample();
+    }
     for (const e of [...this.document.entities]) {
-      if (!e.enabled) continue;
+      if (!e.enabled || this.fixed.pendingDestroy.has(e.id)) continue;
       const instance = createBehavior(e);
       this.behaviors.set(e.id, instance);
       instance.start?.();
@@ -78,24 +119,73 @@ export class HeadlessEngine implements SimulationHost {
     this.assertAlive();
     if (!this.playing) throw Error("Runtime spawning requires Play");
     if (input.parent) throw Error("Spawn a root entity");
+    const next = parseScene({
+      ...this.document,
+      entities: [...this.document.entities, ...this.fixed.pendingSpawns.values(), input],
+    });
+    const entity = next.entities.at(-1)!;
+    this.fixed.spawn(entity, (value) => this.admitSpawn(value));
+    return entity;
+  }
+  private admitSpawn(input: Entity) {
+    this.assertAlive();
+    if (!this.playing) throw Error("Runtime spawning requires Play");
+    if (input.parent) throw Error("Spawn a root entity");
     const next = parseScene({ ...this.document, entities: [...this.document.entities, input] });
     const e = next.entities.at(-1)!;
-    this.document.entities.push(e);
-    this.physics.add(e);
-    const node = new Group();
-    node.position.fromArray(e.transform.position);
-    node.rotation.set(...(e.transform.rotation.map(MathUtils.degToRad) as Vec3));
-    node.scale.fromArray(e.transform.scale);
-    node.visible = e.enabled;
-    this.objects.set(e.id, node);
-    if (e.enabled && this.behaviorBuilder) {
-      const b = this.behaviorBuilder(e);
-      this.behaviors.set(e.id, b);
-      b.start?.();
+    try {
+      this.document.entities.push(e);
+      this.physics.add(e);
+      const node = new Group();
+      node.position.fromArray(e.transform.position);
+      node.rotation.set(...(e.transform.rotation.map(MathUtils.degToRad) as Vec3));
+      node.scale.fromArray(e.transform.scale);
+      node.visible = e.enabled;
+      this.objects.set(e.id, node);
+      this.attachAnimator(e);
+      if (e.enabled && this.behaviorBuilder) {
+        const b = this.behaviorBuilder(e);
+        this.behaviors.set(e.id, b);
+        b.start?.();
+      }
+    } catch (error) {
+      const animator = this.animators.get(e.id);
+      if (animator) {
+        animator.dispose();
+        this.models.release(animator.root);
+        this.animators.delete(e.id);
+      }
+      this.behaviors.get(e.id)?.dispose?.();
+      this.behaviors.delete(e.id);
+      this.physics.remove(e.id);
+      this.objects.get(e.id)?.removeFromParent();
+      this.objects.delete(e.id);
+      this.document.entities = this.document.entities.filter((entity) => entity.id !== e.id);
+      throw error;
     }
     return e;
   }
   destroy(id: string) {
+    this.assertAlive();
+    if (!this.playing) {
+      this.destroyNow(id);
+      return;
+    }
+    const entities = [...this.document.entities, ...this.fixed.pendingSpawns.values()];
+    if (!entities.some((e) => e.id === id)) return;
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const e of entities)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          changed = true;
+        }
+    }
+    this.fixed.destroy([...ids], () => this.destroyNow(id));
+  }
+  private destroyNow(id: string) {
     this.assertAlive();
     const ids = new Set([id]);
     let changed = true;
@@ -111,6 +201,12 @@ export class HeadlessEngine implements SimulationHost {
       const b = this.behaviors.get(key);
       this.behaviors.delete(key);
       b?.dispose?.();
+      const animator = this.animators.get(key);
+      if (animator) {
+        animator.dispose();
+        this.models.release(animator.root);
+        this.animators.delete(key);
+      }
       this.physics.remove(key);
       this.objects.get(key)?.removeFromParent();
       this.objects.delete(key);
@@ -125,22 +221,11 @@ export class HeadlessEngine implements SimulationHost {
 
     for (let i = 0; i < ticks; i++) {
       if (this.paused) break;
-      for (const b of this.behaviors.values()) b.fixedUpdate?.(1 / 60);
-      this.physics.step((a, b, started) => {
-        const ea = this.document.entities.find((e) => e.id === a),
-          eb = this.document.entities.find((e) => e.id === b);
-        if (ea && eb) {
-          this.behaviors.get(a)?.trigger?.(eb, started);
-          this.behaviors.get(b)?.trigger?.(ea, started);
-        }
-      });
-      for (const [id, body] of this.physics.bodies) {
-        const node = this.objects.get(id)!;
-        const p = body.translation(),
-          q = body.rotation();
-        node.position.set(p.x, p.y, p.z);
-        node.quaternion.set(q.x, q.y, q.z, q.w);
-        if (this.document.entities.find((e) => e.id === id)?.tag === "player" && p.y < -20) {
+      this.fixed.run(this);
+      for (const entity of this.document.entities) {
+        if (entity.tag !== "player") continue;
+        const body = this.physics.bodies.get(entity.id);
+        if (body && body.translation().y < -20) {
           body.setTranslation(
             { x: this.checkpoint[0], y: this.checkpoint[1], z: this.checkpoint[2] },
             true,
@@ -148,7 +233,9 @@ export class HeadlessEngine implements SimulationHost {
           body.setLinvel({ x: 0, y: 0, z: 0 }, true);
         }
       }
-      for (const b of this.behaviors.values()) b.update?.(1 / 60);
+      if (!this.paused)
+        for (const [id, b] of this.behaviors)
+          if (!this.fixed.pendingDestroy.has(id)) b.update?.(1 / 60);
       this.ticks++;
     }
   }
@@ -186,6 +273,10 @@ export class HeadlessEngine implements SimulationHost {
     this.dead = true;
     for (const b of this.behaviors.values()) b.dispose?.();
     this.behaviors.clear();
+    this.fixed.clear();
+    for (const animator of this.animators.values()) animator.dispose();
+    this.animators.clear();
+    this.models.dispose();
     this.objects.clear();
     this.physics.dispose();
     this.ui.dispose();

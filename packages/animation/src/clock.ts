@@ -49,6 +49,7 @@ export class ClipClock {
     const ids = new Set<string>();
     for (const m of markers) {
       if (
+        Object.keys(m).some((key) => !["id", "time", "kind", "entry", "repeat"].includes(key)) ||
         typeof m.id !== "string" ||
         !m.id ||
         m.id.length > 100 ||
@@ -98,11 +99,13 @@ export class ClipClock {
     this.entered = false;
     this.fault = undefined;
   }
-  advance(dt: number): { events: MarkerEvent[]; overflow: boolean } {
+  advance(dt: number, timeScale = 1): { events: MarkerEvent[]; overflow: boolean } {
     if (!Number.isFinite(dt) || dt < 0 || dt > 3600) throw Error("Invalid animation delta");
+    if (!Number.isFinite(timeScale) || timeScale <= 0 || timeScale > 86_400_000)
+      throw Error("Invalid clock cadence");
     if (this.paused) return { events: [], overflow: false };
     const previous = this.elapsed;
-    const increment = dt * this.rate - this.compensation;
+    const increment = dt * timeScale * this.rate - this.compensation;
     let next = previous + increment;
     let compensation = next - previous - increment;
     if (Math.abs(next) > 1e12) throw Error("Animation cursor budget");
@@ -119,7 +122,7 @@ export class ClipClock {
           kind: m.kind,
           activation: this.activation,
           loop,
-          offset: this.rate > 0 ? Math.max(0, (at - previous) / this.rate) : 0,
+          offset: this.rate > 0 ? Math.max(0, (at - previous) / (this.rate * timeScale)) : 0,
         },
         at,
         order,

@@ -1,3 +1,4 @@
+import { AnimationPanel } from "./animation-panel";
 import {
   rememberMissing,
   missingCompanion,
@@ -1325,6 +1326,17 @@ function App() {
                     Built-in behaviors run in Play. Attach custom TypeScript below to extend them.
                   </small>
                 </section>
+                {chosen.mesh?.asset &&
+                  scene.assets.find((a) => a.id === chosen.mesh?.asset)?.import && (
+                    <AnimationPanel
+                      key={chosen.id}
+                      entity={chosen}
+                      asset={scene.assets.find((a) => a.id === chosen.mesh?.asset)!}
+                      engine={engine.current}
+                      disabled={playing || loadBusy || importBusy}
+                      commit={commit}
+                    />
+                  )}
                 <ScriptAttachments
                   entity={chosen}
                   scene={scene}

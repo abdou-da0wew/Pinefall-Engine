@@ -1,3 +1,5 @@
+import { FixedSimulation } from "./fixed";
+import { AnimationGraphPlayer } from "../../animation/src/graph-player";
 import { assetMemory, type Reservation } from "../../assets/src/budget";
 import { referenceScene } from "../../assets/src/documents";
 import { UIStore } from "../../ui/src/store";
@@ -15,6 +17,7 @@ import type { SceneDocument, Entity, RenderSettings, Primitive, Vec3 } from "./s
 import { registerBuiltins } from "./behaviors";
 import type { BehaviorFactory, Behavior } from "./behaviors";
 interface WorldResources {
+  animators: Map<string, AnimationGraphPlayer>;
   reservation?: Reservation;
   root: T.Group;
   objects: Map<string, T.Group>;
@@ -25,6 +28,8 @@ interface WorldResources {
   beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[];
 }
 function disposeWorld(world: WorldResources) {
+  for (const animator of world.animators.values()) animator.dispose();
+  world.animators.clear();
   world.physics.dispose();
   for (const lease of world.imported.values()) lease.release();
   world.imported.clear();
@@ -67,6 +72,8 @@ export interface EngineOptions {
 }
 export type CameraRig = "auto" | "orbit" | "first-person" | "follow" | "vehicle";
 export class Engine {
+  readonly fixed = new FixedSimulation();
+  animators = new Map<string, AnimationGraphPlayer>();
   readonly ui = new UIStore((error) =>
     this.events.emit("error", "UI callback failed", { error: String(error) }),
   );
@@ -387,6 +394,7 @@ export class Engine {
         "world",
       );
       world = {
+        animators: new Map(),
         reservation: worldReservation,
         root: new T.Group(),
         objects: new Map(),
@@ -416,6 +424,11 @@ export class Engine {
             }
           });
           world.objects.get(e.id)!.add(lease.root);
+          if (e.animator)
+            world.animators.set(
+              e.id,
+              new AnimationGraphPlayer(lease.root, e.animator, asset.import!),
+            );
         }
         if (performance.now() - slice > 2) {
           await new Promise((resolve) => setTimeout(resolve, 0));
@@ -463,6 +476,7 @@ export class Engine {
     this.geometries = world.geometries;
     this.materials = world.materials;
     this.imported = world.imported;
+    this.animators = world.animators;
     this.beams = world.beams;
     this.document = cloneScene(scene);
     this.ui.load(scene.ui);
@@ -500,6 +514,7 @@ export class Engine {
   private liveWorld(): WorldResources {
     return {
       reservation: this.worldReservation,
+      animators: this.animators,
       root: this.root,
       objects: this.objects,
       physics: this.physics,
@@ -603,6 +618,7 @@ export class Engine {
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
+    this.fixed.clear();
     this.playing = true;
     this.ui.interactive = true;
     this.paused = false;
@@ -612,8 +628,12 @@ export class Engine {
     this.collected.clear();
     this.won = false;
     this.behaviors.clear();
+    for (const animator of this.animators.values()) {
+      animator.graph.reset();
+      animator.sample();
+    }
     for (const e of [...this.document.entities]) {
-      if (!e.enabled) continue;
+      if (!e.enabled || this.fixed.pendingDestroy.has(e.id)) continue;
       const instance = createBehavior(e);
       this.behaviors.set(e.id, instance);
       instance.start?.();
@@ -645,6 +665,17 @@ export class Engine {
     this.events.emit("gameplay", "Returned to checkpoint");
   }
   spawn(input: Entity) {
+    if (!this.playing || this.dead) throw Error("Runtime spawning requires Play");
+    if (input.parent) throw Error("Spawn a root entity");
+    const next = parseScene({
+      ...this.document,
+      entities: [...this.document.entities, ...this.fixed.pendingSpawns.values(), input],
+    });
+    const entity = next.entities.at(-1)!;
+    this.fixed.spawn(entity, (value) => this.admitSpawn(value));
+    return entity;
+  }
+  private admitSpawn(input: Entity) {
     if (!this.playing) throw Error("Runtime spawning requires Play");
     if (input.parent)
       throw Error("Spawn a root entity; parent it explicitly through authored scenes");
@@ -655,14 +686,33 @@ export class Engine {
       const asset = this.document.assets.find((a) => a.id === e.mesh?.asset)!;
       lease = this.assetCache.acquire(asset.data, `entity:${this.generation}:${e.id}`);
     }
-    this.document.entities.push(e);
-    this.addEntity(e);
-    if (lease) {
-      this.imported.set(e.id, lease);
-      lease.root.traverse((o) => {
-        o.userData.entityId = e.id;
-      });
-      this.objects.get(e.id)!.add(lease.root);
+    let animator: AnimationGraphPlayer | undefined;
+    try {
+      if (e.animator && lease)
+        animator = new AnimationGraphPlayer(
+          lease.root,
+          e.animator,
+          this.document.assets.find((a) => a.id === e.mesh?.asset)!.import!,
+        );
+      this.document.entities.push(e);
+      this.addEntity(e);
+      if (lease) {
+        this.imported.set(e.id, lease);
+        lease.root.traverse((o) => {
+          o.userData.entityId = e.id;
+        });
+        this.objects.get(e.id)!.add(lease.root);
+      }
+      if (animator) this.animators.set(e.id, animator);
+    } catch (error) {
+      animator?.dispose();
+      lease?.release();
+      this.imported.delete(e.id);
+      this.physics.remove(e.id);
+      this.objects.get(e.id)?.removeFromParent();
+      this.objects.delete(e.id);
+      this.document.entities = this.document.entities.filter((item) => item.id !== e.id);
+      throw error;
     }
     if (e.enabled && this.behaviorBuilder) {
       const behavior = this.behaviorBuilder(e);
@@ -672,6 +722,25 @@ export class Engine {
     return e;
   }
   destroy(id: string) {
+    if (!this.playing) {
+      this.destroyNow(id);
+      return;
+    }
+    const entities = [...this.document.entities, ...this.fixed.pendingSpawns.values()];
+    if (!entities.some((e) => e.id === id)) return;
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const e of entities)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          changed = true;
+        }
+    }
+    this.fixed.destroy([...ids], () => this.destroyNow(id));
+  }
+  private destroyNow(id: string) {
     const ids = new Set([id]);
     let changed = true;
     while (changed) {
@@ -687,6 +756,8 @@ export class Engine {
       this.behaviors.delete(key);
       b?.dispose?.();
       this.physics.remove(key);
+      this.animators.get(key)?.dispose();
+      this.animators.delete(key);
       this.imported.get(key)?.release();
       this.imported.delete(key);
       this.objects.get(key)?.removeFromParent();
@@ -711,9 +782,8 @@ export class Engine {
       restitution: 0.3,
       sensor: false,
     };
-    this.document.entities.push(e);
-    this.addEntity(e);
-    this.events.emit("physics", "Spawned dynamic crate");
+    this.spawn(e);
+    this.events.emit("physics", "Queued dynamic crate");
   }
   impulse() {
     for (const e of this.document.entities) {
@@ -776,34 +846,23 @@ export class Engine {
     if (now < this.nextFrame) return;
     const interval = 1000 / (this.settings.preset === "high" && this.playing ? 60 : 30);
     this.nextFrame = now + interval - ((now - this.nextFrame) % interval);
-    const dt = Math.min(0.1, this.last ? (now - this.last) / 1000 : 1 / 30);
+    const rawDt = this.last ? (now - this.last) / 1000 : 1 / 30;
+    const dt = Math.min(0.1, rawDt);
+    if (this.playing && !this.paused) this.fixed.discard(rawDt - dt, this);
     this.last = now;
     const start = performance.now();
     this.uiRenderer.draw();
     if (this.playing && !this.paused && this.document) {
+      this.fixed.discard(Math.max(0, this.accumulator + dt - 0.1), this);
       this.accumulator = Math.min(this.accumulator + dt, 0.1);
-      while (this.accumulator >= 1 / 60) {
-        for (const b of this.behaviors.values()) b.fixedUpdate?.(1 / 60);
-        this.physics.step((a, b, started) => {
-          const ea = this.document.entities.find((e) => e.id === a),
-            eb = this.document.entities.find((e) => e.id === b);
-          if (ea && eb) {
-            this.behaviors.get(a)?.trigger?.(eb, started);
-            this.behaviors.get(b)?.trigger?.(ea, started);
-          }
-        });
+      while (this.accumulator >= 1 / 60 && !this.paused) {
+        this.fixed.run(this);
         this.accumulator -= 1 / 60;
         this.steps++;
       }
-      for (const [id, body] of this.physics.bodies) {
-        const object = this.objects.get(id);
-        if (!object) continue;
-        const p = body.translation(),
-          q = body.rotation();
-        object.position.set(p.x, p.y, p.z);
-        object.quaternion.set(q.x, q.y, q.z, q.w);
-      }
-      for (const b of this.behaviors.values()) b.update?.(dt);
+      if (!this.paused)
+        for (const [id, b] of this.behaviors)
+          if (!this.fixed.pendingDestroy.has(id)) b.update?.(dt);
       const player = this.document.entities.find((e) => e.tag === "player"),
         object = player && this.objects.get(player.id);
       if (object) {
@@ -878,6 +937,7 @@ export class Engine {
       }
     }
     this.behaviors.clear();
+    this.fixed.clear();
     disposeWorld(this.liveWorld());
   }
   dispose() {

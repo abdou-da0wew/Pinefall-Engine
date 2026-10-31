@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-31",
+  "status": "partial-integration-not-full-plan02",
+  "candidate": "0.6.0",
+  "unit": {
+    "passed": 105,
+    "assertions": 524,
+    "files": 20
+  },
+  "check": {
+    "typescript": "pass",
+    "oxlint": "pass",
+    "files": 142
+  },
+  "build": "pass-with-existing-large-chunk-warning",
+  "browser": {
+    "animator": "pass",
+    "editorAnimator": "pass",
+    "assets": "pass",
+    "runtime": "pass",
+    "renderer": "Chromium SwiftShader",
+    "playStopCycles": 100,
+    "animatorOwners": 2,
+    "modelLeases": 2,
+    "prototypeParses": 1,
+    "admittedMemoryPlateau": true
+  },
+  "notAccepted": [
+    "root-motion-controller-and-path",
+    "production-authored-audio",
+    "combined-tutorial-export-native",
+    "physical-audio-alignment",
+    "CEDAR",
+    "native-Windows",
+    "independent-acceptance"
+  ]
+}

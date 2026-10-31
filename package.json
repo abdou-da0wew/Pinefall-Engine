@@ -28,7 +28,8 @@
     "test:assets": "bun tests/assets-browser.ts",
     "test:assets-native": "bun tests/assets-native.ts",
     "dev:animation-audio": "bun scripts/animation-audio-lab.ts",
-    "test:animation-audio": "bun tests/animation-audio-browser.ts"
+    "test:animation-audio": "bun tests/animation-audio-browser.ts",
+    "test:animator": "bun tests/animator-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

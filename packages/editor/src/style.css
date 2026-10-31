@@ -1996,3 +1996,53 @@ button:active:not(:disabled) {
 .dock-right .ui-properties {
   min-height: 160px;
 }
+
+.animation-inspector label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 11px;
+}
+.animation-inspector input[type="number"] {
+  width: 82px;
+  min-width: 0;
+}
+.animation-inspector input[type="range"] {
+  width: 140px;
+  min-width: 0;
+}
+.animation-inspector label select {
+  width: 155px;
+  min-width: 0;
+}
+.animation-inspector textarea {
+  box-sizing: border-box;
+  color: #d5dfd2;
+  background: #101b16;
+  border: 1px solid #35493b;
+  border-radius: 5px;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.animation-inspector button {
+  padding: 6px 9px;
+  margin: 6px 4px 0 0;
+  border: 1px solid #40553d;
+  border-radius: 4px;
+  background: #283b29;
+}
+.animation-inspector button:disabled {
+  opacity: 0.45;
+}
+.animation-inspector small {
+  color: #9dac96;
+  font-size: 10px;
+}
+.animation-inspector [role="alert"] {
+  color: #efb9a3;
+  overflow-wrap: anywhere;
+}

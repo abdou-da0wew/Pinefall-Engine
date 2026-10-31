@@ -149,9 +149,16 @@ try {
         const entity = structuredClone(scene.entities[2]);
         entity.id = crypto.randomUUID();
         engine.spawn(entity);
-        check(engine.assetCache.metrics.leases === 101, "spawn lease");
+        check(engine.assetCache.metrics.leases === 100, "queued spawn has no lease yet");
+        engine.fixed.run(engine);
+        check(engine.assetCache.metrics.leases === 101, "spawn lease at boundary");
         engine.destroy(entity.id);
-        check(engine.assetCache.metrics.leases === 100, "destroy lease");
+        check(
+          engine.fixed.pendingDestroy.has(entity.id) && engine.assetCache.metrics.leases === 101,
+          "pending destroy retains ownership until boundary",
+        );
+        engine.fixed.run(engine);
+        check(engine.assetCache.metrics.leases === 100, "destroy lease at boundary");
         await engine.stop();
         const later = createGame("Winning scene");
         await Promise.all([engine.load(scene), engine.load(later)]);
