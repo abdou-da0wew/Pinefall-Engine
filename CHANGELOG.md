@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0-rc.1 — Plan02 software release candidate
+
+- Authored clips/graphs/markers, independent pose playback, collision-correct supported root motion and preview tooling.
+- PIF6 buffered and bounded streaming WAV audio; explicit persistent ownership, scoped seek, spatial/pause/device policies and Audio studio.
+- Original combined workshop, headless/export/packaged Linux tests; 125 tests / 644 assertions. Linux AppImage and Windows ZIP built.
+- **Prerelease only:** Windows/CEDAR/physical timing/listening and independent acceptance remain open. See docs/PLAN02-ACCEPTANCE.md.
+
 ## 0.5.3 — Worker asset pipeline, first implementation
 
 - GLB parsing/image decode in cancellable workers; shared prototype cache and independent skinned clones.

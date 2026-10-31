@@ -117,7 +117,7 @@ export class HeadlessEngine implements SimulationHost {
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
     this.fixed.clear();
-    this.audio.reset();
+    this.audio.reset(true);
     this.playing = true;
     this.physics.deferredMotion = true;
     this.ui.interactive = true;

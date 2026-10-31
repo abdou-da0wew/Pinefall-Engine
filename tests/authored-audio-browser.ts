@@ -7,8 +7,9 @@ const native = process.env.TEST_NATIVE === "1",
 const profile = native ? await mkdtemp(resolve("build/audio-profile-")) : undefined;
 const app = native
   ? await _electron.launch({
+      executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
       args: [
-        ".",
+        ...(process.env.TEST_DESKTOP_EXECUTABLE ? [] : ["."]),
         `--user-data-dir=${profile}`,
         "--no-sandbox",
         "--use-angle=swiftshader",
@@ -113,6 +114,22 @@ try {
       .toBe(4);
     const result = await page.evaluate(async () => {
       const { engine, scene } = Reflect.get(window, "authoredAudio");
+      for (const position of [
+        [2, 3, 4],
+        [-2, 1, 0],
+      ]) {
+        engine.paused = true;
+        engine.orbit.enabled = false;
+        engine.camera.position.set(...position);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const listener = engine.audio.backend.context.listener;
+        if (
+          listener.positionX.value !== position[0] ||
+          listener.positionY.value !== position[1] ||
+          listener.positionZ.value !== position[2]
+        )
+          throw Error("Listener swap failed");
+      }
       const bad = structuredClone(scene);
       bad.audio.assets[0].data = "data:audio/wav;base64,AAAA";
       const document = engine.document,

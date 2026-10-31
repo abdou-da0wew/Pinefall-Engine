@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { chromium, expect, _electron } from "@playwright/test";
 const native = process.env.TEST_NATIVE === "1",
-  directory = resolve("build/animation-audio-export");
+  directory = resolve(process.env.TEST_EXPORT_DIRECTORY ?? "build/animation-audio-export");
 const server = native
   ? undefined
   : Bun.serve({
@@ -25,7 +25,12 @@ const profile = native ? await mkdtemp(resolve("build/workshop-profile-")) : und
 const args = ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   app = native
     ? await _electron.launch({
-        args: [".", `--user-data-dir=${profile}`, ...args],
+        executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
+        args: [
+          ...(process.env.TEST_DESKTOP_EXECUTABLE ? [] : ["."]),
+          `--user-data-dir=${profile}`,
+          ...args,
+        ],
         cwd: process.cwd(),
       })
     : undefined,
@@ -52,9 +57,9 @@ try {
   });
   if (app) {
     await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
-    await app.evaluate(async ({ BrowserWindow }, path) => {
-      await BrowserWindow.getAllWindows()[0].loadFile(path);
-    }, resolve("dist/game.html"));
+    await app.evaluate(async ({ BrowserWindow, app }) => {
+      await BrowserWindow.getAllWindows()[0].loadFile(app.getAppPath() + "/dist/game.html");
+    });
     await page
       .locator("#file")
       .setInputFiles(resolve("examples/projects/animation-audio-workshop.pif"));

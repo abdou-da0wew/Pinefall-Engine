@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-31",
+  "candidate": "0.6.0-rc.1",
+  "fullPlan02Accepted": false,
+  "unit": {
+    "tests": 125,
+    "assertions": 644,
+    "files": 23
+  },
+  "check": {
+    "files": 160,
+    "errors": 0,
+    "warnings": 0
+  },
+  "streaming": {
+    "browser": "pass",
+    "linuxElectron": "pass",
+    "packagedLinuxRuntime": "pass",
+    "seeks": 100,
+    "cycles": 100,
+    "memory": "stable tracked reservations only",
+    "maximumConcurrentStreams": 2,
+    "codec": "PCM16 WAV",
+    "secondsLimit": 240,
+    "perSourceBytes": 4000000,
+    "catalogBytes": 8000000,
+    "checks": [
+      "real output",
+      "persistent world adoption",
+      "game pause",
+      "suspend/unlock",
+      "explicit Stop",
+      "asynchronous media rejection cleanup and diagnostic"
+    ]
+  },
+  "packaging": {
+    "linuxAppImage": "built",
+    "windowsZip": "built, not executed",
+    "signed": false
+  },
+  "externalGates": "open; see docs/PLAN02-ACCEPTANCE.md"
+}

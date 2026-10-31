@@ -19,6 +19,14 @@ export class NullAudioBackend implements VoiceBackend {
     paused: boolean;
     ended: () => void;
   }>();
+  private streams = new Set<string>();
+  loadStream(id: string, bytes: Uint8Array, signal: AbortSignal) {
+    signal.throwIfAborted();
+    if (!this.ready || this.assets.has(id) || this.assets.size >= 128)
+      throw Error("Stream catalog budget/duplicate");
+    this.assets.set(id, inspectWave(bytes, true).duration);
+    this.streams.add(id);
+  }
   loadWave(id: string, bytes: Uint8Array) {
     if (!this.ready) throw Error("Audio backend disposed");
     if (
@@ -37,6 +45,11 @@ export class NullAudioBackend implements VoiceBackend {
   start(request: Required<VoiceRequest>, ended: () => void): VoiceControl {
     const duration = this.assets.get(request.asset);
     if (duration === undefined || !this.ready) throw Error("Missing/null audio asset");
+    if (
+      this.streams.has(request.asset) &&
+      [...this.voices].filter((v) => this.streams.has(v.asset)).length >= 2
+    )
+      throw Error("Two-stream budget exhausted");
     const voice = {
       asset: request.asset,
       remaining: duration + request.delay,
@@ -48,6 +61,15 @@ export class NullAudioBackend implements VoiceBackend {
     this.trace.push({ type: "play", asset: request.asset, status: "not-rendered" });
     if (this.trace.length > 200) this.trace.shift();
     return {
+      ...(this.streams.has(request.asset)
+        ? {
+            seek: (seconds: number) => {
+              if (!Number.isFinite(seconds) || seconds < 0 || seconds > duration)
+                throw Error("Invalid seek");
+              voice.remaining = duration - seconds;
+            },
+          }
+        : {}),
       setPaused: (value) => {
         voice.paused = value;
       },
@@ -73,6 +95,7 @@ export class NullAudioBackend implements VoiceBackend {
     }
   }
   unload(id: string) {
+    this.streams.delete(id);
     if ([...this.voices].some((v) => v.asset === id)) throw Error("Audio asset still in use");
     this.assets.delete(id);
   }
@@ -80,6 +103,7 @@ export class NullAudioBackend implements VoiceBackend {
     for (const voice of this.voices) voice.ended();
     this.voices.clear();
     this.assets.clear();
+    this.streams.clear();
     this.ready = false;
   }
 }

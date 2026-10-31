@@ -2,6 +2,10 @@
 
 Date: 2026-10-31. Candidate remains 0.6.0; this is not a new public release.
 
+## Streaming/persistent release-candidate continuation
+
+The bounded WAV streaming profile and explicit persistent music are implemented and tested in Chromium and Linux Electron, including packaged Linux runtime tests. Current suite: **125 tests / 644 assertions**, check160files. Candidate **0.6.0-rc.1** includes Linux/Windows packages and the original combined workshop. Full acceptance remains blocked by external gates in [PLAN02-ACCEPTANCE.md](PLAN02-ACCEPTANCE.md); older checkpoint sections below remain historical.
+
 ## Authored buffered audio continuation
 
 AudioDefinition1/scene3/PIF6, content-addressed working audio, scoped SDK, pause/spatial/epoch routing and the Audio studio are implemented. The original combined workshop passes headless, exported-browser and Linux Electron PIF-player tests. Current full suite: **123 tests / 628 assertions**. See [AUTHORED-AUDIO.md](AUTHORED-AUDIO.md) for precise contracts and evidence. Streaming, persistent ownership and remaining acceptance are still open. Earlier numbers below are historical checkpoints.
@@ -46,8 +50,4 @@ Browser evidence uses Chromium/SwiftShader in this environment. It is not CEDAR 
 
 ## Still required for the full requested Plan02
 
-1. **Remaining production audio:** long-track streaming, explicit persistent ownership and complete focus/hidden-tab/device-loss policy. Buffered authored audio is now implemented; it is not the whole audio plan.
-2. **Remaining AA6:** complete seek/listener/overflow/cancellation acceptance matrices. The original attack/footstep/wall/UI-audio workshop now has headless, exported-browser and Linux Electron PIF-player coverage, including 100 buffered-audio lifecycle cycles in the browser suite.
-3. **External acceptance:** physical Linux/Windows listening, measured audiovisual alignment, CEDAR hardware, native Windows run and independent acceptance. Earlier Plan01 external gates remain open.
-
-Do not mark full Plan02 complete from this checkpoint. Broader UI modularization remains after Plan02.
+The bounded software profiles and listed local regressions are implemented; **external acceptance remains open**: physical Linux/Windows listening and device recovery, measured audiovisual alignment, CEDAR hardware, native Windows execution and independent review. Earlier Plan01 physical gates remain open too. Use PLAN02-ACCEPTANCE.md as the current gate ledger. A release candidate is not 100% completion. Broader UI modularization remains after Plan02 acceptance.

@@ -19,6 +19,7 @@ export interface AnimationAPI {
   onEvent(listener: (event: EngineEvent) => void): () => void;
 }
 export interface AudioAPI {
+  seek(handle: import("../../audio/src/voices").VoiceHandle, seconds: number): void;
   play(cue: string): import("../../audio/src/voices").VoiceResult;
   stop(handle: import("../../audio/src/voices").VoiceHandle, fadeSeconds?: number): void;
   setBusGain(bus: import("../../audio/src/voices").Bus, db: number): void;

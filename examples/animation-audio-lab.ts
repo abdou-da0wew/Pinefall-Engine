@@ -312,17 +312,30 @@ export async function animationAudioTutorial() {
     { id: "step-wav", name: "original-step.wav", data: tone(0.08, 160) },
     { id: "hit-wav", name: "original-hit.wav", data: tone(0.14, 95) },
     { id: "ui-wav", name: "original-ui.wav", data: tone(0.12, 660) },
+    {
+      id: "ambience-wav",
+      name: "original-ambience.wav",
+      mode: "stream",
+      data: waveURI(sineWave(31, 1, 8000)),
+    },
   ];
   scene.audio.cues = [
     { ...defaultCue("step", "step-wav"), spatial: true, gainDb: -8 },
     { ...defaultCue("impact", "hit-wav"), spatial: true },
     { ...defaultCue("interface", "ui-wav"), bus: "ui" },
+    {
+      ...defaultCue("ambience", "ambience-wav"),
+      bus: "music",
+      gainDb: -32,
+      loop: true,
+      persistent: true,
+    },
   ];
   scene.scripts = [
     {
       id: "workshop",
       name: "Workshop controller",
-      source: `export default ctx=>{let attack=false,turn=false,hits=0;const automatic=ctx.boolean('automatic');return {start(){if(!automatic){ctx.ui.onAction('ui-sound',()=>ctx.audio.play('interface'));ctx.animation.onEvent(e=>{if(e.message==='hit'){hits++;ctx.ui.setText('hits','Attack hits: '+hits);}});}},fixedUpdate(){const a=ctx.input.has('KeyF'),t=ctx.input.has('KeyE');ctx.animation.setParameter('moving',automatic||ctx.input.has('KeyW'));ctx.animation.setParameter('attack',!automatic&&a&&!attack);ctx.animation.setParameter('turn',!automatic&&t&&!turn);attack=a;turn=t;},update(){if(!automatic)ctx.ui.setText('state','State: '+ctx.animation.snapshot.state+' · Z '+ctx.object.position.z.toFixed(2));}};}`,
+      source: `export default ctx=>{let attack=false,turn=false,hits=0;const automatic=ctx.boolean('automatic');return {start(){if(!automatic){ctx.audio.play("ambience");ctx.ui.onAction('ui-sound',()=>ctx.audio.play('interface'));ctx.animation.onEvent(e=>{if(e.message==='hit'){hits++;ctx.ui.setText('hits','Attack hits: '+hits);}});}},fixedUpdate(){const a=ctx.input.has('KeyF'),t=ctx.input.has('KeyE');ctx.animation.setParameter('moving',automatic||ctx.input.has('KeyW'));ctx.animation.setParameter('attack',!automatic&&a&&!attack);ctx.animation.setParameter('turn',!automatic&&t&&!turn);attack=a;turn=t;},update(){if(!automatic)ctx.ui.setText('state','State: '+ctx.animation.snapshot.state+' · Z '+ctx.object.position.z.toFixed(2));}};}`,
     },
   ];
   player.scripts = [

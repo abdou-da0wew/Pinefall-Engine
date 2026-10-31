@@ -17,6 +17,9 @@ import {
 } from "./voices";
 export interface CatalogBackend extends VoiceBackend {
   readonly time: number;
+  readonly failure?: string;
+  loadStream?(id: string, bytes: Uint8Array, signal: AbortSignal): void | Promise<void>;
+  suspend?(): Promise<void>;
   loadWave(id: string, bytes: Uint8Array, signal: AbortSignal): void | Promise<void>;
   unload(id: string): void;
   setBusGain(bus: Bus, db: number): void;
@@ -50,7 +53,8 @@ export class AudioCatalog {
       for (const asset of definition.assets) {
         signal.throwIfAborted();
         const bytes = await waveBytesAsync(asset.data, signal);
-        pcm += inspectWave(bytes).pcmBytes;
+        const info = inspectWave(bytes, asset.mode === "stream");
+        if (asset.mode !== "stream") pcm += info.pcmBytes;
         if (pcm > 32 * 1024 * 1024) throw Error("PCM catalog budget");
         catalog.waves.set(asset.id, bytes);
       }
@@ -97,6 +101,7 @@ export class AudioService {
   readonly voices: VoiceSystem;
   private catalog?: AudioCatalog;
   private keys = new Map<string, string>();
+  private retained = new Set<string>();
   private previews = new Map<number, VoiceHandle>();
   private failures = new Map<string, string>();
   private deny(status: "blocked" | "rejected", reason: string, cue = "unknown"): VoiceResult {
@@ -108,7 +113,15 @@ export class AudioService {
   }
   private owned = new Map<
     number,
-    { handle: VoiceHandle; owner?: string; emitter?: string; spatial: boolean }
+    {
+      handle: VoiceHandle;
+      owner?: string;
+      emitter?: string;
+      spatial: boolean;
+      persistent: boolean;
+      source: string;
+      cue: string;
+    }
   >();
   private abort = new AbortController();
   private serial = 0;
@@ -117,6 +130,7 @@ export class AudioService {
   private readyCatalog?: AudioCatalog;
   private disposed = false;
   private fault = "";
+  private deviceFailure = "";
   private simulation = 0;
   private offset = 0;
   private paused = false;
@@ -152,10 +166,13 @@ export class AudioService {
       catalog.dispose();
       throw Error("Audio service disposed");
     }
-    this.reset();
+    this.reset(true);
     this.abort.abort();
     this.abort = new AbortController();
-    for (const key of this.keys.values()) this.backend.unload(key);
+    for (const key of this.keys.values()) {
+      if (this.voices.usesAsset(key)) this.retained.add(key);
+      else this.backend.unload(key);
+    }
     this.keys.clear();
     const old = this.catalog;
     if (old) {
@@ -183,7 +200,10 @@ export class AudioService {
         signal.throwIfAborted();
         for (const [id, bytes] of catalog.waves) {
           signal.throwIfAborted();
-          await this.backend.loadWave(keys.get(id)!, bytes, signal);
+          if (catalog.definition.assets.find((a) => a.id === id)?.mode === "stream") {
+            if (!this.backend.loadStream) throw Error("Backend lacks streaming support");
+            await this.backend.loadStream(keys.get(id)!, bytes, signal);
+          } else await this.backend.loadWave(keys.get(id)!, bytes, signal);
         }
         signal.throwIfAborted();
         for (const bus of audioBuses) this.backend.setBusGain(bus, catalog.definition.buses[bus]);
@@ -231,15 +251,33 @@ export class AudioService {
       return this.deny("blocked", "Audio not unlocked/prepared", cue.id);
     if (cue.spatial && !position)
       return this.deny("rejected", "Spatial cue needs an emitter", cue.id);
-    if (this.paused && cue.bus !== "ui") return this.deny("blocked", "Game audio paused", cue.id);
+    if (this.paused && cue.bus !== "ui" && !cue.persistent)
+      return this.deny("blocked", "Game audio paused", cue.id);
     const delay =
-      cue.bus === "ui"
+      cue.bus === "ui" || cue.persistent
         ? 0
         : this.epoch.delay(this.simulation + this.offset, this.backend.time, cue.late);
     if (delay === undefined) return this.deny("rejected", "Late audio cue dropped", cue.id);
+    const source = this.catalog!.definition.assets.find((a) => a.id === cue.asset)!.data,
+      signature = JSON.stringify(cue);
+    if (cue.persistent)
+      for (const item of this.owned.values())
+        if (
+          item.persistent &&
+          item.source === source &&
+          item.cue === signature &&
+          this.voices.has(item.handle)
+        ) {
+          item.owner = owner;
+          return {
+            status: this.backend.rendered ? "scheduled" : "not-rendered",
+            handle: { ...item.handle },
+          };
+        }
     const result = this.voices.play({
       asset: this.keys.get(cue.asset)!,
       bus: cue.bus,
+      persistent: cue.persistent ?? false,
       gainDb: cue.gainDb,
       priority: cue.priority,
       loop: cue.loop,
@@ -256,6 +294,9 @@ export class AudioService {
         owner,
         emitter,
         spatial: cue.spatial,
+        persistent: cue.persistent ?? false,
+        source,
+        cue: signature,
       });
     this.diagnostic("Audio cue " + result.status, {
       cue: cue.id,
@@ -291,7 +332,21 @@ export class AudioService {
     this.owned.delete(handle.id);
   }
   stopOwner(owner: string) {
-    for (const item of this.owned.values()) if (item.owner === owner) this.stop(item.handle, owner);
+    for (const item of this.owned.values())
+      if (item.owner === owner && !item.persistent) this.stop(item.handle, owner);
+  }
+  seek(handle: VoiceHandle, seconds: number, owner?: string) {
+    const item = this.owned.get(handle.id);
+    if (
+      owner !== undefined &&
+      (item?.owner !== owner || item.handle.generation !== handle.generation)
+    )
+      return;
+    this.voices.seek(handle, seconds);
+  }
+  async suspend() {
+    this.epoch.reset();
+    await this.backend.suspend?.();
   }
   setBusGain(bus: Bus, db: number) {
     if (!audioBuses.includes(bus) || !Number.isFinite(db) || db < -80 || db > 6)
@@ -317,6 +372,15 @@ export class AudioService {
   }
   advance(seconds: number, position?: (id: string) => [number, number, number] | undefined) {
     this.voices.advance(seconds);
+    if (this.backend.failure && this.backend.failure !== this.deviceFailure) {
+      this.deviceFailure = this.backend.failure;
+      this.diagnostic("Audio stream failure", { error: this.deviceFailure });
+    }
+    for (const key of this.retained)
+      if (!this.voices.usesAsset(key)) {
+        this.backend.unload(key);
+        this.retained.delete(key);
+      }
     this.spatialClock += seconds;
     const update = this.spatialClock >= 1 / 30;
     if (update) this.spatialClock = 0;
@@ -331,9 +395,14 @@ export class AudioService {
       }
     }
   }
-  reset() {
-    this.voices.reset();
-    this.owned.clear();
+  reset(keepPersistent = false) {
+    this.voices.reset(keepPersistent);
+    for (const [id, item] of this.owned) if (!this.voices.has(item.handle)) this.owned.delete(id);
+    for (const key of this.retained)
+      if (!this.voices.usesAsset(key)) {
+        this.backend.unload(key);
+        this.retained.delete(key);
+      }
     this.previews.clear();
     this.failures.clear();
     this.epoch.reset();

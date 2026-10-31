@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.6.0",
+  "version": "0.6.0-rc.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -33,7 +33,8 @@
     "test:root-motion": "bun tests/root-motion-browser.ts",
     "generate:animation-audio": "bun scripts/generate-animation-audio-workshop.ts",
     "test:authored-audio": "bun tests/authored-audio-browser.ts",
-    "test:animation-audio-export": "bun tests/animation-audio-export.ts"
+    "test:animation-audio-export": "bun tests/animation-audio-export.ts",
+    "test:streaming-audio": "bun tests/streaming-audio-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

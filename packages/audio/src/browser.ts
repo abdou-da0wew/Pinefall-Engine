@@ -1,8 +1,14 @@
+import { StreamBank } from "./streams";
 import { assetMemory, type Reservation } from "../../assets/src/budget";
 import { inspectWave } from "./wav";
 import type { VoiceBackend, VoiceRequest, VoiceControl, Bus } from "./voices";
 export class BrowserAudioBackend implements VoiceBackend {
   readonly rendered = true;
+  private streams = new StreamBank();
+  loadStream(id: string, bytes: Uint8Array, signal: AbortSignal) {
+    if (!this.ready) throw Error("Unlock audio before streaming");
+    this.streams.load(id, bytes, signal);
+  }
   private context?: AudioContext;
   private dead = false;
   private meter?: AnalyserNode;
@@ -40,12 +46,18 @@ export class BrowserAudioBackend implements VoiceBackend {
   get ready() {
     return !this.dead && this.context?.state === "running";
   }
+  get failure() {
+    return this.streams.stats.streamError;
+  }
   get stats() {
     return {
-      voices: this.voices.size,
+      ...this.streams.stats,
+      voices: this.voices.size + this.streams.stats.streams,
       buffers: this.buffers.size,
       pcmBytes: this.bytes,
       state: this.context?.state || "locked",
+      baseLatencySeconds: this.context?.baseLatency ?? null,
+      outputLatencySeconds: this.context?.outputLatency ?? null,
     };
   }
   /** Call directly from a user gesture; a blocked context stays explicitly blocked. */
@@ -65,14 +77,16 @@ export class BrowserAudioBackend implements VoiceBackend {
       }
     }
     if (this.context.state === "suspended") await this.context.resume();
+    if (this.ready) this.streams.setSuspended(false);
     return this.ready;
   }
   async suspend() {
     if (this.dead) throw Error("Audio backend disposed");
+    this.streams.setSuspended(true);
     await this.context?.suspend();
   }
   duration(id: string) {
-    return this.buffers.get(id)?.buffer.duration;
+    return this.buffers.get(id)?.buffer.duration ?? this.streams.duration(id);
   }
   outputPeak() {
     if (!this.meter) return 0;
@@ -146,6 +160,10 @@ export class BrowserAudioBackend implements VoiceBackend {
     gain.gain.setTargetAtTime(10 ** (db / 20), now, 0.005);
   }
   start(request: Required<VoiceRequest>, ended: () => void): VoiceControl {
+    if (this.streams.duration(request.asset) !== undefined) {
+      if (!this.ready || !this.context) throw Error("Audio locked");
+      return this.streams.start(this.context, this.buses.get(request.bus)!, request, ended);
+    }
     const context = this.context,
       asset = this.buffers.get(request.asset),
       bus = this.buses.get(request.bus);
@@ -265,6 +283,7 @@ export class BrowserAudioBackend implements VoiceBackend {
     };
   }
   unload(id: string) {
+    this.streams.unload(id);
     if ([...this.voices].some((v) => v.asset === id)) throw Error("Audio asset still in use");
     const entry = this.buffers.get(id);
     if (entry) {
@@ -276,6 +295,7 @@ export class BrowserAudioBackend implements VoiceBackend {
   async dispose() {
     if (this.dead) return;
     this.dead = true;
+    this.streams.dispose();
     for (const voice of [...this.voices]) voice.finish();
     for (const id of [...this.buffers.keys()]) this.unload(id);
     for (const bus of this.buses.values()) bus.disconnect();

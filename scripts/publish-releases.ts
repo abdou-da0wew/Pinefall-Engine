@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 const repository = "abdou-da0wew/Pinefall-Engine";
 const versions = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 if (!versions.length) versions.push("0.6.0");
-if (versions.some((v) => !/^\d+\.\d+\.\d+$/.test(v)))
+if (versions.some((v) => !/^\d+\.\d+\.\d+(?:-rc\.\d+)?$/.test(v)))
   throw Error("Expected release version numbers");
 const checkOnly = process.argv.includes("--check");
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
@@ -107,7 +107,7 @@ for (const release of ready) {
       name: "Pinefall Engine " + release.version,
       body: await Bun.file("docs/RELEASE-" + release.version + ".md").text(),
       draft: true,
-      prerelease: false,
+      prerelease: release.version.includes("-rc."),
     }));
   if (!remote.draft) {
     console.log("Already published; refusing to modify " + remote.html_url);
@@ -151,7 +151,8 @@ for (const release of ready) {
   }
   remote = await api<Release>("/releases/" + remote.id, "PATCH", {
     draft: false,
-    make_latest: release.version === versions.at(-1) ? "true" : "false",
+    make_latest:
+      !release.version.includes("-rc.") && release.version === versions.at(-1) ? "true" : "false",
   });
   console.log("Published " + remote.html_url);
   await Bun.write(

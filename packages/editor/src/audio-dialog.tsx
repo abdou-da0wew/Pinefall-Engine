@@ -132,6 +132,7 @@ export function AudioDialog({
     [busy, setBusy] = useState(false),
     [status, setStatus] = useState("Selection never autoplays. Unlock, then explicitly preview."),
     [selected, setSelected] = useState(scene.audio?.assets[0]?.id ?? "");
+  const [streaming, setStreaming] = useState(false);
   const [remove, setRemove] = useState<string>();
   const audio = scene.audio ?? emptyAudio();
   const [emitter, setEmitter] = useState(scene.entities.find((e) => e.animator)?.id ?? "");
@@ -139,7 +140,7 @@ export function AudioDialog({
     source = audio.assets.find((a) => a.id === selected);
   const info = useMemo(() => {
     try {
-      return source ? inspectWave(waveBytes(source.data)) : undefined;
+      return source ? inspectWave(waveBytes(source.data), source.mode === "stream") : undefined;
     } catch {
       return undefined;
     }
@@ -184,8 +185,17 @@ export function AudioDialog({
       </header>
       <p>
         Buffered PCM16 WAV · 16 assets · 8 MB encoded-source budget · 32 MiB decoded PCM · 24 voices
-        + 4 release tails. Streaming music is not implemented yet.
+        + 4 release tails. Streaming WAV: up to 240 seconds within the source limit; two concurrent
+        streams.
       </p>
+      <label>
+        <input
+          type="checkbox"
+          checked={streaming}
+          onChange={(e) => setStreaming(e.target.checked)}
+        />{" "}
+        Import as streaming music (tracks over 30 seconds stream automatically)
+      </label>
       <div className="audio-actions">
         <label>
           Import WAV
@@ -204,18 +214,29 @@ export function AudioDialog({
                 if (file.size > 4_000_000) throw Error("WAV input exceeds 4 MB");
                 reservation = assetMemory.reserve(file.size * 3, "audio-import");
                 const bytes = new Uint8Array(await file.arrayBuffer()),
-                  info = inspectWave(bytes),
+                  info = inspectWave(bytes, true),
+                  stream = streaming || info.duration > 30,
                   next = structuredClone(audio),
                   id = crypto.randomUUID();
                 const data = await blobs.put(bytes),
-                  existing = next.assets.find((a) => a.data === data);
+                  existing = next.assets.find(
+                    (a) => a.data === data && (a.mode === "stream") === stream,
+                  );
                 if (existing) {
                   setSelected(existing.id);
                   setStatus("Selected existing audio asset; no duplicate decoded buffer.");
                   return;
                 }
-                next.assets.push({ id, name: file.name, data });
-                next.cues.push(defaultCue("cue-" + id.slice(0, 8), id));
+                next.assets.push({
+                  id,
+                  name: file.name,
+                  data,
+                  ...(stream ? { mode: "stream" as const } : {}),
+                });
+                next.cues.push({
+                  ...defaultCue("cue-" + id.slice(0, 8), id),
+                  ...(stream ? { bus: "music" as const } : {}),
+                });
                 apply(parseAudio(next));
                 setSelected(id);
                 setStatus(
@@ -322,7 +343,10 @@ export function AudioDialog({
           {info && (
             <p>
               {info.duration.toFixed(3)} seconds · {info.channels} channel(s) · {info.sampleRate} Hz
-              · {(info.pcmBytes / 1048576).toFixed(2)} MiB decoded
+              ·{" "}
+              {source?.mode === "stream"
+                ? "Media-element stream (no full PCM cache)"
+                : `${(info.pcmBytes / 1048576).toFixed(2)} MiB decoded`}
             </p>
           )}
           <h3>Bus mixer</h3>

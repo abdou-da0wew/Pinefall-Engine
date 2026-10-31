@@ -2,11 +2,13 @@ import { blobs, isBlobRef } from "../../assets/src/blobs";
 import type { Bus } from "./voices";
 export const audioBuses: readonly Bus[] = ["effects", "music", "dialogue", "ui"];
 export interface AudioAsset {
+  mode?: "stream";
   id: string;
   name: string;
   data: string;
 }
 export interface AudioCue {
+  persistent?: boolean;
   id: string;
   asset: string;
   bus: Bus;
@@ -73,12 +75,14 @@ export function parseAudio(input: unknown): AudioDefinition {
   const ids = new Set<string>();
   const assets = raw.assets.map((value) => {
     const a = object(value);
-    fields(a, ["id", "name", "data"]);
+    fields(a, ["id", "name", "data", "mode"]);
+    if (a.mode !== undefined && a.mode !== "stream") throw Error("Invalid audio mode");
+    const mode = a.mode === "stream" ? { mode: "stream" as const } : {};
     const id = audioId(a.id),
       name = audioId(a.name);
     if (ids.has(id)) throw Error("Duplicate audio asset");
     ids.add(id);
-    if (typeof a.data === "string" && isBlobRef(a.data)) return { id, name, data: a.data };
+    if (typeof a.data === "string" && isBlobRef(a.data)) return { id, name, data: a.data, ...mode };
     if (
       typeof a.data !== "string" ||
       a.data.length > 5_333_400 ||
@@ -89,7 +93,7 @@ export function parseAudio(input: unknown): AudioDefinition {
       throw Error("Expected bounded embedded WAV");
     bytes += (a.data.length - 22) * 0.75;
     if (bytes > 8_000_000) throw Error("Audio source budget");
-    return { id, name, data: a.data };
+    return { id, name, data: a.data, ...mode };
   });
   const cueIds = new Set<string>();
   const cues = raw.cues.map((value) => {
@@ -106,6 +110,7 @@ export function parseAudio(input: unknown): AudioDefinition {
       "maxDistance",
       "rolloff",
       "late",
+      "persistent",
     ]);
     const id = audioId(c.id),
       asset = audioId(c.asset),
@@ -117,6 +122,12 @@ export function parseAudio(input: unknown): AudioDefinition {
       !["drop", "immediate"].includes(String(c.late))
     )
       throw Error("Invalid audio cue reference/bus/policy");
+    if (c.persistent !== undefined && typeof c.persistent !== "boolean")
+      throw Error("Invalid persistence policy");
+    const streaming = assets.find((a) => a.id === asset)?.mode === "stream";
+    if (streaming && (bus !== "music" || c.spatial))
+      throw Error("Streams require nonspatial music bus");
+    if (c.persistent && !streaming) throw Error("Persistent cues require streaming music");
     cueIds.add(id);
     const refDistance = number(c.refDistance, 0.01, 1000),
       maxDistance = number(c.maxDistance, refDistance, 10000);
@@ -132,6 +143,7 @@ export function parseAudio(input: unknown): AudioDefinition {
       maxDistance,
       rolloff: number(c.rolloff, 0, 10),
       late: c.late as AudioCue["late"],
+      ...(c.persistent === undefined ? {} : { persistent: c.persistent as boolean }),
     };
   });
   const b = object(raw.buses);

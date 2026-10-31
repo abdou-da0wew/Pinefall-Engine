@@ -7,7 +7,7 @@ export interface WaveInfo {
   offset: number;
 }
 /** AA0 decoder contract: bounded little-endian PCM16 RIFF/WAVE. Other codecs reject explicitly. */
-export function inspectWave(bytes: Uint8Array): WaveInfo {
+export function inspectWave(bytes: Uint8Array, streaming = false): WaveInfo {
   if (bytes.byteLength < 44 || bytes.byteLength > 4_000_000) throw Error("WAV input budget");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const tag = (at: number) => String.fromCharCode(...bytes.subarray(at, at + 4));
@@ -57,7 +57,7 @@ export function inspectWave(bytes: Uint8Array): WaveInfo {
   const frames = length / block,
     duration = frames / sampleRate,
     pcmBytes = frames * channels * 4;
-  if (duration < 0.02 || duration > 30 || pcmBytes > 32 * 1024 * 1024)
+  if (duration < 0.02 || duration > (streaming ? 240 : 30) || pcmBytes > 32 * 1024 * 1024)
     throw Error("Decoded PCM budget/duration");
   return { frames, channels, sampleRate, duration, pcmBytes, offset };
 }

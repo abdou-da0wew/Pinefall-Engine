@@ -49,9 +49,16 @@ async function main() {
     runtime.play();
   }
   $("allow-scripts").onclick = () => {
-    runtime.allowSceneScripts = true;
-    runtime.play();
-    $("trust").hidden = true;
+    void runtime.audio
+      .unlock()
+      .then(() => {
+        runtime.allowSceneScripts = true;
+        runtime.play();
+        $("trust").hidden = true;
+      })
+      .catch((error) => {
+        $("error").textContent = String(error);
+      });
   };
   await load();
   $("unlock-audio").onclick = () => {

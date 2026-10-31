@@ -131,9 +131,14 @@ export function projectFiles(scene: SceneDocument) {
         assets: checked.audio.assets.map((asset, i) => {
           const file = `audio/${i}.wav`,
             bytes = waveBytes(asset.data);
-          inspectWave(bytes);
+          inspectWave(bytes, asset.mode === "stream");
           files.set(file, bytes);
-          return { id: asset.id, name: asset.name, file };
+          return {
+            id: asset.id,
+            name: asset.name,
+            file,
+            ...(asset.mode ? { mode: asset.mode } : {}),
+          };
         }),
       }
     : undefined;
@@ -247,12 +252,17 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
         "data" in a ||
         typeof a.file !== "string" ||
         !a.file.startsWith("audio/") ||
-        Object.keys(a).some((k) => !["id", "name", "file"].includes(k))
+        Object.keys(a).some((k) => !["id", "name", "file", "mode"].includes(k))
       )
         throw Error("Invalid audio archive reference");
       const bytes = get(a.file);
-      inspectWave(bytes);
-      return { id: a.id, name: a.name, data: waveURI(bytes) };
+      inspectWave(bytes, a.mode === "stream");
+      return {
+        id: a.id,
+        name: a.name,
+        data: waveURI(bytes),
+        ...(a.mode === undefined ? {} : { mode: a.mode }),
+      };
     });
   }
   scene.assets = scene.assets.map((a: Record<string, unknown>) => {

@@ -280,6 +280,13 @@ export class Engine {
         this.events.emit("gameplay", "Paused while unfocused");
       }
     });
+    this.listen(document, "visibilitychange", () => {
+      if (document.hidden) {
+        this.paused = true;
+        this.input.clear();
+        void this.audio.suspend().catch((error) => this.events.emit("error", String(error)));
+      }
+    });
     this.listen(this.canvas, "contextmenu", (event) => event.preventDefault());
     this.listen(this.canvas, "pointerdown", (event) => {
       const e = event as PointerEvent;
@@ -484,7 +491,7 @@ export class Engine {
     this.paused = false;
     this.input.clear();
     this.gizmo.detach();
-    this.clear();
+    this.clear(true);
     this.audio.adopt(audio!);
     this.scene.remove(this.root);
     this.root = world.root;
@@ -638,7 +645,7 @@ export class Engine {
     this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
     this.fixed.clear();
-    this.audio.reset();
+    this.audio.reset(true);
     this.playing = true;
     this.physics.deferredMotion = true;
     this.ui.interactive = true;
@@ -667,6 +674,7 @@ export class Engine {
   }
   async stop() {
     if (!this.document) return;
+    this.audio.reset();
     const snapshot = cloneScene(this.playSnapshot || this.document);
     this.playSnapshot = null;
     if (document.pointerLockElement === this.canvas) document.exitPointerLock();
@@ -958,8 +966,8 @@ export class Engine {
       this.hudClock = 0;
     }
   };
-  private clear() {
-    this.audio.reset();
+  private clear(keepPersistent = false) {
+    this.audio.reset(keepPersistent);
     this.behaviorBuilder = undefined;
     for (const b of this.behaviors.values()) {
       try {

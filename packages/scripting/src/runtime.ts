@@ -179,6 +179,10 @@ export function createBehaviorSession(
       };
       const context: ScriptContext = {
         audio: {
+          seek: (handle, seconds) => {
+            audioLive();
+            host.audio.seek(handle, seconds, scope);
+          },
           play: (cue) => {
             audioLive();
             return host.audio.play(

@@ -60,7 +60,7 @@ export async function referenceScene(
       const reservation = assetMemory.reserve(12_000_000, "audio-source-intern");
       try {
         const bytes = await waveBytesAsync(a.data, signal ?? new AbortController().signal);
-        inspectWave(bytes);
+        inspectWave(bytes, a.mode === "stream");
         audioTotal += bytes.length;
         if (audioTotal > 8_000_000) throw Error("Audio source budget");
         a.data = await blobs.put(bytes);

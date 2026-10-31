@@ -1,6 +1,7 @@
 export type Bus = "effects" | "music" | "dialogue" | "ui";
 export interface VoiceRequest {
   asset: string;
+  persistent?: boolean;
   bus?: Bus;
   priority?: number;
   gainDb?: number;
@@ -13,6 +14,7 @@ export interface VoiceRequest {
 }
 export interface VoiceControl {
   stop(fadeSeconds: number): void;
+  seek?(seconds: number): void;
   setPaused?(paused: boolean): void;
   setPosition?(position: [number, number, number]): void;
 }
@@ -51,7 +53,8 @@ export class VoiceSystem {
   setPaused(paused: boolean) {
     this.paused = paused;
     for (const voice of this.active.values())
-      if (voice.request.bus !== "ui") voice.control.setPaused?.(paused);
+      if (voice.request.bus !== "ui" && !voice.request.persistent)
+        voice.control.setPaused?.(paused);
   }
   setPosition(handle: VoiceHandle, position: [number, number, number]) {
     if (position.length !== 3 || !position.every((n) => Number.isFinite(n) && Math.abs(n) <= 1e6))
@@ -81,6 +84,7 @@ export class VoiceSystem {
     if (this.dead) throw Error("Audio service disposed");
     const request: Required<VoiceRequest> = {
       asset: input.asset,
+      persistent: input.persistent ?? false,
       bus: input.bus ?? "effects",
       priority: input.priority ?? 0,
       gainDb: input.gainDb ?? 0,
@@ -102,6 +106,8 @@ export class VoiceSystem {
       !Number.isFinite(request.gainDb) ||
       request.gainDb < -80 ||
       request.gainDb > 6 ||
+      typeof request.persistent !== "boolean" ||
+      (request.persistent && request.bus !== "music") ||
       typeof request.loop !== "boolean" ||
       (request.position !== null &&
         (!Array.isArray(request.position) ||
@@ -123,6 +129,7 @@ export class VoiceSystem {
         (k) =>
           ![
             "asset",
+            "persistent",
             "bus",
             "priority",
             "gainDb",
@@ -136,7 +143,7 @@ export class VoiceSystem {
       )
     )
       throw Error("Invalid audio cue");
-    if (this.paused && request.bus !== "ui")
+    if (this.paused && request.bus !== "ui" && !request.persistent)
       return { status: "blocked", reason: "Game audio paused" };
     if (this.backend.duration(request.asset) === undefined)
       return { status: "rejected", reason: "Missing audio asset" };
@@ -197,9 +204,26 @@ export class VoiceSystem {
     if (this.dead) throw Error("Audio service disposed");
     this.backend.advance?.(seconds);
   }
-  reset() {
+  usesAsset(asset: string) {
+    return [...this.active.values(), ...this.tails.values()].some((v) => v.request.asset === asset);
+  }
+  seek(handle: VoiceHandle, seconds: number) {
+    if (!Number.isFinite(seconds) || seconds < 0) throw Error("Invalid seek");
+    const v = handle.generation === this.generation ? this.active.get(handle.id) : undefined;
+    if (!v) return;
+    if (seconds > this.backend.duration(v.request.asset)!) throw Error("Seek past audio duration");
+    if (!v.control.seek) throw Error("Seek requires a stream");
+    v.control.seek(seconds);
+  }
+  reset(keepPersistent = false) {
     if (this.dead) return;
-    for (const voice of [...this.active.values(), ...this.tails.values()]) voice.control.stop(0);
+    for (const voice of [...this.active.values(), ...this.tails.values()]) {
+      if (keepPersistent && voice.request.persistent) continue;
+      voice.control.stop(0);
+      this.active.delete(voice.handle.id);
+      this.tails.delete(voice.handle.id);
+    }
+    if (keepPersistent) return;
     this.active.clear();
     this.tails.clear();
     this.generation++;
