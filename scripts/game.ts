@@ -1,22 +1,23 @@
+import { atomicWrite } from "../packages/project/src/atomic-file";
+import { defaultRecipe, parseRecipe } from "../packages/assets/src/recipe";
+import { convertModel } from "./convert-model";
 import { prepareGlbRecord } from "../packages/assets/src/record";
 import { adoptImport } from "../packages/assets/src/import";
 import { newProjectMetadata, parseProjectMetadata } from "../packages/project/src/metadata";
 import { packProject, unpackProject, inspectProject } from "../packages/project/src/pif";
 import { typecheckScripts } from "./typecheck-scripts";
 import { compileScript } from "../packages/scripting/src/compiler";
-import { mkdir, copyFile, cp, stat, rename } from "node:fs/promises";
+import { mkdir, copyFile, cp, stat } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { createGame, placeModel } from "../packages/project/src";
 import { parseScene, serializeScene } from "../packages/runtime/src/schema";
 import { HeadlessEngine } from "../packages/headless/src";
 const [command, path, ...args] = process.argv.slice(2);
 async function writeScene(path: string, scene: ReturnType<typeof createGame>) {
-  const tmp = path + ".tmp-" + crypto.randomUUID();
-  await Bun.write(
-    tmp,
+  await atomicWrite(
+    path,
     path.toLowerCase().endsWith(".pif") ? await packProject(scene) : serializeScene(scene),
   );
-  await rename(tmp, path);
 }
 async function main() {
   if (command === "new") {
@@ -81,21 +82,43 @@ async function main() {
   if (command === "inspect") return scene;
   if (command === "import" || command === "reimport") {
     const filename = command === "reimport" ? args[1] : args[0];
-    if (!filename || !filename.toLowerCase().endsWith(".glb"))
-      throw Error(
-        "CLI import/reimport currently accepts self-contained .glb; experimental FBX uses the editor worker",
-      );
-    if (Bun.file(filename).size > 2_000_000) throw Error("GLB source exceeds 2 MB");
-    const prepared = await prepareGlbRecord(
-      filename.split(/[\\/]/).pop()!,
-      new Uint8Array(await Bun.file(filename).arrayBuffer()),
-    );
+    if (!filename || !/\.(glb|fbx)$/i.test(filename)) throw Error("CLI import requires GLB or FBX");
     const old = command === "reimport" ? scene.assets.find((a) => a.id === args[0]) : undefined;
     if (command === "reimport" && !old) throw Error("Reimport asset ID not found");
+    const recipeIndex = args.indexOf("--recipe");
+    const recipe =
+      recipeIndex >= 0
+        ? parseRecipe(await Bun.file(args[recipeIndex + 1]).json())
+        : old?.import?.recipe || defaultRecipe();
+    const companions: string[] = [];
+    for (let i = 0; i < args.length; i++)
+      if (args[i] === "--companion") {
+        if (!args[i + 1]) throw Error("Missing companion path");
+        companions.push(args[++i]);
+      }
+    if (/\.glb$/i.test(filename) && (Bun.file(filename).size > 2_000_000 || companions.length))
+      throw Error("GLB must be embedded and at most 2 MB");
+    const prepared = /\.fbx$/i.test(filename)
+      ? await convertModel(
+          [filename, ...companions],
+          recipe,
+          args.includes("--allow-unsandboxed-converter"),
+        )
+      : await prepareGlbRecord(
+          filename.split(/[\\/]/).pop()!,
+          await Bun.file(filename).bytes(),
+          recipe,
+        );
+    const mappingIndex = args.indexOf("--mapping");
+    const mapping =
+      mappingIndex >= 0
+        ? ((await Bun.file(args[mappingIndex + 1]).json()) as Record<string, string>)
+        : undefined;
     const result = adoptImport(
       scene,
       prepared,
       old ? { id: old.id, data: old.data, revision: old.import?.revision || 0 } : undefined,
+      mapping,
     );
     await writeScene(path, result.scene);
     return { asset: result.asset.id, name: result.asset.name, report: prepared.metadata.report };

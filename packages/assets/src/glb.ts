@@ -1,3 +1,4 @@
+import { inspectIdentities, type SourceIdentity } from "./identities";
 import { blobs, isBlobRef } from "./blobs";
 /** Allocation admission for self-contained glTF 2.0. No browser/Three dependencies. */
 export const MODEL_LIMIT = 2_000_000;
@@ -84,6 +85,7 @@ export function imageDimensions(bytes: Uint8Array): [number, number] {
   throw Error("Only bounded PNG and baseline/progressive JPEG images are supported");
 }
 export interface ModelInspection {
+  identities?: SourceIdentity[];
   nodes: number;
   meshes: number;
   vertices: number;
@@ -187,12 +189,37 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
               throw Error("Non-finite GLB accessor");
       }
     } else throw Error("GLB accessor has no storage");
-    return { count, type: a.type, componentType: a.componentType };
+    const storage = views[a.bufferView as number],
+      offset = Number(a.byteOffset || 0);
+    const data = new DataView(
+      storage.data.buffer,
+      storage.data.byteOffset,
+      storage.data.byteLength,
+    );
+    const read = (i: number, j = 0) => {
+      const at = offset + i * (storage.stride || packed) + j * size;
+      switch (a.componentType) {
+        case 5120:
+          return data.getInt8(at);
+        case 5121:
+          return data.getUint8(at);
+        case 5122:
+          return data.getInt16(at, true);
+        case 5123:
+          return data.getUint16(at, true);
+        case 5125:
+          return data.getUint32(at, true);
+        default:
+          return data.getFloat32(at, true);
+      }
+    };
+    return { count, type: a.type, componentType: a.componentType, components, read };
   });
   const nodes = list(doc.nodes, LIMITS.nodes),
     meshes = list(doc.meshes, LIMITS.meshes),
     materials = list(doc.materials, 256),
-    animations = list(doc.animations, 128);
+    animations = list(doc.animations, 128),
+    skins = list(doc.skins, 512);
   let vertices = 0;
   for (const mesh of meshes)
     for (const p of list(mesh.primitives, 512)) {
@@ -201,12 +228,23 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
         if (!accessors[integer(index)]) throw Error("Missing GLB attribute");
       const position = accessors[integer(attrs.POSITION)];
       if (!position || position.type !== "VEC3") throw Error("GLB requires VEC3 positions");
+      for (const index of Object.values(attrs))
+        if (accessors[integer(index)].count !== position.count)
+          throw Error("Vertex attribute counts differ");
+      for (const target of list(p.targets, 128))
+        for (const index of Object.values(target)) {
+          const accessor = accessors[integer(index)];
+          if (!accessor || accessor.type !== "VEC3" || accessor.count !== position.count)
+            throw Error("Invalid morph target accessor");
+        }
       vertices += position.count;
       if (vertices > LIMITS.vertices) throw Error("GLB vertex budget");
       if (p.indices !== undefined) {
         const a = accessors[integer(p.indices)];
         if (!a || a.type !== "SCALAR" || ![5121, 5123, 5125].includes(Number(a.componentType)))
           throw Error("Invalid index accessor");
+        for (let i = 0; i < a.count; i++)
+          if (a.read(i) >= position.count) throw Error("Index exceeds vertex count");
       }
       if (p.material !== undefined && !materials[integer(p.material)])
         throw Error("Missing material");
@@ -215,6 +253,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
     if (n.mesh !== undefined && !meshes[integer(n.mesh)]) throw Error("Missing mesh");
+    if (n.skin !== undefined && !skins[integer(n.skin)]) throw Error("Missing skin");
     if (n.children !== undefined) {
       if (!Array.isArray(n.children)) throw Error("Invalid children");
       for (const c of n.children) {
@@ -246,6 +285,94 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       at = parent.get(at);
     }
   }
+  for (const skin of skins) {
+    if (
+      !Array.isArray(skin.joints) ||
+      !skin.joints.length ||
+      skin.joints.length > LIMITS.nodes ||
+      new Set(skin.joints).size !== skin.joints.length
+    )
+      throw Error("Invalid skin joints");
+    for (const joint of skin.joints)
+      if (!nodes[integer(joint)]) throw Error("Missing skin joint node");
+    if (skin.skeleton !== undefined && !nodes[integer(skin.skeleton)])
+      throw Error("Missing skeleton root");
+    if (skin.inverseBindMatrices !== undefined) {
+      const accessor = accessors[integer(skin.inverseBindMatrices)];
+      if (
+        !accessor ||
+        accessor.type !== "MAT4" ||
+        accessor.componentType !== 5126 ||
+        accessor.count !== skin.joints.length
+      )
+        throw Error("Invalid inverse bind matrices");
+    }
+  }
+  for (const node of nodes)
+    if (node.skin !== undefined) {
+      const skin = skins[integer(node.skin)],
+        mesh = meshes[integer(node.mesh)];
+      if (!mesh) throw Error("Skin requires a mesh");
+      for (const primitive of list(mesh.primitives, 512)) {
+        const attrs = object(primitive.attributes),
+          joints = accessors[integer(attrs.JOINTS_0)],
+          weights = accessors[integer(attrs.WEIGHTS_0)];
+        if (
+          !joints ||
+          !weights ||
+          joints.type !== "VEC4" ||
+          weights.type !== "VEC4" ||
+          ![5121, 5123].includes(Number(joints.componentType))
+        )
+          throw Error("Invalid skin attributes");
+        for (let i = 0; i < joints.count; i++)
+          for (let c = 0; c < 4; c++)
+            if (joints.read(i, c) >= (skin.joints as unknown[]).length || weights.read(i, c) < 0)
+              throw Error("Invalid skin joint index/weight");
+      }
+    }
+  for (const animation of animations) {
+    const samplers = list(animation.samplers, 4096),
+      channels = list(animation.channels, 4096);
+    for (const sampler of samplers) {
+      const input = accessors[integer(sampler.input)];
+      if (!input || input.type !== "SCALAR" || input.componentType !== 5126)
+        throw Error("Invalid animation times");
+      for (let i = 0; i < input.count; i++)
+        if (input.read(i) < 0 || (i > 0 && input.read(i) <= input.read(i - 1)))
+          throw Error("Animation times must increase");
+      if (
+        sampler.interpolation !== undefined &&
+        !["LINEAR", "STEP", "CUBICSPLINE"].includes(String(sampler.interpolation))
+      )
+        throw Error("Unsupported interpolation");
+    }
+    for (const channel of channels) {
+      const sampler = samplers[integer(channel.sampler)],
+        target = object(channel.target);
+      if (
+        !sampler ||
+        !nodes[integer(target.node)] ||
+        !["translation", "rotation", "scale", "weights"].includes(String(target.path))
+      )
+        throw Error("Invalid animation target");
+      const input = accessors[integer(sampler.input)],
+        output = accessors[integer(sampler.output)];
+      if (!output || output.componentType !== 5126) throw Error("Invalid animation values");
+      const multiplier = sampler.interpolation === "CUBICSPLINE" ? 3 : 1;
+      if (target.path === "weights") {
+        const mesh = meshes[integer(nodes[integer(target.node)].mesh)];
+        if (!mesh) throw Error("Morph animation requires mesh");
+        const count = list(list(mesh.primitives, 512)[0]?.targets, 128).length;
+        if (!count || output.type !== "SCALAR" || output.count !== input.count * multiplier * count)
+          throw Error("Invalid morph animation values");
+      } else if (
+        output.type !== (target.path === "rotation" ? "VEC4" : "VEC3") ||
+        output.count !== input.count * multiplier
+      )
+        throw Error("Animation value/time count mismatch");
+    }
+  }
   for (const image of list(doc.images, LIMITS.images)) {
     const data =
       image.uri !== undefined
@@ -259,6 +386,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
     if (decodedBytes > LIMITS.decoded) throw Error("Decoded image/geometry budget exceeded");
   }
   return {
+    identities: inspectIdentities(doc),
     nodes: nodes.length,
     meshes: meshes.length,
     vertices,

@@ -17,3 +17,7 @@ Full Plan 01 acceptance includes a second developer's edited textured-character 
 ## Result recorded for 0.5.5
 
 Steps 1 and the enforceable accounting portion of step 2 are implemented and regression-tested. The audit in `RELEASE-0.5.5.md` still identifies implementation gaps as well as external acceptance gates. This contract is not a completion certificate. 66 tests / 259 assertions, browser fault injection, 100-cycle reservation plateau, real IndexedDB tests, native packaged Linux tests and fresh standalone export pass. Windows builds but has not been executed. Publication uses transient authorized credentials, never repository storage.
+
+## Revised execution order after owner override
+
+Do not pause after a partial feature release. Implement normalized recipes and strict version migration first, then expanded stable identities, shared editor/CLI FBX conversion, dependency scheduling, independent fixture harness and physical acceptance tooling. Every change must have behavior tests. Use a versioned provenance/PIF schema rather than silently placing new semantics in v3. Axis settings must distinguish the already-corrected FBX loader output from raw source coordinates, to prevent double correction. Original bytes always remain unchanged.

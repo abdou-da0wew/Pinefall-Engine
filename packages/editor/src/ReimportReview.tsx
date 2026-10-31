@@ -12,6 +12,8 @@ export function ReimportReview({
   affected: number;
   finish: (mapping: Record<string, string> | undefined) => void;
 }) {
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
   const [entries] = useState(() => reconcileSubassets(incoming.report, previous));
   const [mapping, setMapping] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -21,6 +23,21 @@ export function ReimportReview({
       ]),
     ),
   );
+  const candidates = (kind: string, key: string) => {
+    const selected = mapping[kind + ":" + key],
+      old = previous?.subassets || [];
+    return [
+      ...old.filter((s) => s.id === selected),
+      ...old
+        .filter(
+          (s) =>
+            s.kind === kind &&
+            s.id !== selected &&
+            (s.key + " " + s.id).toLowerCase().includes(search.toLowerCase()),
+        )
+        .slice(0, 49),
+    ];
+  };
   const ids = Object.values(mapping).filter(Boolean),
     duplicate = new Set(ids).size !== ids.length;
   const removed = previous?.subassets.filter((e) => !ids.includes(e.id)) || [];
@@ -49,8 +66,8 @@ export function ReimportReview({
       >
         <h2>Review reimport</h2>
         <p>
-          Entity transforms and model ID stay unchanged. Explicitly map renamed or ambiguous
-          materials/clips; nothing is matched by array order.
+          Entity transforms and model ID stay unchanged. Explicitly map renamed or ambiguous nodes,
+          meshes, skeletons, materials and clips; nothing is matched by array order.
         </p>
         <p>
           Nodes: {previous?.report.nodes ?? "—"} → {incoming.report.nodes} · Vertices:{" "}
@@ -61,7 +78,29 @@ export function ReimportReview({
           Artifact: {previous?.artifactHash === incoming.artifactHash ? "unchanged" : "changed"} ·
           Source files: {incoming.sources.length}
         </p>
-        {entries.map((e) => (
+        <p>
+          Identities {page * 8 + 1}–{Math.min(page * 8 + 8, entries.length)} of {entries.length}.
+          Choices on other pages are retained.
+        </p>
+        <button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+          Previous identities
+        </button>
+        <button disabled={(page + 1) * 8 >= entries.length} onClick={() => setPage((p) => p + 1)}>
+          Next identities
+        </button>
+        <label>
+          Find previous identity{" "}
+          <input
+            aria-label="Find previous identity"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        <small>
+          Each list shows the selected identity and up to 49 search matches. Search by name or full
+          ID.
+        </small>
+        {entries.slice(page * 8, page * 8 + 8).map((e) => (
           <label key={e.kind + e.key} style={{ display: "block", margin: "12px 0" }}>
             {e.kind} · {e.key}
             <select
@@ -73,19 +112,21 @@ export function ReimportReview({
               style={{ display: "block", width: "100%" }}
             >
               <option value="">Create new identity</option>
-              {previous?.subassets
-                .filter((old) => old.kind === e.kind)
-                .map((old) => (
-                  <option key={old.id} value={old.id}>
-                    Retain {old.key} · {old.id.slice(0, 8)}
-                  </option>
-                ))}
+              {candidates(e.kind, e.key).map((old) => (
+                <option key={old.id} value={old.id}>
+                  Retain {old.key} · {old.id.slice(0, 8)}
+                </option>
+              ))}
             </select>
           </label>
         ))}
         <p>
           {removed.length} previous identities will be removed:{" "}
-          {removed.map((e) => e.kind + " " + e.key).join(", ") || "none"}.
+          {removed
+            .slice(0, 25)
+            .map((e) => e.kind + " " + e.key)
+            .join(", ") || "none"}
+          {removed.length > 25 ? " (additional removals omitted from this summary)" : ""}.
         </p>
         {duplicate && <p role="alert">Each previous identity may be mapped only once.</p>}
         {incoming.report.warnings.map((warning, i) => (

@@ -100,7 +100,7 @@ export function projectFiles(scene: SceneDocument) {
   metadata.modifiedAt = new Date(
     Math.max(Date.now(), Date.parse(metadata.createdAt)),
   ).toISOString();
-  metadata.editor.version = "0.5.5";
+  metadata.editor.version = "0.6.0";
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
       bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
@@ -133,8 +133,16 @@ export function projectFiles(scene: SceneDocument) {
     encoder.encode(
       JSON.stringify({
         format: "pinefall-project",
-        version: checked.assets.some((a) => a.import) ? 3 : 2,
-        minimumReader: checked.assets.some((a) => a.import) ? 3 : 2,
+        version: checked.assets.some((a) => a.import?.version === 2)
+          ? 4
+          : checked.assets.some((a) => a.import)
+            ? 3
+            : 2,
+        minimumReader: checked.assets.some((a) => a.import?.version === 2)
+          ? 4
+          : checked.assets.some((a) => a.import)
+            ? 3
+            : 2,
         scene: "scene.json",
         project: metadata,
       }),
@@ -163,7 +171,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3].includes(manifest.version) ||
+    ![1, 2, 3, 4].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
@@ -201,8 +209,10 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
     validateGlb(bytes);
     let provenance;
     if (a.import !== undefined) {
-      if (manifest.version !== 3) throw Error("Import provenance requires PIF v3");
+      if (manifest.version < 3) throw Error("Import provenance requires PIF v3");
       const info = a.import as Record<string, unknown>;
+      if (info?.version === 2 && manifest.version < 4)
+        throw Error("Normalized provenance requires PIF v4");
       if (!info || !Array.isArray(info.sources) || info.sources.length > 33)
         throw Error("Invalid source inventory");
       provenance = parseImport({
@@ -239,7 +249,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
   return parseScene(scene);
 }
-export const PIF_VERSION = 3;
+export const PIF_VERSION = 4;
 export async function sha256(bytes: Uint8Array) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -274,7 +284,7 @@ export async function sceneFromFiles(
     if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
     return decodeFiles(files);
   }
-  if (![2, 3].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
+  if (![2, 3, 4].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
   const proofBytes = files.get("integrity.json");
   if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");
   const proof = JSON.parse(decoder.decode(proofBytes));

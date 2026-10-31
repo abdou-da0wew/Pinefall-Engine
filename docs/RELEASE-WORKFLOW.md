@@ -14,3 +14,7 @@ Project-owner instruction, recorded 2026-10-31:
 The owner authorizes use of their GitHub authentication for this workflow. Tokens are supplied only to the current process environment; never store them in repository files, Git config/remotes, shell startup files, release assets or this policy. Do not print them. Previously exposed tokens should be revoked/rotated; if valid authentication is unavailable, report the blocker rather than claiming a push succeeded. No permanent token retention is promised.
 
 This policy covers Pinefall Engine updates, not unrelated repositories or deletion/rewriting of existing releases. Existing published releases are left intact.
+
+## Owner override for Plan 01 finalization
+
+The owner explicitly superseded release-and-pause for this task: continue through remaining Plan 01 implementation instead of stopping at another partial release. Keep validation/version/publication requirements, but do not treat publishing a checkpoint as completion or a reason to halt. Physical Windows/CEDAR and independent-developer acceptance still require genuine external evidence. Do not fabricate that evidence or remove gates to obtain a 100% label.

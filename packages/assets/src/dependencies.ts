@@ -10,8 +10,10 @@ export interface DependencyNode {
   dependencies: Dependency[];
 }
 export class DependencyGraph {
+  private revision = 0;
   private nodes = new Map<string, DependencyNode>();
   constructor(nodes: DependencyNode[]) {
+    if (nodes.length > 4096) throw Error("Dependency graph node budget");
     for (const node of nodes) {
       if (this.nodes.has(node.id)) throw Error("Duplicate dependency ID");
       this.nodes.set(node.id, structuredClone(node));
@@ -19,6 +21,7 @@ export class DependencyGraph {
     const done = new Set<string>(),
       active = new Set<string>();
     const visit = (id: string) => {
+      if (active.size > 128) throw Error("Dependency graph depth budget");
       if (active.has(id)) throw Error("Cyclic asset dependency");
       if (done.has(id)) return;
       const node = this.nodes.get(id);
@@ -32,6 +35,58 @@ export class DependencyGraph {
       done.add(id);
     };
     for (const node of nodes) visit(node.id);
+  }
+  snapshot() {
+    return [...this.nodes.values()].map((n) => structuredClone(n));
+  }
+  /** Transactional topological rebuild. Original graph is unchanged on cancellation or cooker failure.
+   * Source consumers rebuild on source changes; downstream artifact consumers only after a changed cooked output. */
+  async rebuild(
+    changes: Map<string, { sourceHash: string; artifactHash: string }>,
+    cook: (
+      node: DependencyNode,
+      dependencies: DependencyNode[],
+      signal?: AbortSignal,
+    ) => Promise<{ sourceHash: string; artifactHash: string }>,
+    signal?: AbortSignal,
+  ) {
+    const revision = this.revision;
+    const staged = new DependencyGraph(this.snapshot()),
+      dirty = new Set<string>(),
+      rebuilt: string[] = [];
+    for (const [id, value] of changes) {
+      signal?.throwIfAborted();
+      for (const consumer of staged.changed(id, value)) dirty.add(consumer);
+    }
+    const order: string[] = [],
+      visited = new Set<string>();
+    const visit = (id: string) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      for (const d of staged.nodes.get(id)!.dependencies) visit(d.id);
+      order.push(id);
+    };
+    for (const id of [...staged.nodes.keys()].sort()) visit(id);
+    for (const id of order) {
+      if (!dirty.has(id) || changes.has(id)) continue;
+      signal?.throwIfAborted();
+      const node = staged.nodes.get(id)!;
+      const next = await cook(
+        structuredClone(node),
+        node.dependencies.map((d) => structuredClone(staged.nodes.get(d.id)!)),
+        signal,
+      );
+      signal?.throwIfAborted();
+      if (!next || typeof next.sourceHash !== "string" || typeof next.artifactHash !== "string")
+        throw Error("Invalid cooked dependency result");
+      for (const consumer of staged.changed(id, next)) dirty.add(consumer);
+      rebuilt.push(id);
+    }
+    signal?.throwIfAborted();
+    if (this.revision !== revision) throw Error("Dependency graph changed during rebuild");
+    this.nodes = staged.nodes;
+    this.revision++;
+    return rebuilt;
   }
   /** Only direct consumers are invalidated until recooking establishes whether THEIR output changed. */
   changed(id: string, next: { sourceHash: string; artifactHash: string }) {
@@ -50,6 +105,7 @@ export class DependencyGraph {
       .map((n) => n.id)
       .sort();
     Object.assign(previous, next);
+    this.revision++;
     return consumers;
   }
 }

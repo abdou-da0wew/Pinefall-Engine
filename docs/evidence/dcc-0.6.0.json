@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-31T14:31:29.279Z",
+  "scope": "Independent vertex/skin animation poses, not artist visual approval or physical GPU certification",
+  "evidence": [
+    {
+      "name": "blender_279_sausage_7400_binary.fbx",
+      "exporter": "Blender",
+      "sourceHash": "d30acc615d59a2dc6c68ba6794849cd9d968b1beb883799c66c88a90525a9287",
+      "artifactHash": "453ff77eff318210557c9d8d4a1d51f07e8eebd2cab6d7e920cced1ad136e647",
+      "elapsedMs": 553.351072,
+      "poses": [
+        {
+          "reference": "blender_279_sausage_base_0.obj",
+          "time": 0,
+          "maxBidirectionalVertexDistance": 0.0000014728316146039165,
+          "tolerance": 0.0001
+        },
+        {
+          "reference": "blender_279_sausage_spin_15.obj",
+          "time": 0.625,
+          "maxBidirectionalVertexDistance": 0.0000015485075667065428,
+          "tolerance": 0.0001
+        },
+        {
+          "reference": "blender_279_sausage_wiggle_20.obj",
+          "time": 0.8333333333333334,
+          "maxBidirectionalVertexDistance": 0.0000017881671420698873,
+          "tolerance": 0.0001
+        }
+      ]
+    },
+    {
+      "name": "maya_kenney_character_7700_binary.fbx",
+      "exporter": "Maya",
+      "sourceHash": "b84398b1876edb4a718615985a801393fcc0548e8e65a5c3ba133f30993c3b0e",
+      "artifactHash": "7015691f7783260f94f3b487ccb947f30fe754f001dc2ddc98a3c7ebfdb8e330",
+      "elapsedMs": 880.8970119999999,
+      "poses": [
+        {
+          "reference": "maya_kenney_character_4.obj",
+          "time": 0.16666666666666666,
+          "maxBidirectionalVertexDistance": 0.000029160611787995656,
+          "tolerance": 0.0001
+        },
+        {
+          "reference": "maya_kenney_character_9.obj",
+          "time": 0.375,
+          "maxBidirectionalVertexDistance": 0.00002806591890773758,
+          "tolerance": 0.0001
+        }
+      ]
+    },
+    {
+      "name": "blender_293_barbarian_7400_binary.fbx",
+      "exporter": "Blender",
+      "sourceHash": "bd78a4fc05abe83cb3bb26e4ca649a3c5e7cb1e0c6f523fcd599e48cd0435e04",
+      "artifactHash": "dc98fcd7754393dfd2e96b4012e52dec800ad1b18096fe9e89f5a8b410198874",
+      "elapsedMs": 801.591602,
+      "poses": []
+    }
+  ]
+}

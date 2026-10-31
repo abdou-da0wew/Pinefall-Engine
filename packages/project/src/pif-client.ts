@@ -1,3 +1,4 @@
+import { assetMemory } from "../../assets/src/budget";
 import { blobs } from "../../assets/src/blobs";
 import { sceneReferences } from "../../assets/src/documents";
 import type { SceneDocument } from "../../runtime/src/schema";
@@ -21,9 +22,18 @@ export function projectJob(
       reject(new Error("Project operation cancelled"));
       return;
     }
-    const worker = new Worker(new URL("./pif.worker.ts", import.meta.url), { type: "module" });
+    const reservation = assetMemory.reserve(160 * 1024 * 1024, "project-worker");
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL("./pif.worker.ts", import.meta.url), { type: "module" });
+    } catch (error) {
+      reservation.release();
+      reject(error);
+      return;
+    }
     const cleanup = () => {
       worker.terminate();
+      reservation.release();
       signal?.removeEventListener("abort", abort);
       clearTimeout(timeout);
     };
@@ -49,20 +59,26 @@ export function projectJob(
         cleanup();
       }
     };
+    worker.onmessageerror = () => {
+      cleanup();
+      reject(Error("Project worker message could not be decoded"));
+    };
     worker.onerror = (event) => {
       cleanup();
       reject(new Error(event.message));
     };
     try {
+      const inventory =
+        operation === "pack" ? blobs.entries(sceneReferences(value as SceneDocument)) : [];
       worker.postMessage(
         operation === "pack"
           ? {
               operation,
               scene: value,
-              blobs: blobs.entries(sceneReferences(value as SceneDocument)),
+              blobs: inventory,
             }
           : { operation, bytes: value },
-        value instanceof Uint8Array ? [value.buffer] : [],
+        value instanceof Uint8Array ? [value.buffer] : inventory.map((entry) => entry.bytes.buffer),
       );
     } catch (error) {
       cleanup();

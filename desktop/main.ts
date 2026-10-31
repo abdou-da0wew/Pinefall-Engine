@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
-import { writeFile } from "node:fs/promises";
+import { atomicWrite } from "../packages/project/src/atomic-file";
 import { join } from "node:path";
 import { appendFileSync, existsSync, renameSync, statSync } from "node:fs";
 if (process.argv.includes("--legacy-gl")) {
@@ -55,7 +55,7 @@ void app.whenReady().then(() => {
       defaultPath: name.replace(/[^a-zA-Z0-9._ -]/g, "_"),
     });
     if (result.canceled || !result.filePath) return false;
-    await writeFile(result.filePath, text);
+    await atomicWrite(result.filePath, text);
     return true;
   });
   Menu.setApplicationMenu(

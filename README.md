@@ -1,10 +1,10 @@
-# Pinefall Engine 0.5.5
+# Pinefall Engine 0.6.0
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.5.5:** includes persistent reference-only recovery from 0.5.4, complete replacement-world staging before teardown, conservative shared asset admission, and fault-injection tests. This is another tested Plan 01 checkpoint, not full completion. See [release notes](docs/RELEASE-0.5.5.md).
+**0.6.0 candidate:** versioned normalization, node/mesh/skeleton remapping, shared editor/CLI FBX conversion, transactional dependency scheduling, independent Blender/Maya pose tests, and PIF v4. See [pipeline usage](docs/ASSET-PIPELINE-USAGE.md) and [acceptance status](docs/PLAN01-ACCEPTANCE.md). Physical acceptance is not implied by passing software tests.
 
 **0.5.3:** worker-based model parsing, cached instances, cancellable import/reimport, experimental FBX + PNG/JPEG conversion, and PIF v3 source provenance. This is a tested first asset-pipeline slice, not full Plan 01 completion. See [release notes](docs/RELEASE-0.5.3.md).
 

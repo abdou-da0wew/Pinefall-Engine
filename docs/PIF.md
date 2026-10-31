@@ -1,6 +1,6 @@
-# PIF project container — v1/v2/v3 compatibility (0.5.3)
+# PIF project container — v1/v2/v3/v4 compatibility (0.6.0)
 
-**0.5.3 reads v1/v2/v3; writes v3 for provenance-bearing assets and v2 otherwise. Back up projects before upgrading.**
+**0.6.0 writes v4 for recipe-v2/expanded-identity provenance, v3 for legacy provenance and v2 otherwise. It reads v1/v2/v3/v4. Older engines cannot read v4. Keep backups.**
 
 **The published 0.5.1 release writes PIF v1. 0.5.2 writes PIF v2 and still reads v1. PIF v2 requires 0.5.2 or newer; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
 
@@ -137,3 +137,8 @@ unreadable archive. The in-memory/legacy JSON scene adapter still uses data URIs
 reference-only runtime documents and a persistent artifact database are not yet
 implemented. Undo history interns those strings rather than repeating them in
 every retained snapshot.
+
+
+## v4 normalized provenance
+
+Recipe version 2 contains validated unit multiplier/output-axis settings. Provenance version 2 includes node, mesh and skeleton identity records as well as materials/clips. These semantics require manifest `version: 4` / `minimumReader: 4`; attempting to reseal this provenance inside v3 is rejected. Original sources remain separate archive files and the cooked asset remains a self-contained GLB. The existing integrity inventory covers both. Scene reference documents are materialized only at portable export boundaries; they are not interchangeable with a PIF archive.

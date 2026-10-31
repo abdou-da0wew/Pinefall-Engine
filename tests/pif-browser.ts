@@ -35,8 +35,18 @@ try {
     .locator('input[accept=".pif,.json"]')
     .setInputFiles({ name: "same.pif", mimeType: "application/x-xz", buffer: Buffer.from(bytes) });
   await expect(page.getByLabel("Allow trusted scripts", { exact: true })).not.toBeChecked();
+  // Hold this worker's module request so cancellation is deterministic even when a tiny warm PIF completes in one frame.
+  await page.route(
+    "**/pif.worker.ts*",
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await route.continue().catch(() => {});
+    },
+    { times: 1 },
+  );
   await page.getByRole("button", { name: "Save project", exact: true }).click();
   await page.getByRole("button", { name: "Cancel project operation", exact: true }).click();
+  await expect(page.locator(".statusbar")).toContainText("cancelled");
   await expect(page.getByRole("button", { name: "Save project", exact: true })).toBeEnabled();
   await page
     .locator('input[accept=".pif,.json"]')

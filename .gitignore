@@ -3,3 +3,5 @@ dist/
 build/
 build-desktop/
 *.log
+
+.cache/

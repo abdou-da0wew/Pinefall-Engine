@@ -1,0 +1,83 @@
+{
+  "provenance": "ufbx v0.23.0 external test corpus; FBX and independent DCC-exported OBJ samples. See upstream file histories/credits. Binary fixtures are downloaded to excluded cache, not redistributed in Pinefall. Repository license: https://github.com/ufbx/ufbx/blob/v0.23.0/LICENSE; individual artwork provenance is not independently certified.",
+  "fixtures": [
+    {
+      "name": "blender_279_sausage_7400_binary.fbx",
+      "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/blender_279_sausage_7400_binary.fbx",
+      "sha256": "d30acc615d59a2dc6c68ba6794849cd9d968b1beb883799c66c88a90525a9287",
+      "exporter": "Blender",
+      "poses": [
+        {
+          "name": "blender_279_sausage_base_0.obj",
+          "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/blender_279_sausage_base_0.obj",
+          "sha256": "21914a5790a7387eece9b5093b872e1f8235fe78bfc1044c987ffa22d838e518",
+          "clip": "Skeleton|Base",
+          "time": 0,
+          "tolerance": 0.0001
+        },
+        {
+          "name": "blender_279_sausage_spin_15.obj",
+          "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/blender_279_sausage_spin_15.obj",
+          "sha256": "8f7001d4ee83a7f9e5627cf9f63acc9a21fe78b6454f4d2d4acc5299f8cac159",
+          "clip": "Skeleton|Spin",
+          "time": 0.625,
+          "tolerance": 0.0001
+        },
+        {
+          "name": "blender_279_sausage_wiggle_20.obj",
+          "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/blender_279_sausage_wiggle_20.obj",
+          "sha256": "7eeb576cec95a12f1f99aa1b05dc32cedef05d02e25cf706c4f485e61e6353b5",
+          "clip": "Skeleton|Wiggle",
+          "time": 0.8333333333333334,
+          "tolerance": 0.0001
+        }
+      ],
+      "minimumSkins": 1,
+      "minimumClips": 1
+    },
+    {
+      "name": "maya_kenney_character_7700_binary.fbx",
+      "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/maya_kenney_character_7700_binary.fbx",
+      "sha256": "b84398b1876edb4a718615985a801393fcc0548e8e65a5c3ba133f30993c3b0e",
+      "exporter": "Maya",
+      "poses": [
+        {
+          "name": "maya_kenney_character_4.obj",
+          "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/maya_kenney_character_4.obj",
+          "sha256": "28dde29038038a83ca27530ef5e44ae5402363a77083bcbc87f715045121d4db",
+          "clip": "Take 001",
+          "time": 0.16666666666666666,
+          "tolerance": 0.0001
+        },
+        {
+          "name": "maya_kenney_character_9.obj",
+          "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/maya_kenney_character_9.obj",
+          "sha256": "b7375efad147d22c2e9ed07fb1847ef72638aa79ea8128221f982d23ed41d2b2",
+          "clip": "Take 001",
+          "time": 0.375,
+          "tolerance": 0.0001
+        }
+      ],
+      "minimumSkins": 1,
+      "minimumClips": 1
+    },
+    {
+      "name": "blender_293_barbarian_7400_binary.fbx",
+      "url": "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.0/data/blender_293_barbarian_7400_binary.fbx",
+      "sha256": "bd78a4fc05abe83cb3bb26e4ca649a3c5e7cb1e0c6f523fcd599e48cd0435e04",
+      "exporter": "Blender",
+      "poses": [],
+      "minimumSkins": 1,
+      "minimumClips": 1
+    },
+    {
+      "name": "monkey_embedded_texture.fbx",
+      "url": "https://raw.githubusercontent.com/mrdoob/three.js/r185/examples/models/fbx/monkey_embedded_texture.fbx",
+      "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973",
+      "exporter": "Blender 4.4.3",
+      "poses": [],
+      "minimumSkins": 0,
+      "minimumClips": 0
+    }
+  ]
+}

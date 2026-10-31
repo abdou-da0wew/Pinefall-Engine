@@ -1,3 +1,4 @@
+import { defaultRecipe, parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
 import { inspectFbx } from "./fbx";
 import * as T from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
@@ -8,10 +9,20 @@ interface InputFile {
   name: string;
   bytes: Uint8Array;
 }
-self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
+self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: ImportRecipe }>) => {
   const urls: string[] = [],
     bitmaps: ImageBitmap[] = [];
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...values: unknown[]) => {
+    const message = values
+      .map((v) => String(v))
+      .join(" ")
+      .slice(0, 2000);
+    if (warnings.length < 120 && !warnings.includes(message)) warnings.push(message);
+  };
   try {
+    const recipe = parseRecipe(event.data.recipe || defaultRecipe());
     const files = event.data.files;
     if (!Array.isArray(files) || files.length < 1 || files.length > 33)
       throw Error("Select one model with at most 32 companion images");
@@ -34,7 +45,6 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
     const source = models[0],
       format = /\.fbx$/i.test(source.name) ? "fbx" : "glb";
     let bytes = source.bytes;
-    const warnings: string[] = [];
     self.postMessage({ stage: "inspect" });
     if (format === "glb") {
       if (files.length !== 1)
@@ -117,12 +127,29 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
       let nodes = 0,
         vertices = 0;
       root.traverse((o) => {
+        const sourceId = (o as T.Object3D & { ID?: number }).ID;
+        if (Number.isSafeInteger(sourceId)) o.userData.pinefallSourceId = "fbx:" + sourceId;
         if (++nodes > LIMITS.nodes) throw Error("FBX node budget");
         if (o instanceof T.Mesh) {
           vertices += o.geometry.getAttribute("position")?.count || 0;
           if (vertices > LIMITS.vertices) throw Error("FBX vertex budget");
         }
       });
+      // r185 FBXLoader emits numeric morph indices, while GLTFExporter expects dictionary names.
+      // Rebind the existing target index; never guess a target by order after a reimport.
+      for (const clip of root.animations)
+        for (const track of clip.tracks) {
+          const match = /\.morphTargetInfluences\[(\d+)\]$/.exec(track.name);
+          if (!match) continue;
+          const binding = T.PropertyBinding.parseTrackName(track.name);
+          const mesh = T.PropertyBinding.findNode(root, binding.nodeName) as T.Mesh | null;
+          const key = Object.entries(mesh?.morphTargetDictionary || {}).find(
+            ([, index]) => index === Number(match[1]),
+          )?.[0];
+          if (!key || key.includes("[") || key.includes("]"))
+            throw Error("Cannot safely bind FBX morph animation target");
+          track.name = track.name.slice(0, match.index) + ".morphTargetInfluences[" + key + "]";
+        }
       // FBX units/axes are exporter-specific. Do not silently label conversion as exact.
       warnings.push(
         "Experimental FBX conversion: verify units, axes, pivots, materials and animation against the source DCC. Constraints and morph normals are not guaranteed.",
@@ -136,10 +163,12 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
       if (!(output instanceof ArrayBuffer)) throw Error("FBX conversion did not produce GLB");
       bytes = new Uint8Array(output);
     }
+    bytes = normalizeGlb(bytes, recipe);
     if (bytes.length > MODEL_LIMIT) throw Error("Converted GLB exceeds 2 MB artifact limit");
     self.postMessage({ stage: "validate" });
     const report = inspectGlb(bytes);
-    report.warnings.push(...warnings);
+    if (recipe.version === 1) delete report.identities;
+    report.warnings = [...new Set([...report.warnings, ...warnings])].slice(0, 126);
     if (
       [...report.materials, ...report.clips].some((name) => name.startsWith("[unnamed:")) ||
       new Set(report.materials).size !== report.materials.length ||
@@ -156,11 +185,11 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
       })),
     );
     const metadata: AssetImport = {
-      version: 1,
+      version: recipe.version,
       revision: 1,
       format,
       artifactHash: await digest(bytes),
-      recipe: { importer: "pinefall-three-185", version: 1 },
+      recipe,
       sources,
       report,
       subassets: [],
@@ -169,6 +198,7 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[] }>) => {
   } catch (error) {
     self.postMessage({ error: String(error) });
   } finally {
+    console.warn = originalWarn;
     for (const url of urls) URL.revokeObjectURL(url);
     for (const bitmap of bitmaps) bitmap.close();
   }

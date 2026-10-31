@@ -1,9 +1,10 @@
+import { defaultRecipe, type ImportRecipe } from "../../assets/src/recipe";
 import { sceneDependencyGraph } from "../../assets/src/dependencies";
 import { ReimportReview } from "./ReimportReview";
 import { assetDatabase } from "../../assets/src/database";
 import { referenceScene, sceneReferences } from "../../assets/src/documents";
 import { blobs } from "../../assets/src/blobs";
-import { prepareImport, adoptImport } from "../../assets/src/import";
+import { prepareImport, adoptImport, reimportInputs } from "../../assets/src/import";
 import { newProjectMetadata } from "../../project/src/metadata";
 import { projectJob } from "../../project/src/pif-client";
 import { UIEditor } from "./ui-editor";
@@ -66,6 +67,8 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [recipe, setRecipe] = useState<ImportRecipe>(defaultRecipe);
+  const [overrideRecipe, setOverrideRecipe] = useState(false);
   const [review, setReview] = useState<React.ComponentProps<typeof ReimportReview> | null>(null);
   const checkpointRevision = useRef(0);
   const [loadBusy, setLoadBusy] = useState(false);
@@ -429,8 +432,17 @@ function App() {
     setImportBusy(true);
     const projectId = current.current.project?.id;
     try {
-      const result = await prepareImport(files, controller.signal, (u) =>
-        setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`),
+      const previousAsset = target
+        ? current.current.assets.find((a) => a.id === target.id)
+        : undefined;
+      const inputs = previousAsset ? reimportInputs(previousAsset, files) : files;
+      const result = await prepareImport(
+        inputs,
+        controller.signal,
+        (u) => setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`),
+        target && !overrideRecipe
+          ? current.current.assets.find((a) => a.id === target.id)?.import?.recipe || recipe
+          : recipe,
       );
       // Validate and stage actual renderer resources before committing the authored document.
       await engine.current?.assetCache.prepare(result.data, controller.signal, (u) =>
@@ -1536,6 +1548,60 @@ function App() {
               </small>
             </div>
             <div className="asset-grid">
+              <section style={{ gridColumn: "1 / -1", padding: 12 }}>
+                <strong>Import normalization</strong>
+                <label>
+                  {" "}
+                  Unit multiplier{" "}
+                  <input
+                    aria-label="Import unit multiplier"
+                    type="number"
+                    min="0.000001"
+                    max="1000000"
+                    step="any"
+                    value={recipe.settings!.unitScale}
+                    onChange={(e) =>
+                      setRecipe({
+                        ...recipe,
+                        settings: { ...recipe.settings!, unitScale: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  {" "}
+                  Converter output up axis{" "}
+                  <select
+                    aria-label="Converter output up axis"
+                    value={recipe.settings!.outputUp}
+                    onChange={(e) =>
+                      setRecipe({
+                        ...recipe,
+                        settings: {
+                          ...recipe.settings!,
+                          outputUp: e.target.value as "X" | "Y" | "Z",
+                        },
+                      })
+                    }
+                  >
+                    <option>Y</option>
+                    <option>Z</option>
+                    <option>X</option>
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={overrideRecipe}
+                    onChange={(e) => setOverrideRecipe(e.target.checked)}
+                  />{" "}
+                  Override saved recipe on reimport
+                </label>
+                <small>
+                  1 preserves units; 0.01 converts centimeters to meters. FBXLoader already corrects
+                  Z-up: normally leave output axis Y. Original source bytes are retained.
+                </small>
+              </section>
               {(["box", "sphere", "capsule", "cylinder", "cone"] as const).map((p, i) => (
                 <button className="asset-card" disabled={playing} key={p} onClick={() => add(p)}>
                   <span className={"asset-icon shape-" + p}>

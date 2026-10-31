@@ -3,7 +3,7 @@
     "schemaVersion": 1,
     "id": "8a44b13f-837a-4ee5-9e7b-f291cd96f74e",
     "title": "Asset Pipeline Workshop",
-    "description": "PIF v3 source-provenance sample. Place instances or reimport signal-crystal.glb. No custom scripts.",
+    "description": "PIF v4 normalization recipe and subasset identity sample. No custom scripts.",
     "author": "",
     "projectVersion": "0.1.0",
     "createdAt": "2026-10-31T13:47:00.588Z",
@@ -178,13 +178,17 @@
       "name": "signal-crystal.glb",
       "data": "data:model/gltf-binary;base64,Z2xURgIAAADIAgAAHAIAAEpTT057ImFzc2V0Ijp7InZlcnNpb24iOiIyLjAiLCJnZW5lcmF0b3IiOiJQaW5lZmFsbCBkZW1vIn0sInNjZW5lIjowLCJzY2VuZXMiOlt7Im5vZGVzIjpbMF19XSwibm9kZXMiOlt7Im1lc2giOjB9XSwibWVzaGVzIjpbeyJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjowfSwibWF0ZXJpYWwiOjB9XX1dLCJtYXRlcmlhbHMiOlt7InBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzEsMC43LDAuMTUsMV0sIm1ldGFsbGljRmFjdG9yIjowLjIsInJvdWdobmVzc0ZhY3RvciI6MC42fSwiZG91YmxlU2lkZWQiOnRydWV9XSwiYnVmZmVycyI6W3siYnl0ZUxlbmd0aCI6MTQ0fV0sImJ1ZmZlclZpZXdzIjpbeyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjAsImJ5dGVMZW5ndGgiOjE0NCwidGFyZ2V0IjozNDk2Mn1dLCJhY2Nlc3NvcnMiOlt7ImJ1ZmZlclZpZXciOjAsImNvbXBvbmVudFR5cGUiOjUxMjYsImNvdW50IjoxMiwidHlwZSI6IlZFQzMiLCJtaW4iOlstMC41LDAsLTAuNV0sIm1heCI6WzAuNSwxLDAuNV19XX2QAAAAQklOAAAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAPwAAAD8AAAAAAAAAPwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAPwAAAD8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAvwAAAL8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAvwAAAL8AAAAAAAAAPw==",
       "import": {
-        "version": 1,
-        "revision": 1,
+        "version": 2,
+        "revision": 2,
         "format": "glb",
         "artifactHash": "2bb149845557c4ecbe6bbdb9247da330337e9c2e41f47d93e2ca34fac665a214",
         "recipe": {
           "importer": "pinefall-three-185",
-          "version": 1
+          "version": 2,
+          "settings": {
+            "unitScale": 1,
+            "outputUp": "Y"
+          }
         },
         "sources": [
           {
@@ -194,6 +198,20 @@
           }
         ],
         "report": {
+          "identities": [
+            {
+              "kind": "node",
+              "key": "ambiguous:0:[unnamed:node:0]",
+              "label": "[unnamed:node:0]",
+              "ambiguous": true
+            },
+            {
+              "kind": "mesh",
+              "key": "ambiguous:0:[unnamed:mesh:0]",
+              "label": "[unnamed:mesh:0]",
+              "ambiguous": true
+            }
+          ],
           "nodes": 1,
           "meshes": 1,
           "vertices": 12,
@@ -206,7 +224,17 @@
         },
         "subassets": [
           {
-            "id": "c248dc6b-97b8-4521-b7f5-b9c7dc8dd571",
+            "id": "81a9a023-b294-45ec-88b6-a5992045a208",
+            "key": "ambiguous:0:[unnamed:node:0]",
+            "kind": "node"
+          },
+          {
+            "id": "fc1d6df4-d224-46ee-90c6-b05d9a3d4e2b",
+            "key": "ambiguous:0:[unnamed:mesh:0]",
+            "kind": "mesh"
+          },
+          {
+            "id": "2a022bd5-0fe8-4981-b42e-ccbe0c26fb48",
             "key": "ambiguous:0:[unnamed:material:0]",
             "kind": "material"
           }

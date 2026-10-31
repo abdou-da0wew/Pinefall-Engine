@@ -1,3 +1,5 @@
+import { fromDataURI } from "./glb";
+import { defaultRecipe, parseRecipe, type ImportRecipe } from "./recipe";
 import { assetDatabase } from "./database";
 import { hashBytes } from "./blobs";
 import { conversionKey } from "./dependencies";
@@ -15,7 +17,9 @@ export async function prepareImport(
   files: File[],
   signal: AbortSignal,
   onStage?: (u: JobUpdate) => void,
+  inputRecipe: ImportRecipe = defaultRecipe(),
 ): Promise<PreparedImport> {
+  const recipe = parseRecipe(inputRecipe);
   if (files.reduce((n, f) => n + f.size, 0) > 4_000_000)
     throw Error("Input files exceed 4 MB budget");
   const input = [];
@@ -27,7 +31,7 @@ export async function prepareImport(
   const sources = await Promise.all(
     input.map(async (file) => ({ name: file.name, sha256: await hashBytes(file.bytes) })),
   );
-  const key = await conversionKey(sources, { importer: "pinefall-three-185", version: 1 });
+  const key = await conversionKey(sources, recipe);
   const matchesSources = (value: PreparedImport) =>
     JSON.stringify(
       value.metadata.sources
@@ -38,7 +42,10 @@ export async function prepareImport(
     const cached = (await assetDatabase.getArtifact(key)) as PreparedImport | undefined;
     if (cached) {
       cached.metadata = parseImport(cached.metadata);
-      if (matchesSources(cached)) {
+      if (
+        matchesSources(cached) &&
+        JSON.stringify(cached.metadata.recipe) === JSON.stringify(recipe)
+      ) {
         await verifyImport(cached.data, cached.metadata);
         signal.throwIfAborted();
         onStage?.({ id: key, stage: "cache-hit", elapsedMs: 0 });
@@ -50,7 +57,7 @@ export async function prepareImport(
   }
   const result = await workerJob<PreparedImport>(
     () => new Worker(new URL("./import.worker.ts", import.meta.url), { type: "module" }),
-    { files: input },
+    { files: input, recipe },
     signal,
     onStage,
   );
@@ -122,4 +129,19 @@ export function adoptImport(
   if (old) next.assets[next.assets.indexOf(old)] = asset;
   else next.assets.push(asset);
   return { scene: parseScene(next), asset };
+}
+
+/** Replace only selected source names; retain archived companions/model for partial reimport.
+ * Changing the model filename replaces the old model, not unrelated texture companions. */
+export function reimportInputs(asset: Asset, selected: File[]): File[] {
+  const names = new Set(selected.map((f) => f.name.toLowerCase()));
+  if (names.size !== selected.length) throw Error("Ambiguous reimport filenames");
+  const replacesModel = selected.some((f) => /\.(glb|fbx)$/i.test(f.name));
+  const retained = (asset.import?.sources || []).filter(
+    (s) => !names.has(s.name.toLowerCase()) && !(replacesModel && /\.(glb|fbx)$/i.test(s.name)),
+  );
+  return [
+    ...selected,
+    ...retained.map((s) => new File([new Uint8Array(fromDataURI(s.data))], s.name)),
+  ];
 }

@@ -1,3 +1,5 @@
+import { parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
+import { parseIdentities, type SubassetKind } from "./identities";
 import { isBlobRef, BLOB_PREFIX } from "./blobs";
 import { inspectGlb, fromDataURI, toDataURI, type ModelInspection } from "./glb";
 export interface SourceFile {
@@ -6,14 +8,14 @@ export interface SourceFile {
   sha256: string;
 }
 export interface AssetImport {
-  version: 1;
+  version: 1 | 2;
   revision: number;
   format: "glb" | "fbx";
   artifactHash: string;
-  recipe: { importer: "pinefall-three-185"; version: 1 };
+  recipe: ImportRecipe;
   sources: SourceFile[];
   report: ModelInspection;
-  subassets: { id: string; key: string; kind: "material" | "clip" }[];
+  subassets: { id: string; key: string; kind: SubassetKind }[];
 }
 export async function digest(bytes: Uint8Array) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
@@ -38,19 +40,19 @@ export function parseImport(value: unknown): AssetImport {
   const v = value as AssetImport;
   if (
     !v ||
-    v.version !== 1 ||
+    ![1, 2].includes(v.version) ||
     !Number.isSafeInteger(v.revision) ||
     v.revision < 1 ||
     !["glb", "fbx"].includes(v.format) ||
     !v.recipe ||
     v.recipe.importer !== "pinefall-three-185" ||
-    v.recipe.version !== 1 ||
+    v.recipe.version !== v.version ||
     !isHash(v.artifactHash) ||
     !Array.isArray(v.sources) ||
     v.sources.length < 1 ||
     v.sources.length > 33 ||
     !Array.isArray(v.subassets) ||
-    v.subassets.length > 512
+    v.subassets.length > (v.version === 2 ? 4096 : 512)
   )
     throw Error("Invalid asset import metadata");
   const names = new Set<string>();
@@ -107,7 +109,9 @@ export function parseImport(value: unknown): AssetImport {
       s.id.length > 100 ||
       typeof s.key !== "string" ||
       s.key.length > 2000 ||
-      !["material", "clip"].includes(s.kind) ||
+      !(
+        v.version === 2 ? ["material", "clip", "node", "mesh", "skeleton"] : ["material", "clip"]
+      ).includes(s.kind) ||
       ids.has(s.id) ||
       keys.has(s.kind + ":" + s.key)
     )
@@ -117,13 +121,14 @@ export function parseImport(value: unknown): AssetImport {
     return { id: s.id, key: s.key, kind: s.kind };
   });
   return {
-    version: 1,
+    version: v.version,
     revision: v.revision,
     format: v.format,
     artifactHash: v.artifactHash,
-    recipe: { importer: "pinefall-three-185", version: 1 },
+    recipe: parseRecipe(v.recipe),
     sources,
     report: {
+      ...(v.version === 2 ? { identities: parseIdentities(r.identities) } : {}),
       nodes: r.nodes,
       meshes: r.meshes,
       vertices: r.vertices,
@@ -144,21 +149,39 @@ export function reconcileSubassets(
   mapping?: Record<string, string>,
 ) {
   const result: AssetImport["subassets"] = [];
+  const entries = [...(report.identities || [])];
   for (const kind of ["material", "clip"] as const) {
     const names = kind === "material" ? report.materials : report.clips;
     for (const [i, name] of names.entries()) {
-      const unique = !name.startsWith("[unnamed:") && names.filter((n) => n === name).length === 1;
-      const key = unique ? `name:${name}` : `ambiguous:${i}:${name}`;
-      const old = unique
-        ? previous?.subassets.find((s) => s.kind === kind && s.key === key)
-        : undefined;
-      const selected = mapping?.[kind + ":" + key];
-      if (selected && !previous?.subassets.some((s) => s.id === selected && s.kind === kind))
-        throw Error("Invalid subasset remap");
-      const id = mapping ? selected || crypto.randomUUID() : old?.id || crypto.randomUUID();
-      if (result.some((s) => s.id === id)) throw Error("Subasset identity mapped more than once");
-      result.push({ id, key, kind });
+      const ambiguous =
+        name.startsWith("[unnamed:") || names.filter((n) => n === name).length !== 1;
+      entries.push({
+        kind,
+        key: ambiguous ? `ambiguous:${i}:${name}` : `name:${name}`,
+        label: name,
+        ambiguous,
+      });
     }
+  }
+  if (mapping) {
+    const keys = new Set(entries.map((e) => e.kind + ":" + e.key));
+    if (
+      typeof mapping !== "object" ||
+      Array.isArray(mapping) ||
+      Object.entries(mapping).some(([key, value]) => !keys.has(key) || typeof value !== "string")
+    )
+      throw Error("Invalid subasset mapping document");
+  }
+  for (const { kind, key, ambiguous } of entries) {
+    const old = !ambiguous
+      ? previous?.subassets.find((s) => s.kind === kind && s.key === key)
+      : undefined;
+    const selected = mapping?.[kind + ":" + key];
+    if (selected && !previous?.subassets.some((s) => s.id === selected && s.kind === kind))
+      throw Error("Invalid subasset remap");
+    const id = mapping ? selected || crypto.randomUUID() : old?.id || crypto.randomUUID();
+    if (result.some((s) => s.id === id)) throw Error("Subasset identity mapped more than once");
+    result.push({ id, key, kind });
   }
   return result;
 }
@@ -171,19 +194,28 @@ export async function verifyImport(data: string, metadata: AssetImport) {
   inspectGlb(fromDataURI(data));
 }
 
-export async function prepareGlbRecord(name: string, bytes: Uint8Array) {
+export async function prepareGlbRecord(
+  name: string,
+  bytes: Uint8Array,
+  inputRecipe: ImportRecipe = { importer: "pinefall-three-185", version: 1 },
+) {
   safeName(name);
-  const report = inspectGlb(bytes),
-    hash = await digest(bytes);
+  const recipe = parseRecipe(inputRecipe),
+    cooked = normalizeGlb(bytes, recipe);
+  const report = inspectGlb(cooked),
+    hash = await digest(cooked);
+  if (recipe.version === 1) delete report.identities;
   const metadata: AssetImport = {
-    version: 1,
+    version: recipe.version,
     revision: 1,
     format: "glb",
     artifactHash: hash,
-    recipe: { importer: "pinefall-three-185", version: 1 },
-    sources: [{ name, data: toDataURI(bytes, "application/octet-stream"), sha256: hash }],
+    recipe,
+    sources: [
+      { name, data: toDataURI(bytes, "application/octet-stream"), sha256: await digest(bytes) },
+    ],
     report,
     subassets: [],
   };
-  return { name, data: toDataURI(bytes), metadata };
+  return { name, data: toDataURI(cooked), metadata };
 }
