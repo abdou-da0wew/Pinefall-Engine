@@ -1,6 +1,6 @@
-# PIF project container — v2 metadata and integrity (0.5.2-dev)
+# PIF project container — v2 metadata and integrity (0.5.2)
 
-**The published 0.5.1 release writes PIF v1. Current development writes PIF v2 and still reads v1. PIF v2 is not yet published; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
+**The published 0.5.1 release writes PIF v1. 0.5.2 writes PIF v2 and still reads v1. PIF v2 requires 0.5.2 or newer; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
 
 A `.pif` is a real **XZ-compressed USTAR archive**, using LZMA2 preset 6 and CRC64. Higher presets are not automatically better for already compressed textures and require substantially more memory. Compression ratio depends on project content.
 
@@ -111,4 +111,4 @@ Legacy PIF v1 opens with `legacy-unverified` status via inspection. `requireInte
 
 ## Current validation
 
-50 tests / 190 assertions pass, including modifications to scene/script/asset/metadata bytes, missing proof, changed root, unsupported metadata/reader versions, fully resealed replacement versus trusted digest, legacy strict-mode rejection and existing XZ expansion limits. Browser worker save/open/cancel/trust tests and Linux Electron production-bundle save/load pass. Windows execution and physical Radeon hardware remain untested. No new GitHub release has been made for this change.
+50 tests / 190 assertions pass, including modifications to scene/script/asset/metadata bytes, missing proof, changed root, unsupported metadata/reader versions, fully resealed replacement versus trusted digest, legacy strict-mode rejection and existing XZ expansion limits. Browser worker save/open/cancel/trust tests and Linux Electron production-bundle save/load pass. Windows execution and physical Radeon hardware remain untested. See the 0.5.2 release page for publication status and packages.

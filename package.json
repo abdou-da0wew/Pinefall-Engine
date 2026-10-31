@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.5.2-dev",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",

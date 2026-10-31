@@ -579,7 +579,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.5.2-dev</small>
+            <small>WORKSHOP / 0.5.2</small>
           </div>
         </div>
         <div className="project-path">

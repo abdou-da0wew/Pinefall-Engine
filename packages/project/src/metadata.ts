@@ -29,7 +29,7 @@ export function newProjectMetadata(title: string): ProjectMetadata {
     modifiedAt: now,
     editor: {
       name: "Pinefall Engine",
-      version: "0.5.2-dev",
+      version: "0.5.2",
       sceneSchema: 1,
       layout: "unspecified",
       activeTool: "translate",

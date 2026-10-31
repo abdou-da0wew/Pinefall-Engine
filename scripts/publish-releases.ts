@@ -2,7 +2,10 @@
 import { readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 const repository = "abdou-da0wew/Pinefall-Engine";
-const versions = ["0.5.0", "0.5.1"];
+const versions = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
+if (!versions.length) versions.push("0.5.2");
+if (versions.some((v) => !/^\d+\.\d+\.\d+$/.test(v)))
+  throw Error("Expected release version numbers");
 const checkOnly = process.argv.includes("--check");
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
 function git(...args: string[]) {
@@ -83,8 +86,8 @@ if (!token)
   );
 const repo = await api<{ permissions?: { push?: boolean } }>("");
 if (!repo.permissions?.push) throw Error("Token lacks push permission for " + repository);
-if (git("rev-parse", "HEAD") !== ready[1].commit)
-  throw Error("HEAD must match the prepared 0.5.1 tag");
+if (git("rev-parse", "HEAD") !== ready.at(-1)!.commit)
+  throw Error("HEAD must match the last prepared release tag");
 // No force pushes. Existing divergent remote history/tags cause git to stop.
 git(
   "push",
@@ -148,7 +151,7 @@ for (const release of ready) {
   }
   remote = await api<Release>("/releases/" + remote.id, "PATCH", {
     draft: false,
-    make_latest: release.version === "0.5.1" ? "true" : "false",
+    make_latest: release.version === versions.at(-1) ? "true" : "false",
   });
   console.log("Published " + remote.html_url);
   await Bun.write(

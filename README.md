@@ -1,14 +1,14 @@
-# Pinefall Engine 0.5.2-dev
+# Pinefall Engine 0.5.2
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.5.1:** real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
+**0.5.2:** versioned project/editor metadata and SHA-256 integrity verification, plus real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
-## Unreleased: PIF v2
+## PIF v2 in 0.5.2
 
 Current source writes portable project/editor metadata and a verified SHA-256 resource inventory. Strict verification and an optional trusted external digest are supported. These are integrity checks, not signatures. Published 0.5.1 reads only PIF v1; see [format compatibility and verification](docs/PIF.md).
 
@@ -20,14 +20,14 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 These are the intended release destinations; links become available after authenticated publication.
 
-[**0.5.1 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.1)
+[**0.5.2 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.2)
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/Pinefall-Engine-0.5.1-source.zip)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.1/SHA256SUMS-0.5.1.txt)
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-source.zip)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/SHA256SUMS-0.5.2.txt)
 
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.1-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.2-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
 
 ## Documentation
 

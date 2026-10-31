@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.5.2-dev — PIF v2 metadata and integrity (unreleased)
+## 0.5.2 — PIF v2 metadata and integrity
 
 - Portable versioned project/editor metadata, stable project UUID, creation/modification timestamps, game version, author/description and last saved tool/docking side.
 - Mandatory SHA-256 payload inventory and canonical root hash for v2; validate before scene adoption.
 - Verify/inspect API and CLI with strict legacy rejection and optional trusted full-archive SHA-256. Embedded hashes are not signatures or authentication.
-- Legacy PIF v1 remains readable; published 0.5.1 cannot open v2. No GitHub publication for this update.
+- Legacy PIF v1 remains readable; published 0.5.1 cannot open v2. Packaged as 0.5.2.
 - 50 tests / 190 assertions, browser worker and Linux Electron checks pass.
 
 ## 0.5.1 — PIF project-format milestone
