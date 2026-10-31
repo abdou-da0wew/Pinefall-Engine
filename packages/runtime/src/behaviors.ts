@@ -8,12 +8,28 @@ export interface Behavior {
   trigger?(other: Entity, started: boolean): void;
   dispose?(): void;
 }
+export type SimulationHost = Pick<
+  Engine,
+  | "input"
+  | "look"
+  | "jump"
+  | "document"
+  | "physics"
+  | "objects"
+  | "speed"
+  | "collected"
+  | "goalCount"
+  | "won"
+  | "checkpoint"
+  | "events"
+  | "registerBehavior"
+>;
 export interface BehaviorContext {
-  engine: Engine;
+  engine: SimulationHost;
   entity: Entity;
 }
 export type BehaviorFactory = (context: BehaviorContext) => Behavior;
-export function registerBuiltins(engine: Engine) {
+export function registerBuiltins(engine: SimulationHost) {
   engine.registerBehavior("character", ({ engine, entity }) => {
     let vertical = 0,
       grounded = false;
@@ -114,7 +130,10 @@ export function registerBuiltins(engine: Engine) {
           engine.won = true;
           engine.events.emit("gameplay", "All signals restored. Route complete.");
         } else
-          engine.events.emit("gameplay", "Recover all five signals before activating the beacon.");
+          engine.events.emit(
+            "gameplay",
+            `Recover all ${engine.goalCount} signals before activating the beacon.`,
+          );
       }
     },
   }));

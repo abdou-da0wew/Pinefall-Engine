@@ -986,3 +986,58 @@ code {
     display: none;
   }
 }
+
+.project-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #07130ede;
+  display: grid;
+  place-items: center;
+}
+.project-modal form {
+  width: min(460px, 90vw);
+  background: #192a20;
+  padding: 30px;
+  border: 1px solid #66775b;
+  border-radius: 12px;
+  box-shadow: 0 20px 100px #0008;
+}
+.project-modal small {
+  letter-spacing: 3px;
+  color: #c0c999;
+}
+.project-modal h2 {
+  font: 26px "Space Grotesk";
+}
+.project-modal label {
+  display: block;
+  margin: 18px 0;
+  color: #abbfa3;
+}
+.project-modal input,
+.project-modal select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+}
+.project-modal p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #96ab91;
+}
+.project-modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+.project-modal button {
+  padding: 10px 16px;
+  border: 1px solid #58714b;
+}
+.project-modal button[type="submit"] {
+  background: #c3cda6;
+  color: #22321c;
+}

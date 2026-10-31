@@ -1,3 +1,4 @@
+import { validateGlb } from "../../project/src";
 import { safeBehavior } from "./behavior-safety";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -324,30 +325,7 @@ export class Engine {
     this.events.emit("scene", "Loaded " + scene.name, { entities: scene.entities.length });
   }
   private validateGlb(buffer: ArrayBuffer) {
-    const data = new DataView(buffer);
-    if (
-      data.byteLength < 20 ||
-      data.getUint32(0, true) !== 0x46546c67 ||
-      data.getUint32(4, true) !== 2
-    )
-      throw new Error("Expected GLB 2.0");
-    const length = data.getUint32(12, true);
-    const json: unknown = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, length)));
-    if (typeof json !== "object" || json === null) throw new Error("Invalid GLB");
-    for (const key of ["buffers", "images"]) {
-      const list = Reflect.get(json, key);
-      if (Array.isArray(list))
-        for (const item of list) {
-          if (
-            item &&
-            typeof item === "object" &&
-            "uri" in item &&
-            typeof item.uri === "string" &&
-            !item.uri.startsWith("data:")
-          )
-            throw new Error("External GLB resources are not allowed");
-        }
-    }
+    validateGlb(new Uint8Array(buffer));
   }
   private addEntity(e: Entity) {
     const object = new T.Group();

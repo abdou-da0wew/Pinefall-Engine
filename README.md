@@ -1,4 +1,8 @@
-# Pinefall Engine 0.1.1 — experimental foundation
+# Pinefall Engine 0.2.0 — game creation and headless tools
+
+**New in 0.2:** named New Game workflow, reusable multi-model imports and drag/drop, player-model replacement, a DOM-free simulator sharing real physics/gameplay behaviors, JSON CLI authoring, and standalone custom-game web export. See [Creating games](docs/CREATING-GAMES.md) for the complete workflow, API, supported assets, limits and example.
+
+The published 0.1.1 release below predates these changes; 0.2 is currently local development.
 
 A separate TypeScript 3D runtime and visual workshop, built with Bun, Three.js, Rapier and React. The original Pinefall game is unchanged. This is a small usable engine foundation, **not Unity feature parity or a production-certified engine**.
 
@@ -67,7 +71,7 @@ Binaries are unsigned. Windows packaging is not Windows runtime validation. CEDA
 
 Validated locally: strict TypeScript; Oxlint; 6 unit/physics tests (17 assertions); Chromium/SwiftShader browser smoke covering four-template play/stop, crate spawn, high effects and standalone player, with zero page errors. Screenshots in `docs/` are actual captures. Linux/Windows package generation succeeded; physical-GPU and Windows execution remain unverified. No long-duration memory/performance certification.
 
-This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, packaged per-project exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Synchronous custom-behavior exceptions disable that instance and emit a structured error; other instances continue and cleanup still runs. This does not protect against infinite loops, asynchronous rejections, malicious plugins, or throwing event subscribers. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
+This version is deliberately limited: primitive procedural art; no skeletal animation workflow, audio system, navmesh, terrain sculpting, multiplayer, visual scripting, full asset dependency database, per-game desktop exporter, or full scene/component extensibility. Imported assets are loaded again on authored edits rather than incrementally patched. Maximum 500 entities, 8 lights, 16 embedded assets and 8 MB embedded asset strings. Synchronous custom-behavior exceptions disable that instance and emit a structured error; other instances continue and cleanup still runs. This does not protect against infinite loops, asynchronous rejections, malicious plugins, or throwing event subscribers. Small desktop viewports hide the inspector; use a desktop-size window for authoring.
 
 Generated dependencies, build outputs and packages are rebuildable. Release links and validation details are below.
 
@@ -87,3 +91,7 @@ Version 0.1.1 release: https://github.com/abdou-da0wew/Pinefall-Engine/releases/
 Assets include Linux AppImage, Windows ZIP, source ZIP and SHA256 checksums. Binaries are unsigned. Linux packaged editor start/play/stop passed under Xvfb with SwiftShader; these test-only software-rendering flags do not establish CEDAR hardware support. Windows package creation passed; Windows execution remains untested.
 
 The engine remains an experimental foundation with the feature limits listed above, not a feature-complete Unity replacement.
+
+## 0.2 validation
+
+14 unit/physics/headless tests, 46 assertions; TypeScript and Oxlint pass. Browser creation test passed new game, GLB import, play/stop and custom standalone export; existing browser regression suites pass. Packaged Linux editor start/play/stop passes under Xvfb/SwiftShader. Headless tests verify all four starters, real character movement and sensors, custom behavior isolation, model validation/deduplication, and completion of the Beacon Run example. Windows packages were generated but not executed.

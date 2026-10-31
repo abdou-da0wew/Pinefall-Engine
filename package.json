@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -18,7 +18,8 @@
     "desktop:linux": "bun run desktop:build && electron-builder --linux AppImage",
     "desktop:windows": "bun run desktop:build && electron-builder --win zip",
     "test:browser": "bun tests/browser.ts",
-    "test:runtime-browser": "bun tests/runtime-browser.ts"
+    "test:runtime-browser": "bun tests/runtime-browser.ts",
+    "game": "bun scripts/game.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

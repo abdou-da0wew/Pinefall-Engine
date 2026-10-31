@@ -1,3 +1,4 @@
+import { createGame, importModel, placeModel } from "../../project/src";
 /* oxlint-disable react/refs -- Event-handler closures access runtime refs; no React Compiler is used. History is revision-driven. */
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -45,6 +46,9 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [newGameOpen, setNewGameOpen] = useState(false),
+    [gameName, setGameName] = useState("My New Game"),
+    [gameStarter, setGameStarter] = useState("blank");
   const [scene, setScene] = useState(initialScene),
     [selected, setSelected] = useState<string | null>(null),
     [playing, setPlaying] = useState(false),
@@ -69,6 +73,23 @@ function App() {
     glb = useRef<HTMLInputElement>(null),
     prefabFile = useRef<HTMLInputElement>(null);
   const applyRef = useRef<(fn: (scene: SceneDocument) => void) => void>(() => {});
+  function createNewGame() {
+    try {
+      const next =
+        gameStarter === "blank" ? createGame(gameName) : createTemplate(gameStarter as Template);
+      next.name = gameName;
+      const checked = parseScene(next);
+      history.current.commit(current.current);
+      current.current = checked;
+      setScene(checked);
+      setSelected(null);
+      setRevision((r) => r + 1);
+      setNewGameOpen(false);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }
+
   function commit(fn: (scene: SceneDocument) => void) {
     if (playing) return;
     try {
@@ -250,34 +271,32 @@ function App() {
       setStatus(String(e));
     }
   }
-  async function importGlb(event: React.ChangeEvent<HTMLInputElement>) {
-    const f = event.target.files?.[0];
-    event.target.value = "";
-    if (!f) return;
+  async function importFiles(files: File[]) {
+    if (playing) return;
     try {
-      if (f.size > 2_000_000) throw new Error("GLB limit is 2 MB per asset");
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      const view = new DataView(bytes.buffer);
-      if (bytes.length < 20 || view.getUint32(0, true) !== 0x46546c67)
-        throw new Error("Choose a binary .glb file");
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 8192)
-        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-      const asset = {
-        id: crypto.randomUUID(),
-        name: f.name,
-        data: "data:model/gltf-binary;base64," + btoa(binary),
-      };
-      const e = entity(f.name, "asset");
-      e.mesh!.asset = asset.id;
+      let next = cloneScene(current.current);
+      let selectedId: string | null = null;
+      for (const file of files) {
+        if (!file.name.toLowerCase().endsWith(".glb"))
+          throw Error("Import self-contained .glb models; textures/materials must be embedded");
+        const result = importModel(next, file.name, new Uint8Array(await file.arrayBuffer()));
+        const placed = placeModel(result.scene, result.asset.id);
+        next = placed.scene;
+        selectedId = placed.entity.id;
+      }
       commit((d) => {
-        d.assets.push(asset);
-        d.entities.push(e);
+        d.assets = next.assets;
+        d.entities = next.entities;
       });
-      setSelected(e.id);
+      setSelected(selectedId);
     } catch (e) {
       setStatus(String(e));
     }
+  }
+  async function importGlb(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    await importFiles(files);
   }
   async function exportPrefab() {
     const e = scene.entities.find((e) => e.id === selected);
@@ -381,6 +400,56 @@ function App() {
   }
   return (
     <div className="workbench">
+      {newGameOpen && (
+        <div className="project-modal" role="dialog" aria-modal="true" aria-label="New game">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              createNewGame();
+            }}
+          >
+            <small>PINEFALL / CREATE</small>
+            <h2>Your next game starts here.</h2>
+            <label>
+              Game name
+              <input
+                aria-label="Game name"
+                required
+                maxLength={100}
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+              />
+            </label>
+            <label>
+              Starting scene
+              <select
+                aria-label="Starting scene"
+                value={gameStarter}
+                onChange={(e) => setGameStarter(e.target.value)}
+              >
+                <option value="blank">Blank world + playable character</option>
+                {Object.entries(templateNames).map(([key, name]) => (
+                  <option key={key} value={key}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p>
+              Import your GLB models, place them, add colliders and press Play. Export your current
+              scene before creating another game if you want to keep it permanently. New games
+              replace the local autosave; Undo restores the previous scene during this session.
+            </p>
+            <footer>
+              <button type="button" onClick={() => setNewGameOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit">Create game</button>
+            </footer>
+          </form>
+        </div>
+      )}
+
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">◈</span>
@@ -393,6 +462,9 @@ function App() {
           Projects <span>/</span> {scene.name} <i>LOCAL</i>
         </div>
         <div className="top-actions">
+          <button disabled={playing} onClick={() => setNewGameOpen(true)}>
+            ＋ New game
+          </button>
           <button disabled={playing} onClick={() => file.current?.click()}>
             ↥ Open scene
           </button>
@@ -523,7 +595,14 @@ function App() {
             <button onClick={() => setInspector("render")}>☷ Render</button>
           </div>
         </div>
-        <div className="canvas-wrap">
+        <div
+          className="canvas-wrap"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            void importFiles(Array.from(e.dataTransfer.files));
+          }}
+        >
           <canvas ref={canvas} tabIndex={0} aria-label="3D scene viewport" />
           {!ready && !error && (
             <div className="viewport-message">
@@ -671,6 +750,33 @@ function App() {
                 {chosen.mesh && (
                   <section>
                     <h3>⬡ Mesh renderer</h3>
+                    <label className="row-field">
+                      Library model
+                      <select
+                        aria-label="Library model"
+                        disabled={playing}
+                        value={chosen.mesh.asset || ""}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (!e.mesh) return;
+                            const id = event.target.value;
+                            e.mesh.primitive = id ? "asset" : "box";
+                            e.mesh.asset = id || undefined;
+                          })
+                        }
+                      >
+                        <option value="">Primitive / reset to box</option>
+                        {scene.assets.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <small className="hint">
+                      Swap visuals without removing physics or behaviors. Scale the model to match
+                      its collision proxy. Drop GLB files into the viewport to import.
+                    </small>
                     <label className="row-field">
                       Geometry <span>{chosen.mesh.primitive}</span>
                     </label>
@@ -1183,7 +1289,14 @@ function App() {
         </div>
       </footer>
       <input ref={file} hidden type="file" accept=".json" onChange={(e) => void loadScene(e)} />
-      <input ref={glb} hidden type="file" accept=".glb" onChange={(e) => void importGlb(e)} />
+      <input
+        ref={glb}
+        hidden
+        type="file"
+        accept=".glb"
+        multiple
+        onChange={(e) => void importGlb(e)}
+      />
       <input
         ref={prefabFile}
         hidden

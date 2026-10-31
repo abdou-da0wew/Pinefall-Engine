@@ -28,6 +28,11 @@ async function main() {
     ["adventure", "first-person", "driving", "sandbox"].includes(query || "") ? query : "adventure"
   ) as Template;
   let authored = createTemplate(template);
+  if (document.body.dataset.scene) {
+    const response = await fetch(document.body.dataset.scene);
+    if (!response.ok) throw Error("Could not load exported scene");
+    authored = parseScene(await response.json());
+  }
   async function load() {
     await runtime.load(authored);
     $("title").textContent = authored.name;

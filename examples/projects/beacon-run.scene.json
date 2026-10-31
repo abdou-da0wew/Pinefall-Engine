@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "name": "Beacon Run",
+  "template": "adventure",
+  "entities": [
+    {
+      "id": "d89ae215-2f75-4216-bab1-5569e1ae6c4e",
+      "name": "Ground",
+      "enabled": true,
+      "transform": {
+        "position": [0, -0.5, 0],
+        "rotation": [0, 0, 0],
+        "scale": [40, 1, 40]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#667c60"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "3a9660b1-3cc7-4db4-b303-a30496461edc",
+      "name": "Player",
+      "enabled": true,
+      "transform": {
+        "position": [0, 1, 6],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "tag": "player",
+      "behavior": "character",
+      "mesh": {
+        "primitive": "capsule",
+        "color": "#b9d9be"
+      },
+      "physics": {
+        "type": "kinematic",
+        "shape": "capsule",
+        "mass": 75,
+        "friction": 0.5,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "cb27323e-72f9-46c4-acb0-4e7b2c0e331f",
+      "name": "Crystal 1",
+      "enabled": true,
+      "transform": {
+        "position": [-4, 1, -2],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "behavior": "collectible",
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "e2a4a47e-7921-4a2a-a9f3-06524d3e6df5"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "sphere",
+        "mass": 1,
+        "friction": 0,
+        "restitution": 0,
+        "sensor": true
+      }
+    },
+    {
+      "id": "ad05081f-1970-4d5f-bcaa-ced035cf9de1",
+      "name": "Crystal 2",
+      "enabled": true,
+      "transform": {
+        "position": [0, 1, -6],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "behavior": "collectible",
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "e2a4a47e-7921-4a2a-a9f3-06524d3e6df5"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "sphere",
+        "mass": 1,
+        "friction": 0,
+        "restitution": 0,
+        "sensor": true
+      }
+    },
+    {
+      "id": "95b9da02-396a-45ae-b4c6-d68accbe686f",
+      "name": "Crystal 3",
+      "enabled": true,
+      "transform": {
+        "position": [4, 1, -10],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "behavior": "collectible",
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "e2a4a47e-7921-4a2a-a9f3-06524d3e6df5"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "sphere",
+        "mass": 1,
+        "friction": 0,
+        "restitution": 0,
+        "sensor": true
+      }
+    },
+    {
+      "id": "d53dbd12-9dfd-4cd3-92e9-ad311e4dc8d5",
+      "name": "Return beacon",
+      "enabled": true,
+      "transform": {
+        "position": [0, 0.5, 10],
+        "rotation": [0, 0, 0],
+        "scale": [3, 1, 3]
+      },
+      "behavior": "finish",
+      "mesh": {
+        "primitive": "cylinder",
+        "color": "#6ac3a1"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0,
+        "restitution": 0,
+        "sensor": true
+      }
+    },
+    {
+      "id": "fe0d6c3e-4e73-4db1-b672-8a9aa9eeb11d",
+      "name": "Stone barrier 0",
+      "enabled": true,
+      "transform": {
+        "position": [-9, 1, -7],
+        "rotation": [0, 0, 0],
+        "scale": [2, 2, 2]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#829580"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "be7fc338-7bb3-46db-a5c1-53c82a3f3c17",
+      "name": "Stone barrier 1",
+      "enabled": true,
+      "transform": {
+        "position": [-3, 1, -7],
+        "rotation": [0, 0, 0],
+        "scale": [2, 2, 2]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#829580"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "11e99fce-fb7a-4409-95b0-f2174c61b8f0",
+      "name": "Stone barrier 2",
+      "enabled": true,
+      "transform": {
+        "position": [3, 1, -7],
+        "rotation": [0, 0, 0],
+        "scale": [2, 2, 2]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#829580"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "1d61fea4-67cf-439f-8f98-34cb4d7f59b7",
+      "name": "Stone barrier 3",
+      "enabled": true,
+      "transform": {
+        "position": [9, 1, -7],
+        "rotation": [0, 0, 0],
+        "scale": [2, 2, 2]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#829580"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "e2a4a47e-7921-4a2a-a9f3-06524d3e6df5",
+      "name": "signal-crystal.glb",
+      "data": "data:model/gltf-binary;base64,Z2xURgIAAADIAgAAHAIAAEpTT057ImFzc2V0Ijp7InZlcnNpb24iOiIyLjAiLCJnZW5lcmF0b3IiOiJQaW5lZmFsbCBkZW1vIn0sInNjZW5lIjowLCJzY2VuZXMiOlt7Im5vZGVzIjpbMF19XSwibm9kZXMiOlt7Im1lc2giOjB9XSwibWVzaGVzIjpbeyJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjowfSwibWF0ZXJpYWwiOjB9XX1dLCJtYXRlcmlhbHMiOlt7InBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzEsMC43LDAuMTUsMV0sIm1ldGFsbGljRmFjdG9yIjowLjIsInJvdWdobmVzc0ZhY3RvciI6MC42fSwiZG91YmxlU2lkZWQiOnRydWV9XSwiYnVmZmVycyI6W3siYnl0ZUxlbmd0aCI6MTQ0fV0sImJ1ZmZlclZpZXdzIjpbeyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjAsImJ5dGVMZW5ndGgiOjE0NCwidGFyZ2V0IjozNDk2Mn1dLCJhY2Nlc3NvcnMiOlt7ImJ1ZmZlclZpZXciOjAsImNvbXBvbmVudFR5cGUiOjUxMjYsImNvdW50IjoxMiwidHlwZSI6IlZFQzMiLCJtaW4iOlstMC41LDAsLTAuNV0sIm1heCI6WzAuNSwxLDAuNV19XX2QAAAAQklOAAAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAPwAAAD8AAAAAAAAAPwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAPwAAAD8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAvwAAAL8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAvwAAAL8AAAAAAAAAPw=="
+    }
+  ],
+  "environment": {
+    "background": "#263c44",
+    "fog": "#263c44",
+    "fogNear": 30,
+    "fogFar": 100,
+    "sun": 2,
+    "gravity": -9.81
+  }
+}
