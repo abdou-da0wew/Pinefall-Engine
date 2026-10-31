@@ -1,3 +1,4 @@
+import { validatePending, type PendingImport } from "./pending";
 import { blobs, type BlobEntry, isBlobRef } from "./blobs";
 import { sceneReferences, referenceScene } from "./documents";
 import { parseScene, type SceneDocument } from "../../runtime/src/schema";
@@ -27,10 +28,11 @@ export class AssetDatabase {
           return;
         }
         let abandoned = false;
-        const request = indexedDB.open(this.name, 1);
+        const request = indexedDB.open(this.name, 2);
         request.onupgradeneeded = () => {
-          for (const store of ["blobs", "artifacts", "checkpoints"])
-            request.result.createObjectStore(store);
+          for (const store of ["blobs", "artifacts", "checkpoints", "pending"])
+            if (!request.result.objectStoreNames.contains(store))
+              request.result.createObjectStore(store);
         };
         request.onerror = () => reject(request.error || Error("Asset database open failed"));
         request.onblocked = () => {
@@ -227,6 +229,97 @@ export class AssetDatabase {
       process();
     };
     await done;
+  }
+  async pendingSummaries(projectId: string) {
+    const db = await this.open(),
+      tx = db.transaction("pending", "readonly"),
+      done = this.done(tx);
+    const rows: { id: string; missing: string; name: string }[] = [];
+    const request = tx.objectStore("pending").openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      const row = cursor.value as PendingImport;
+      if (row.projectId === projectId)
+        rows.push({
+          id: String(cursor.key),
+          missing: typeof row.missing === "string" ? row.missing : "unknown",
+          name: Array.isArray(row.files)
+            ? row.files.find((f) => /\.(fbx|glb)$/i.test(f.name))?.name || "model"
+            : "corrupt record",
+        });
+      cursor.continue();
+    };
+    await done;
+    return rows;
+  }
+  getPending(id: string) {
+    return this.read<PendingImport>("pending", id);
+  }
+  async pendingImports(projectId: string) {
+    const db = await this.open(),
+      tx = db.transaction("pending", "readonly"),
+      done = this.done(tx),
+      request = tx.objectStore("pending").getAll();
+    const result = new Promise<PendingImport[]>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const [rows] = await Promise.all([result, done]);
+    return rows.filter((row) => row.projectId === projectId).sort((a, b) => b.updated - a.updated);
+  }
+  putPending(value: PendingImport, signal?: AbortSignal) {
+    return this.serial(async () => {
+      const copy = structuredClone(value);
+      await validatePending(copy);
+      signal?.throwIfAborted();
+      const db = await this.open();
+      signal?.throwIfAborted();
+      const tx = db.transaction("pending", "readwrite"),
+        done = this.done(tx),
+        store = tx.objectStore("pending");
+      const abort = () => {
+        try {
+          tx.abort();
+        } catch {
+          /* transaction already settled */
+        }
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      let failure: unknown;
+      const request = store.getAllKeys();
+      request.onsuccess = () => {
+        if (request.result.length >= 8 && !request.result.includes(copy.id)) {
+          failure = Error(
+            "Pending import storage full (8 attempts); discard an attempt before retrying",
+          );
+          tx.abort();
+          return;
+        }
+        try {
+          store.put(copy, copy.id);
+        } catch (error) {
+          failure = error;
+          tx.abort();
+        }
+      };
+      try {
+        await done;
+      } catch (error) {
+        throw failure || error;
+      } finally {
+        signal?.removeEventListener("abort", abort);
+      }
+    });
+  }
+  deletePending(id: string) {
+    return this.serial(async () => {
+      const db = await this.open(),
+        tx = db.transaction("pending", "readwrite"),
+        done = this.done(tx);
+      tx.objectStore("pending").delete(id);
+      await done;
+    });
   }
   clearArtifacts() {
     return this.serial(async () => {

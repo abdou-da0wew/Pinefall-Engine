@@ -43,6 +43,15 @@ The desktop CI workflow builds and runs packaged Linux/Windows worker/PIF checks
 
 CI run https://github.com/abdou-da0wew/Pinefall-Engine/actions/runs/41210949536 did **not** execute either platform's jobs: GitHub reported, “The job was not started because your account is locked due to a billing issue.” No runner or test steps started. Resolving that account restriction requires the owner; no billing settings were changed.
 
-The numerical DCC fixture evidence is refreshed separately. Missing-source attempt persistence/automatic file-arrival repair is not certified by successful retry tests; generic material/prefab importers remain assigned to their companion plans. Physical CEDAR/Windows measurements and the independent edited-character acceptance remain outstanding. No 100% certification or v0.6.0 publication is implied.
+The numerical DCC fixture evidence is refreshed separately. Missing-source persistence and user-supplied-file repair are now implemented and tested (see the continuation below); generic material/prefab importers remain assigned to their companion plans. Physical CEDAR/Windows measurements and the independent edited-character acceptance remain outstanding. No 100% certification or v0.6.0 publication is implied.
 
 Latest rebuilt candidates passed packaged Linux model/PIF tests and the software-labelled collector after DAG integration and joint-budget guards. Linux AppImage and Windows ZIP digests are recorded in `docs/evidence/local-builds-0.6.0.json`; neither is a published release. CLI/editor hash parity, assets/runtime/PIF/storage browser suites also passed on this source.
+
+
+## Persistent recovery continuation
+
+The previously open missing-source recovery implementation is now present: versioned IndexedDB upgrade, source/digest/recipe/project/revision retention, editor repair/discard controls, cold reload and real textured-FBX retry. Cancellation, corrupt bytes, wrong project, failed retry, eight-attempt admission, quota-failure rollback and schema-1 migration have executed browser coverage. Unit suite: **84 tests / 395 assertions**, typecheck/Oxlint pass. The repair path still uses the normal renderer preparation and revision-checked review/adoption boundary; it does not automatically accept a changed target.
+
+Authenticated push of c059c7f succeeded. Its new CI run https://github.com/abdou-da0wew/Pinefall-Engine/actions/runs/41215861876 again failed before execution: both jobs have zero steps and the same account billing-lock annotation. A valid push token does not remove that runner-account restriction. Physical Windows/CEDAR and independent human acceptance remain uncertified.
+
+The recovery build has now also passed **packaged Linux** failed-FBX → reload → supply companion → renderer adoption, as well as packaged model/PIF and the software collector. Browser coverage additionally rejects a stale saved reimport revision before review, then completes recovery through the normal review dialog with the correct revision. Both desktop packages were rebuilt; the local artifact manifest contains their refreshed SHA-256 digests. Windows is still build-only.

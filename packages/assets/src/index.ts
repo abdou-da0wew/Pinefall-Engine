@@ -15,3 +15,6 @@ export { AssetDatabase } from "./database";
 
 export { prepareReimports } from "./reimport";
 export type { ReimportRequest } from "./reimport";
+
+export { rememberMissing, repairFiles, validatePending, missingCompanion } from "./pending";
+export type { PendingImport } from "./pending";

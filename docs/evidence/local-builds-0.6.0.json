@@ -3,25 +3,26 @@
   "artifacts": [
     {
       "name": "Pinefall Engine-0.6.0.AppImage",
-      "bytes": 127266147,
-      "sha256": "5a222eb888a406ca4a7ea25eb0d1424cec3c252362ca3fd948f3241ca62c495b"
+      "bytes": 127266031,
+      "sha256": "243df3b9bb84c2b9a64b02b721426b6129824c30c8e8e2cb7c48bf434edbd94d"
     },
     {
       "name": "Pinefall Engine-0.6.0-win.zip",
-      "bytes": 154841418,
-      "sha256": "bc743ac7091f283c64463585aac0756b3ea4d20b267e20ae08667bc3fc62df6c"
+      "bytes": 154843022,
+      "sha256": "b3d9bd88e0b4fd240066f1bbbf35167b05b69b4fa55070d93a9a95c59c28af5c"
     }
   ],
   "executed": [
     "packaged Linux model worker/render/PlayStop/PIF v4",
     "packaged Linux PIF binary IPC",
-    "Linux software-test hardware collector"
+    "Linux software-test hardware collector",
+    "packaged Linux persistent missing-companion reload/repair"
   ],
   "notExecuted": [
     "Windows native execution",
     "physical CEDAR",
     "independent human acceptance"
   ],
-  "unitTests": 81,
-  "assertions": 384
+  "unitTests": 84,
+  "assertions": 395
 }

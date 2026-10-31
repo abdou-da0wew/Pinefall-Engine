@@ -1,3 +1,9 @@
+import {
+  rememberMissing,
+  missingCompanion,
+  repairFiles,
+  type PendingImport,
+} from "../../assets/src/pending";
 import { version as engineVersion } from "../../../package.json";
 import { prepareReimports } from "../../assets/src/reimport";
 import { defaultRecipe, type ImportRecipe } from "../../assets/src/recipe";
@@ -74,6 +80,10 @@ function App() {
   const [review, setReview] = useState<React.ComponentProps<typeof ReimportReview> | null>(null);
   const checkpointRevision = useRef(0);
   const [loadBusy, setLoadBusy] = useState(false);
+  const [pendingImports, setPendingImports] = useState<
+    { id: string; missing: string; name: string }[]
+  >([]);
+  const pendingRepair = useRef<string | null>(null);
   const [loadedScene, setLoadedScene] = useState<SceneDocument | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [importBusy, setImportBusy] = useState(false);
@@ -118,6 +128,18 @@ function App() {
     file = useRef<HTMLInputElement>(null),
     glb = useRef<HTMLInputElement>(null),
     prefabFile = useRef<HTMLInputElement>(null);
+  async function refreshPending(projectId = current.current.project?.id) {
+    if (!projectId) return;
+    try {
+      const rows = await assetDatabase.pendingSummaries(projectId);
+      if (current.current.project?.id === projectId) setPendingImports(rows);
+    } catch {
+      setStatus("Pending import storage unavailable; keep your source files.");
+    }
+  }
+  useEffect(() => {
+    void refreshPending(scene.project?.id);
+  }, [scene.project?.id]);
   const applyRef = useRef<(fn: (scene: SceneDocument) => void) => void>(() => {});
   useEffect(() => {
     const handler = (e: KeyboardEvent) => projectCommands.current(e);
@@ -435,21 +457,37 @@ function App() {
       setProjectBusy(false);
     }
   }
-  async function importFiles(files: File[]) {
-    const target = reimportTarget.current;
+  async function importFiles(files: File[], recovery?: PendingImport) {
+    const target = recovery?.target || reimportTarget.current;
     reimportTarget.current = undefined;
     if (engine.current?.playing || importAbort.current || !files.length) return;
     const controller = new AbortController();
     importAbort.current = controller;
     setImportBusy(true);
     const projectId = current.current.project?.id;
+    let attemptedFiles = files,
+      attemptedRecipe = recovery?.recipe || recipe;
     try {
+      if (recovery && recovery.projectId !== projectId)
+        throw Error("Recovery belongs to another project");
+      if (target) {
+        const asset = current.current.assets.find((a) => a.id === target.id);
+        if (
+          !asset ||
+          asset.data !== target.data ||
+          (asset.import?.revision || 0) !== target.revision
+        )
+          throw Error("Recovery/reimport target changed; start a new reimport");
+      }
       const previousAsset = target
         ? current.current.assets.find((a) => a.id === target.id)
         : undefined;
       const inputs = previousAsset ? reimportInputs(previousAsset, files) : files;
       const selectedRecipe =
-        target && !overrideRecipe ? previousAsset?.import?.recipe || recipe : recipe;
+        recovery?.recipe ||
+        (target && !overrideRecipe ? previousAsset?.import?.recipe || recipe : recipe);
+      attemptedFiles = inputs;
+      attemptedRecipe = selectedRecipe;
       const progress = (u: import("../../assets/src/jobs").JobUpdate) =>
         setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`);
       const result = previousAsset?.import
@@ -504,11 +542,41 @@ function App() {
       setScene(next);
       setRevision((r) => r + 1);
       if (placed) setSelected(placed.entity.id);
+      if (recovery) {
+        await assetDatabase.deletePending(recovery.id);
+        await refreshPending(projectId);
+      }
       setStatus(
         `${target ? "Reimported" : "Imported"} ${result.name} · ${result.metadata.report.vertices} vertices · ${(result.metadata.report.decodedBytes / 1048576).toFixed(1)} MiB decoded. ${result.metadata.report.warnings.join(" ")}`,
       );
     } catch (e) {
-      setStatus(String(e));
+      let message = String(e);
+      let missing: string | undefined;
+      try {
+        missing = missingCompanion(e);
+      } catch {
+        /* Invalid names cannot become persisted recovery requests. */
+      }
+      if (missing && projectId && !controller.signal.aborted) {
+        try {
+          await rememberMissing(
+            attemptedFiles,
+            {
+              id: recovery?.id || crypto.randomUUID(),
+              projectId,
+              target,
+              recipe: attemptedRecipe,
+              missing,
+            },
+            controller.signal,
+          );
+          await refreshPending(projectId);
+          message += " · Sources retained locally. Use Repair to supply the missing companion.";
+        } catch (storageError) {
+          message += " · Could not retain recovery sources: " + String(storageError);
+        }
+      }
+      setStatus(message);
     } finally {
       if (importAbort.current === controller) importAbort.current = null;
       setImportBusy(false);
@@ -517,7 +585,26 @@ function App() {
   async function importGlb(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
-    await importFiles(files);
+    const id = pendingRepair.current;
+    pendingRepair.current = null;
+    if (!id) {
+      await importFiles(files);
+      return;
+    }
+    if (!files.length) return;
+    try {
+      const attempt = await assetDatabase.getPending(id);
+      if (!attempt) throw Error("Pending import no longer exists");
+      const combined = await repairFiles(
+        attempt,
+        files,
+        current.current.project?.id || "",
+        new AbortController().signal,
+      );
+      await importFiles(combined, attempt);
+    } catch (error) {
+      setStatus(String(error));
+    }
   }
   async function exportPrefab() {
     const e = scene.entities.find((e) => e.id === selected);
@@ -1469,12 +1556,37 @@ function App() {
                 <button
                   disabled={playing || importBusy}
                   onClick={() => {
+                    pendingRepair.current = null;
                     reimportTarget.current = undefined;
                     glb.current?.click();
                   }}
                 >
                   <Icon name="upload" /> Import model
                 </button>
+                {pendingImports.map((attempt) => (
+                  <React.Fragment key={attempt.id}>
+                    <button
+                      disabled={importBusy || playing}
+                      onClick={() => {
+                        pendingRepair.current = attempt.id;
+                        glb.current?.click();
+                      }}
+                    >
+                      Repair {attempt.name}: missing {attempt.missing}
+                    </button>
+                    <button
+                      disabled={importBusy}
+                      onClick={() =>
+                        void assetDatabase
+                          .deletePending(attempt.id)
+                          .then(() => refreshPending())
+                          .catch((e) => setStatus(String(e)))
+                      }
+                    >
+                      Discard failed import {attempt.name}
+                    </button>
+                  </React.Fragment>
+                ))}
                 <label>
                   <input
                     type="checkbox"
@@ -1677,6 +1789,7 @@ function App() {
                     disabled={playing || importBusy}
                     aria-label={`Reimport ${a.name}`}
                     onClick={() => {
+                      pendingRepair.current = null;
                       reimportTarget.current = {
                         id: a.id,
                         data: a.data,
