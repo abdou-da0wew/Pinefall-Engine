@@ -83,3 +83,39 @@ The example can be regenerated with `bun scripts/create-demo.ts`. Its scene incl
 - Existing `test:browser` and `test:runtime-browser` still cover starters, effects, movement, camera overrides and behavior isolation.
 
 Browser tests use SwiftShader. They are not proof of CEDAR hardware compatibility.
+
+## Worker asset workflow (0.5.3)
+
+- In **Asset library → Import model**, select one self-contained GLB, or one
+  experimental FBX plus its PNG/JPEG companions in the same selection. Exact
+  companion filenames are required; ambiguous case-insensitive names fail.
+- **Import only** adds to the library without placing an entity. Click the asset
+  card to create additional instances. Heavy conversion is queued in workers;
+  **Cancel import** terminates the active worker or removes the queued task.
+- **Reimport…** retains the asset ID, entity transforms and entity components.
+  Reimport rejects a stale/removed target. Named, unambiguous material/clip IDs
+  are retained; unnamed/duplicate entries get new IDs rather than guessed matches.
+  The import report shows counts, warnings and the cooked SHA-256.
+- Save as `.pif` to retain original sources and companion images. Provenance-bearing
+  projects use PIF v3, which older releases cannot read. Keep a backup.
+- Current safety limits: 4 MB total selected source bytes, 2 MB cooked GLB,
+  2048-pixel texture dimensions, 64 MiB estimated decoded model budget, and a
+  128 MiB shared prototype cache ceiling. The scene's 16-asset/500-entity and
+  combined 8,000,000-character asset/source budget remain. These conservative
+  ceilings are not a hardware-performance guarantee.
+- Draco/Meshopt/KTX2 and sparse GLB accessors are rejected with a diagnostic.
+  FBX constraints, axes/units/pivots, proprietary materials and morph normals need
+  DCC comparison; do not assume lossless conversion or automatic unit correction.
+  FBX is explicitly experimental, not certified across exporters.
+
+CLI GLB workflow (no browser required):
+
+```sh
+bun run game import my-game.pif path/to/model.glb
+bun run game place my-game.pif ASSET_ID
+bun run game reimport my-game.pif ASSET_ID path/to/edited-model.glb
+bun run game verify-pif my-game.pif --require-integrity
+```
+
+CLI FBX conversion is not yet available: it currently uses the editor's worker
+image/GLTF export APIs. The standalone player loads cooked GLB, not original FBX.

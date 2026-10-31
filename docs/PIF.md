@@ -1,4 +1,6 @@
-# PIF project container — v2 metadata and integrity (0.5.2)
+# PIF project container — v1/v2/v3 compatibility (0.5.3)
+
+**0.5.3 reads v1/v2/v3; writes v3 for provenance-bearing assets and v2 otherwise. Back up projects before upgrading.**
 
 **The published 0.5.1 release writes PIF v1. 0.5.2 writes PIF v2 and still reads v1. PIF v2 requires 0.5.2 or newer; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
 
@@ -112,3 +114,26 @@ Legacy PIF v1 opens with `legacy-unverified` status via inspection. `requireInte
 ## Current validation
 
 50 tests / 190 assertions pass, including modifications to scene/script/asset/metadata bytes, missing proof, changed root, unsupported metadata/reader versions, fully resealed replacement versus trusted digest, legacy strict-mode rejection and existing XZ expansion limits. Browser worker save/open/cancel/trust tests and Linux Electron production-bundle save/load pass. Windows execution and physical Radeon hardware remain untested. See the 0.5.2 release page for publication status and packages.
+
+## Asset-provenance extension: PIF v3 (0.5.3)
+
+Projects containing the new `Asset.import` provenance record are written with manifest
+`version: 3, minimumReader: 3`. Projects without provenance continue to write v2.
+Readers accept v1/v2/v3; existing v1 legacy/trust rules remain unchanged. A v0.5.2
+reader cannot read v3 and must not be used to overwrite the only project copy.
+
+A v3 asset keeps its cooked self-contained `assets/N.glb` and adds indexed
+`sources/N-M.bin` entries containing the exact original model/companion bytes.
+The asset's inert import metadata records format, recipe version, revision,
+source filenames/hashes, cooked artifact hash, inspection report and subasset IDs.
+`scene.json` contains file references, not embedded base64 for either resource kind.
+Every file is covered by the existing SHA-256 integrity inventory/root; source and
+artifact hashes are also verified against their metadata before adoption. Hashes
+remain consistency evidence, **not publisher signatures or script trust**.
+
+The existing 16 MiB compressed / 40 MiB expanded / 64 MiB XZ dictionary / 100-entry
+bounds remain. A project exceeding entry limits is rejected before writing an
+unreadable archive. The in-memory/legacy JSON scene adapter still uses data URIs;
+reference-only runtime documents and a persistent artifact database are not yet
+implemented. Undo history interns those strings rather than repeating them in
+every retained snapshot.

@@ -1,3 +1,4 @@
+import { parseImport, type AssetImport } from "../../assets/src/record";
 import { parseProjectMetadata, type ProjectMetadata } from "../../project/src/metadata";
 import { parseUI } from "../../ui/src/schema";
 import type { UIDocument } from "../../ui/src/schema";
@@ -49,6 +50,7 @@ export interface Entity {
   tag?: string;
 }
 export interface Asset {
+  import?: AssetImport;
   id: string;
   name: string;
   data: string;
@@ -167,9 +169,20 @@ export function parseScene(value: unknown): SceneDocument {
     if (!record(a)) fail("asset");
     const data = text(a.data, "asset data", 3_000_000);
     if (!/^data:model\/gltf-binary;base64,[A-Za-z0-9+/=]+$/.test(data)) fail("embedded GLB only");
-    return { id: text(a.id, "asset ID"), name: text(a.name, "asset name"), data };
+    return {
+      id: text(a.id, "asset ID"),
+      name: text(a.name, "asset name"),
+      data,
+      ...(a.import !== undefined ? { import: parseImport(a.import) } : {}),
+    };
   });
-  if (assets.reduce((s, a) => s + a.data.length, 0) > 8_000_000) fail("asset budget");
+  if (
+    assets.reduce(
+      (s, a) => s + a.data.length + (a.import?.sources.reduce((n, f) => n + f.data.length, 0) || 0),
+      0,
+    ) > 8_000_000
+  )
+    fail("asset budget");
   let scripts: ScriptAsset[] | undefined;
   if (value.scripts !== undefined) {
     if (!Array.isArray(value.scripts) || value.scripts.length > 32) fail("script limit");

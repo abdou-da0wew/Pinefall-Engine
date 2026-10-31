@@ -1,11 +1,10 @@
 import { UIStore } from "../../ui/src/store";
 import { UIRenderer } from "../../ui/src/renderer";
-import { validateGlb } from "../../project/src";
+import { ModelCache, type ModelLease } from "../../assets/src/cache";
 import { createBehaviorSession } from "../../scripting/src/runtime";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { PhysicsSystem, initPhysics } from "./physics";
 import { Effects, beam } from "./effects";
 import { Events } from "./events";
@@ -74,6 +73,7 @@ export class Engine {
   physics: PhysicsSystem;
   document!: SceneDocument;
   settings: RenderSettings = { ...LOW };
+  loading = false;
   playing = false;
   paused = false;
   jump = false;
@@ -88,9 +88,10 @@ export class Engine {
   private sun = new T.DirectionalLight("#ffe1b0", 2);
   private geometries = new Map<Primitive, T.BufferGeometry>();
   private materials = new Map<string, T.MeshStandardMaterial>();
-  private imported: T.Object3D[] = [];
+  private imported = new Map<string, ModelLease>();
+  readonly assetCache = new ModelCache();
+  private loadAbort?: AbortController;
   private beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[] = [];
-  private assetLoader = new GLTFLoader();
   private playSnapshot: SceneDocument | null = null;
   private generation = 0;
   private selected: string | null = null;
@@ -299,6 +300,55 @@ export class Engine {
       : null;
     const scene = parseScene(input),
       generation = ++this.generation;
+    this.loading = true;
+    this.loadAbort?.abort();
+    const controller = new AbortController();
+    this.loadAbort = controller;
+    const staged = new Map<string, ModelLease>();
+    try {
+      for (const asset of scene.assets) {
+        if (!scene.entities.some((e) => e.mesh?.asset === asset.id)) continue;
+        await this.assetCache.prepare(asset.data, controller.signal, (update) => {
+          this.events.emit("asset", "Model " + update.stage, {
+            operationId: update.id,
+            elapsedMs: update.elapsedMs,
+          });
+        });
+        // Pin the prototype across preparation of the remaining assets.
+        const lease = this.assetCache.acquire(asset.data, `staging:${generation}:${asset.id}`);
+        staged.set(asset.id, lease);
+        const textures = new Set<T.Texture>();
+        lease.root.traverse((o) => {
+          if (o instanceof T.Mesh)
+            for (const m of Array.isArray(o.material) ? o.material : [o.material])
+              for (const value of Object.values(m))
+                if (value instanceof T.Texture) textures.add(value);
+        });
+        let slice = performance.now();
+        for (const texture of textures) {
+          controller.signal.throwIfAborted();
+          this.renderer.initTexture(texture);
+          if (performance.now() - slice > 2) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            slice = performance.now();
+          }
+        }
+        controller.signal.throwIfAborted();
+        await this.renderer.compileAsync(lease.root, this.camera, this.scene);
+      }
+      if (this.dead || generation !== this.generation) return;
+    } catch (error) {
+      for (const lease of staged.values()) lease.release();
+      if (generation === this.generation) this.loading = false;
+      if (controller.signal.aborted) return;
+      this.events.emit("error", "Asset preparation failed; previous world retained", {
+        error: String(error),
+      });
+      throw error;
+    } finally {
+      if (this.dead || generation !== this.generation)
+        for (const lease of staged.values()) lease.release();
+    }
     this.playing = false;
     this.paused = false;
     this.input.clear();
@@ -327,29 +377,19 @@ export class Engine {
       }
     for (const e of scene.entities) {
       if (e.mesh?.primitive !== "asset") continue;
-      const asset = scene.assets.find((a) => a.id === e.mesh?.asset);
-      if (!asset) continue;
-      try {
-        const data = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
-        this.validateGlb(data.buffer);
-        const gltf = await this.assetLoader.parseAsync(data.buffer, "");
-        if (this.dead || generation !== this.generation) {
-          this.disposeImported(gltf.scene);
-          continue;
+      const asset = scene.assets.find((a) => a.id === e.mesh?.asset)!;
+      const lease = this.assetCache.acquire(asset.data, `entity:${generation}:${e.id}`);
+      this.imported.set(e.id, lease);
+      lease.root.traverse((o) => {
+        o.userData.entityId = e.id;
+        if (o instanceof T.Mesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
         }
-        this.imported.push(gltf.scene);
-        gltf.scene.traverse((o) => {
-          o.userData.entityId = e.id;
-          if (o instanceof T.Mesh) {
-            o.castShadow = true;
-            o.receiveShadow = true;
-          }
-        });
-        this.objects.get(e.id)?.add(gltf.scene);
-      } catch (error) {
-        this.events.emit("error", "GLB import failed: " + String(error));
-      }
+      });
+      this.objects.get(e.id)?.add(lease.root);
     }
+    for (const lease of staged.values()) lease.release();
     if (generation !== this.generation) return;
     this.orbit.enabled = true;
     this.orbit.target.set(0, 1, -4);
@@ -360,10 +400,8 @@ export class Engine {
     }
     this.orbit.update();
     this.applySettings(this.settings);
+    this.loading = false;
     this.events.emit("scene", "Loaded " + scene.name, { entities: scene.entities.length });
-  }
-  private validateGlb(buffer: ArrayBuffer) {
-    validateGlb(new Uint8Array(buffer));
   }
   private addEntity(e: Entity) {
     const object = new T.Group();
@@ -451,6 +489,7 @@ export class Engine {
     );
   }
   play() {
+    if (this.loading) throw Error("Wait for scene asset preparation before Play");
     if (!this.document || this.playing) return;
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
@@ -502,24 +541,19 @@ export class Engine {
       throw Error("Spawn a root entity; parent it explicitly through authored scenes");
     const next = parseScene({ ...this.document, entities: [...this.document.entities, input] });
     const e = next.entities.at(-1)!;
-    let visual: T.Object3D | undefined;
+    let lease: ModelLease | undefined;
     if (e.mesh?.primitive === "asset") {
-      const source = this.document.entities.find((a) => a.mesh?.asset === e.mesh?.asset);
-      const object = source && this.objects.get(source.id);
-      if (!object)
-        throw Error("Instantiate this model in the authored scene before spawning copies");
-      visual = object.clone(true);
+      const asset = this.document.assets.find((a) => a.id === e.mesh?.asset)!;
+      lease = this.assetCache.acquire(asset.data, `entity:${this.generation}:${e.id}`);
     }
     this.document.entities.push(e);
     this.addEntity(e);
-    if (visual) {
-      const target = this.objects.get(e.id)!;
-      for (const child of [...visual.children]) {
-        child.traverse((o) => {
-          o.userData.entityId = e.id;
-        });
-        target.add(child);
-      }
+    if (lease) {
+      this.imported.set(e.id, lease);
+      lease.root.traverse((o) => {
+        o.userData.entityId = e.id;
+      });
+      this.objects.get(e.id)!.add(lease.root);
     }
     if (e.enabled && this.behaviorBuilder) {
       const behavior = this.behaviorBuilder(e);
@@ -544,6 +578,8 @@ export class Engine {
       this.behaviors.delete(key);
       b?.dispose?.();
       this.physics.remove(key);
+      this.imported.get(key)?.release();
+      this.imported.delete(key);
       this.objects.get(key)?.removeFromParent();
       this.objects.delete(key);
     }
@@ -721,25 +757,13 @@ export class Engine {
       this.hudClock = 0;
     }
   };
-  private disposeImported(root: T.Object3D) {
-    root.traverse((o) => {
-      if (o instanceof T.Mesh) {
-        o.geometry.dispose();
-        for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
-          for (const value of Object.values(material))
-            if (value instanceof T.Texture) value.dispose();
-          material.dispose();
-        }
-      }
-    });
-  }
   private clear() {
     this.behaviorBuilder = undefined;
     for (const b of this.behaviors.values()) b.dispose?.();
     this.behaviors.clear();
     this.physics.dispose();
-    for (const root of this.imported) this.disposeImported(root);
-    this.imported = [];
+    for (const lease of this.imported.values()) lease.release();
+    this.imported.clear();
     for (const b of this.beams) {
       b.geometry.dispose();
       b.material.dispose();
@@ -753,6 +777,7 @@ export class Engine {
     this.materials.clear();
   }
   dispose() {
+    this.loadAbort?.abort();
     this.dead = true;
     this.generation++;
     cancelAnimationFrame(this.raf);
@@ -762,6 +787,7 @@ export class Engine {
     this.orbit.dispose();
     this.effects?.dispose();
     this.clear();
+    this.assetCache.dispose();
     this.uiRenderer.dispose();
     this.ui.dispose();
     this.sun.shadow.dispose();

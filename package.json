@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -24,7 +24,9 @@
     "test:workspace": "bun tests/workspace-browser.ts",
     "test:color-picker": "bun tests/color-browser.ts",
     "test:ui": "bun tests/ui-browser.ts",
-    "test:pif": "bun tests/pif-browser.ts"
+    "test:pif": "bun tests/pif-browser.ts",
+    "test:assets": "bun tests/assets-browser.ts",
+    "test:assets-native": "bun tests/assets-native.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
@@ -35,14 +37,14 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sucrase": "3.35.0",
-    "three": "^0.185.0"
+    "three": "0.185.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.187.0",
+    "@types/three": "0.185.0",
     "electron": "45.2.1",
     "electron-builder": "26.18.0",
     "oxfmt": "^0.75.0",

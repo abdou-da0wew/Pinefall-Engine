@@ -1,10 +1,12 @@
-# Pinefall Engine 0.5.2
+# Pinefall Engine 0.5.3
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.5.2:** versioned project/editor metadata and SHA-256 integrity verification, plus real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
+**0.5.3:** worker-based model parsing, cached instances, cancellable import/reimport, experimental FBX + PNG/JPEG conversion, and PIF v3 source provenance. This is a tested first asset-pipeline slice, not full Plan 01 completion. See [release notes](docs/RELEASE-0.5.3.md).
+
+**Inherited from 0.5.2:** versioned project/editor metadata and SHA-256 integrity verification, plus real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
@@ -20,14 +22,15 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 These are the intended release destinations; links become available after authenticated publication.
 
-[**0.5.2 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.2)
+[**0.5.3 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.5.3)
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/Pinefall-Engine-0.5.2-source.zip)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.2/SHA256SUMS-0.5.2.txt)
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Pinefall-Engine-0.5.3-source.zip)
+- [Asset Pipeline PIF v3 sample](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/Asset-Pipeline-0.5.3.pif)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.5.3/SHA256SUMS-0.5.3.txt)
 
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.2-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.5.3-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
 
 ## Documentation
 
@@ -160,3 +163,15 @@ For browser tests, start the dev server, install Chromium with `bun x playwright
 Limits: 500 entities, 100 collections, eight lights, 16 GLB assets (2 MB/import, 8 MB combined embedded strings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
 
 Not yet implemented: skeletal-animation authoring, audio import/system, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects, full asset dependency database, automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, IDE autocomplete/debugger or script hot reload. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
+
+### Asset pipeline in 0.5.3
+
+The working tree includes worker model parsing, shared instance resources, cancellable
+import/reimport and PIF v3 source provenance. FBX conversion is experimental.
+See [implementation evidence and remaining gates](docs/ASSET-PIPELINE-IMPLEMENTATION.md)
+and [the authoring workflow](docs/CREATING-GAMES.md#worker-asset-workflow-053).
+The previous v0.5.2 release remains unchanged. Plan 01 is not fully complete; see the open gates in the implementation log.
+
+### Release/testing workflow
+
+After each completed update or major edit, validate, version, push and publish a downloadable release, then pause for the project owner to test before continuing. See [release policy](docs/RELEASE-WORKFLOW.md). Never store authentication tokens in repository files.

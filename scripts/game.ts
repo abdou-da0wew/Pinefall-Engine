@@ -1,10 +1,12 @@
+import { prepareGlbRecord } from "../packages/assets/src/record";
+import { adoptImport } from "../packages/assets/src/import";
 import { newProjectMetadata, parseProjectMetadata } from "../packages/project/src/metadata";
 import { packProject, unpackProject, inspectProject } from "../packages/project/src/pif";
 import { typecheckScripts } from "./typecheck-scripts";
 import { compileScript } from "../packages/scripting/src/compiler";
 import { mkdir, copyFile, cp, stat, rename } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { createGame, importModel, placeModel } from "../packages/project/src";
+import { createGame, placeModel } from "../packages/project/src";
 import { parseScene, serializeScene } from "../packages/runtime/src/schema";
 import { HeadlessEngine } from "../packages/headless/src";
 const [command, path, ...args] = process.argv.slice(2);
@@ -77,15 +79,26 @@ async function main() {
   if (command === "validate")
     return { valid: true, entities: scene.entities.length, assets: scene.assets.length };
   if (command === "inspect") return scene;
-  if (command === "import") {
-    if (!args[0]) throw Error("import requires a .glb path");
-    const result = importModel(
+  if (command === "import" || command === "reimport") {
+    const filename = command === "reimport" ? args[1] : args[0];
+    if (!filename || !filename.toLowerCase().endsWith(".glb"))
+      throw Error(
+        "CLI import/reimport currently accepts self-contained .glb; experimental FBX uses the editor worker",
+      );
+    if (Bun.file(filename).size > 2_000_000) throw Error("GLB source exceeds 2 MB");
+    const prepared = await prepareGlbRecord(
+      filename.split(/[\\/]/).pop()!,
+      new Uint8Array(await Bun.file(filename).arrayBuffer()),
+    );
+    const old = command === "reimport" ? scene.assets.find((a) => a.id === args[0]) : undefined;
+    if (command === "reimport" && !old) throw Error("Reimport asset ID not found");
+    const result = adoptImport(
       scene,
-      args[0].split(/[\\/]/).pop()!,
-      new Uint8Array(await Bun.file(args[0]).arrayBuffer()),
+      prepared,
+      old ? { id: old.id, data: old.data, revision: old.import?.revision || 0 } : undefined,
     );
     await writeScene(path, result.scene);
-    return { asset: result.asset.id, name: result.asset.name };
+    return { asset: result.asset.id, name: result.asset.name, report: prepared.metadata.report };
   }
   if (command === "place") {
     const result = placeModel(scene, args[0], args[1]);

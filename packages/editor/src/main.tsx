@@ -1,3 +1,4 @@
+import { prepareImport, adoptImport } from "../../assets/src/import";
 import { newProjectMetadata } from "../../project/src/metadata";
 import { projectJob } from "../../project/src/pif-client";
 import { UIEditor } from "./ui-editor";
@@ -8,7 +9,7 @@ import { Icon } from "./icons";
 import { useWorkspaceLayout } from "./layout";
 import { ScriptPanel, ScriptAttachments } from "./scripting";
 import { hasSceneScripts } from "../../scripting/src/runtime";
-import { createGame, importModel, placeModel } from "../../project/src";
+import { createGame, placeModel } from "../../project/src";
 /* oxlint-disable react/refs -- Event-handler closures access runtime refs; no React Compiler is used. History is revision-driven. */
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -56,6 +57,13 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [loadBusy, setLoadBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importOnly, setImportOnly] = useState(false);
+  const importAbort = useRef<AbortController | null>(null);
+  const reimportTarget = useRef<{ id: string; data: string; revision: number } | undefined>(
+    undefined,
+  );
   const [projectBusy, setProjectBusy] = useState(false);
   const projectAbort = useRef<AbortController | null>(null);
   const projectCommands = useRef<(event: KeyboardEvent) => void>(() => {});
@@ -99,6 +107,7 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handler);
       projectAbort.current?.abort();
+      importAbort.current?.abort();
     };
   }, []);
   projectCommands.current = (e) => {
@@ -150,6 +159,7 @@ function App() {
   }
 
   function createNewGame() {
+    importAbort.current?.abort();
     try {
       const next =
         gameStarter === "blank" ? createGame(gameName) : createTemplate(gameStarter as Template);
@@ -254,10 +264,18 @@ function App() {
   }, []);
   useEffect(() => {
     current.current = scene;
-    if (engine.current && ready)
+    let active = true;
+    if (engine.current && ready) {
+      setLoadBusy(true);
       void engine.current
         .load(scene, { preserveView: engine.current.document?.name === scene.name })
-        .catch((e) => setError(String(e)));
+        .catch((e) => {
+          if (active) setError(String(e));
+        })
+        .finally(() => {
+          if (active) setLoadBusy(false);
+        });
+    }
     const timer = setTimeout(() => {
       try {
         localStorage.setItem("pinefall-engine.scene.v1", serializeScene(scene));
@@ -266,7 +284,10 @@ function App() {
         setStatus("Local storage unavailable/full. Export your scene to keep it.");
       }
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [scene, ready]);
   useEffect(() => {
     engine.current?.select(selected);
@@ -307,6 +328,7 @@ function App() {
   }
   function newScene(template: Template) {
     if (playing) return;
+    importAbort.current?.abort();
     history.current.commit(scene);
     const next = createTemplate(template);
     next.project = newProjectMetadata(next.name);
@@ -337,6 +359,7 @@ function App() {
     }
   }
   async function loadScene(event: React.ChangeEvent<HTMLInputElement>) {
+    importAbort.current?.abort();
     const f = event.target.files?.[0];
     event.target.value = "";
     if (!f || projectAbort.current) return;
@@ -372,25 +395,48 @@ function App() {
     }
   }
   async function importFiles(files: File[]) {
-    if (playing) return;
+    const target = reimportTarget.current;
+    reimportTarget.current = undefined;
+    if (engine.current?.playing || importAbort.current || !files.length) return;
+    const controller = new AbortController();
+    importAbort.current = controller;
+    setImportBusy(true);
+    const projectId = current.current.project?.id;
     try {
-      let next = cloneScene(current.current);
-      let selectedId: string | null = null;
-      for (const file of files) {
-        if (!file.name.toLowerCase().endsWith(".glb"))
-          throw Error("Import self-contained .glb models; textures/materials must be embedded");
-        const result = importModel(next, file.name, new Uint8Array(await file.arrayBuffer()));
-        const placed = placeModel(result.scene, result.asset.id);
-        next = placed.scene;
-        selectedId = placed.entity.id;
-      }
-      commit((d) => {
-        d.assets = next.assets;
-        d.entities = next.entities;
-      });
-      setSelected(selectedId);
+      const result = await prepareImport(files, controller.signal, (u) =>
+        setStatus(`Import ${u.stage} · ${Math.round(u.elapsedMs)} ms · ${u.id.slice(0, 8)}`),
+      );
+      // Validate and stage actual renderer resources before committing the authored document.
+      await engine.current?.assetCache.prepare(result.data, controller.signal, (u) =>
+        setStatus(`Preparing model: ${u.stage}`),
+      );
+      controller.signal.throwIfAborted();
+      if (current.current.project?.id !== projectId || engine.current?.playing)
+        throw Error("Project/Play changed during import; no changes applied");
+      if (
+        target &&
+        !window.confirm(
+          `Reimport ${result.name}? ${result.metadata.report.nodes} nodes, ${result.metadata.report.materials.length} materials, ${result.metadata.report.clips.length} clips. Entity transforms and asset ID will be retained. Ambiguous subassets receive new IDs.`,
+        )
+      )
+        return;
+      const adopted = adoptImport(current.current, result, target);
+      const placed =
+        !target && !importOnly ? placeModel(adopted.scene, adopted.asset.id) : undefined;
+      const next = placed?.scene || adopted.scene;
+      history.current.commit(current.current);
+      current.current = next;
+      setScene(next);
+      setRevision((r) => r + 1);
+      if (placed) setSelected(placed.entity.id);
+      setStatus(
+        `${target ? "Reimported" : "Imported"} ${result.name} · ${result.metadata.report.vertices} vertices · ${(result.metadata.report.decodedBytes / 1048576).toFixed(1)} MiB decoded. ${result.metadata.report.warnings.join(" ")}`,
+      );
     } catch (e) {
       setStatus(String(e));
+    } finally {
+      if (importAbort.current === controller) importAbort.current = null;
+      setImportBusy(false);
     }
   }
   async function importGlb(event: React.ChangeEvent<HTMLInputElement>) {
@@ -470,7 +516,7 @@ function App() {
     step = 0.1,
   ) {
     return (
-      <label className="number-field">
+      <label className="number-field" key={label}>
         <span>{label}</span>
         <input
           aria-label={label}
@@ -579,7 +625,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.5.2</small>
+            <small>WORKSHOP / 0.5.3</small>
           </div>
         </div>
         <div className="project-path">
@@ -639,7 +685,7 @@ function App() {
           <button
             aria-label={playing ? "Stop scene" : "Play scene"}
             className={playing ? "stop" : "play"}
-            disabled={!ready}
+            disabled={!ready || importBusy || loadBusy}
             onClick={() => void run()}
           >
             {playing ? (
@@ -1336,9 +1382,26 @@ function App() {
           <div>
             {tab === "assets" ? (
               <>
-                <button disabled={playing} onClick={() => glb.current?.click()}>
-                  <Icon name="upload" /> Import GLB
+                <button
+                  disabled={playing || importBusy}
+                  onClick={() => {
+                    reimportTarget.current = undefined;
+                    glb.current?.click();
+                  }}
+                >
+                  <Icon name="upload" /> Import model
                 </button>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={importOnly}
+                    onChange={(e) => setImportOnly(e.target.checked)}
+                  />{" "}
+                  Import only
+                </label>
+                {importBusy && (
+                  <button onClick={() => importAbort.current?.abort()}>Cancel import</button>
+                )}
                 <button disabled={playing} onClick={() => prefabFile.current?.click()}>
                   <Icon name="upload" /> Import prefab
                 </button>
@@ -1391,6 +1454,10 @@ function App() {
               <span>　Primitives</span>
               <span>　Game templates</span>
               <span>　Embedded assets ({scene.assets.length})</span>
+              <small>
+                GLB · experimental FBX + PNG/JPEG
+                <br />2 MB cooked model · 2048px textures
+              </small>
             </div>
             <div className="asset-grid">
               {(["box", "sphere", "capsule", "cylinder", "cone"] as const).map((p, i) => (
@@ -1422,23 +1489,55 @@ function App() {
                 <small>LIGHT · ADD</small>
               </button>
               {scene.assets.map((a) => (
-                <button
-                  className="asset-card"
-                  disabled={playing}
-                  key={a.id}
-                  onClick={() => {
-                    const e = entity(a.name, "asset");
-                    e.mesh!.asset = a.id;
-                    commit((d) => d.entities.push(e));
-                    setSelected(e.id);
-                  }}
-                >
-                  <span className="asset-icon">
-                    <Icon name="cube" size={32} />
-                  </span>
-                  <strong>{a.name}</strong>
-                  <small>GLB · INSTANCE</small>
-                </button>
+                <div key={a.id}>
+                  <button
+                    className="asset-card"
+                    disabled={playing}
+                    key={a.id}
+                    onClick={() => {
+                      const e = entity(a.name, "asset");
+                      e.mesh!.asset = a.id;
+                      commit((d) => d.entities.push(e));
+                      setSelected(e.id);
+                    }}
+                  >
+                    <span className="asset-icon">
+                      <Icon name="cube" size={32} />
+                    </span>
+                    <strong>{a.name}</strong>
+                    <small>
+                      {a.import?.format.toUpperCase() || "GLB"} · INSTANCE{" "}
+                      {a.import ? `· r${a.import.revision}` : ""}
+                    </small>
+                  </button>
+                  <button
+                    disabled={playing || importBusy}
+                    aria-label={`Reimport ${a.name}`}
+                    onClick={() => {
+                      reimportTarget.current = {
+                        id: a.id,
+                        data: a.data,
+                        revision: a.import?.revision || 0,
+                      };
+                      glb.current?.click();
+                    }}
+                  >
+                    Reimport…
+                  </button>
+                  {a.import && (
+                    <details>
+                      <summary>Import report</summary>
+                      <small>
+                        {a.import.report.nodes} nodes · {a.import.report.vertices} vertices ·{" "}
+                        {a.import.report.clips.length} clips
+                        <br />
+                        SHA-256 {a.import.artifactHash}
+                        <br />
+                        {a.import.report.warnings.join(" ")}
+                      </small>
+                    </details>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -1461,8 +1560,9 @@ function App() {
             <div>
               <h3>01 / Build a scene</h3>
               <p>
-                Add primitives, import self-contained GLB assets, edit transforms and attach physics
-                or behaviors. Double-click a hierarchy item to frame it.
+                Add primitives, import GLB or experimental FBX with companion PNG/JPEG files, edit
+                transforms and attach physics or behaviors. Double-click a hierarchy item to frame
+                it.
               </p>
             </div>
             <div>
@@ -1518,7 +1618,7 @@ function App() {
         ref={glb}
         hidden
         type="file"
-        accept=".glb"
+        accept=".glb,.fbx,.png,.jpg,.jpeg"
         multiple
         onChange={(e) => void importGlb(e)}
       />

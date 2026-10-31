@@ -16,19 +16,21 @@ try {
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await expect(page.locator(".scene-caption h1")).toHaveText("Asset Workshop Test");
   await page
-    .locator('input[type=file][accept=".glb"]')
+    .locator('input[type=file][accept=".glb,.fbx,.png,.jpg,.jpeg"]')
     .setInputFiles("examples/projects/signal-crystal.glb");
   await expect(page.getByLabel("Entity name", { exact: true })).toHaveValue("signal-crystal.glb");
   await expect(page.getByLabel("Library model", { exact: true })).not.toHaveValue("");
   await page.getByRole("button", { name: "Play scene", exact: true }).click();
   await page.waitForTimeout(500);
   await page.getByRole("button", { name: "Stop scene", exact: true }).click();
-  await page.screenshot({ path: "docs/creation-workflow.png" });
-  await page.goto("http://localhost:5173/build/beacon-run-web/index.html");
+  await page.screenshot({ path: "build/creation-workflow.png" });
+  await page.goto(
+    process.env.TEST_EXPORT_URL || "http://localhost:5173/build/beacon-run-web/index.html",
+  );
   await expect(page.locator("#title")).toHaveText("Beacon Run");
   await expect(page.locator("#score")).toHaveText("0 / 3 signals");
   await page.waitForTimeout(700);
-  await page.screenshot({ path: "docs/beacon-run.png" });
+  await page.screenshot({ path: "build/beacon-run.png" });
   expect(errors).toEqual([]);
   console.log(
     "PASS new game, imported GLB selection, play/stop, exported standalone game with custom scene",

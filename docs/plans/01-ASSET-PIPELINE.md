@@ -193,3 +193,13 @@ The asset registry explicitly includes material and scene asset kinds so Plans 0
 - [Reusable gameplay, prefabs, components and scene lifecycle](04-GAMEPLAY-AUTHORING.md)
 - [Debugging, profiling, recovery and editor quality of life](05-DEBUGGING-RELIABILITY.md)
 - [Game export, input, save games, security and production readiness](06-SHIPPING-DEVELOPER-READINESS.md)
+
+
+## Implementation checkpoint — 2026-10-31 (unreleased)
+
+An end-to-end first slice now exists; the plan itself remains the target, not a
+claim that all gates are complete. See [implementation log, research corrections,
+tests and remaining A0–A6 gates](../ASSET-PIPELINE-IMPLEMENTATION.md). In particular,
+reference-only documents/persistent artifact storage and full dependency invalidation,
+DCC fidelity/normalization, complete subasset conflict UX and physical hardware
+acceptance are still open. Do not mark Plan 01 fully implemented from this checkpoint.

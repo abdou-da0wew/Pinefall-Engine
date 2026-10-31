@@ -1,0 +1,225 @@
+{
+  "project": {
+    "schemaVersion": 1,
+    "id": "8a44b13f-837a-4ee5-9e7b-f291cd96f74e",
+    "title": "Asset Pipeline Workshop",
+    "description": "PIF v3 source-provenance sample. Place instances or reimport signal-crystal.glb. No custom scripts.",
+    "author": "",
+    "projectVersion": "0.1.0",
+    "createdAt": "2026-10-31T13:47:00.588Z",
+    "modifiedAt": "2026-10-31T13:47:00.588Z",
+    "editor": {
+      "name": "Pinefall Engine",
+      "version": "0.5.3",
+      "sceneSchema": 1,
+      "layout": "unspecified",
+      "activeTool": "translate"
+    }
+  },
+  "version": 1,
+  "name": "Asset Pipeline Workshop",
+  "template": "adventure",
+  "entities": [
+    {
+      "id": "5938524b-e086-4bfe-bfc0-75e60e9e59d9",
+      "name": "Ground",
+      "enabled": true,
+      "transform": {
+        "position": [
+          0,
+          -0.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          40,
+          1,
+          40
+        ]
+      },
+      "mesh": {
+        "primitive": "box",
+        "color": "#667c60"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "0de4ceac-263a-44aa-b969-6207e1cc5ec2",
+      "name": "Player",
+      "enabled": true,
+      "transform": {
+        "position": [
+          0,
+          1,
+          6
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "tag": "player",
+      "behavior": "character",
+      "mesh": {
+        "primitive": "capsule",
+        "color": "#b9d9be"
+      },
+      "physics": {
+        "type": "kinematic",
+        "shape": "capsule",
+        "mass": 75,
+        "friction": 0.5,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "c079de40-ac4f-4f37-8ffb-ac7998b2ef3d",
+      "name": "Crystal 1",
+      "enabled": true,
+      "transform": {
+        "position": [
+          -3,
+          1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ]
+      },
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "47c5d840-8db7-4e42-92d7-9f99eeba4cc5"
+      }
+    },
+    {
+      "id": "fd4bc3bf-b160-4d22-8235-d1aa54d3c9f9",
+      "name": "Crystal 2",
+      "enabled": true,
+      "transform": {
+        "position": [
+          3,
+          1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ]
+      },
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "47c5d840-8db7-4e42-92d7-9f99eeba4cc5"
+      }
+    },
+    {
+      "id": "375dd197-e4b0-444a-87ea-5ecba78dd3d2",
+      "name": "Crystal 3",
+      "enabled": true,
+      "transform": {
+        "position": [
+          0,
+          2,
+          -4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ]
+      },
+      "mesh": {
+        "primitive": "asset",
+        "color": "#90aa96",
+        "asset": "47c5d840-8db7-4e42-92d7-9f99eeba4cc5"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "47c5d840-8db7-4e42-92d7-9f99eeba4cc5",
+      "name": "signal-crystal.glb",
+      "data": "data:model/gltf-binary;base64,Z2xURgIAAADIAgAAHAIAAEpTT057ImFzc2V0Ijp7InZlcnNpb24iOiIyLjAiLCJnZW5lcmF0b3IiOiJQaW5lZmFsbCBkZW1vIn0sInNjZW5lIjowLCJzY2VuZXMiOlt7Im5vZGVzIjpbMF19XSwibm9kZXMiOlt7Im1lc2giOjB9XSwibWVzaGVzIjpbeyJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjowfSwibWF0ZXJpYWwiOjB9XX1dLCJtYXRlcmlhbHMiOlt7InBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzEsMC43LDAuMTUsMV0sIm1ldGFsbGljRmFjdG9yIjowLjIsInJvdWdobmVzc0ZhY3RvciI6MC42fSwiZG91YmxlU2lkZWQiOnRydWV9XSwiYnVmZmVycyI6W3siYnl0ZUxlbmd0aCI6MTQ0fV0sImJ1ZmZlclZpZXdzIjpbeyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjAsImJ5dGVMZW5ndGgiOjE0NCwidGFyZ2V0IjozNDk2Mn1dLCJhY2Nlc3NvcnMiOlt7ImJ1ZmZlclZpZXciOjAsImNvbXBvbmVudFR5cGUiOjUxMjYsImNvdW50IjoxMiwidHlwZSI6IlZFQzMiLCJtaW4iOlstMC41LDAsLTAuNV0sIm1heCI6WzAuNSwxLDAuNV19XX2QAAAAQklOAAAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAPwAAAD8AAAAAAAAAPwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAPwAAAD8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAvwAAAL8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAvwAAAL8AAAAAAAAAPw==",
+      "import": {
+        "version": 1,
+        "revision": 1,
+        "format": "glb",
+        "artifactHash": "2bb149845557c4ecbe6bbdb9247da330337e9c2e41f47d93e2ca34fac665a214",
+        "recipe": {
+          "importer": "pinefall-three-185",
+          "version": 1
+        },
+        "sources": [
+          {
+            "name": "signal-crystal.glb",
+            "data": "data:application/octet-stream;base64,Z2xURgIAAADIAgAAHAIAAEpTT057ImFzc2V0Ijp7InZlcnNpb24iOiIyLjAiLCJnZW5lcmF0b3IiOiJQaW5lZmFsbCBkZW1vIn0sInNjZW5lIjowLCJzY2VuZXMiOlt7Im5vZGVzIjpbMF19XSwibm9kZXMiOlt7Im1lc2giOjB9XSwibWVzaGVzIjpbeyJwcmltaXRpdmVzIjpbeyJhdHRyaWJ1dGVzIjp7IlBPU0lUSU9OIjowfSwibWF0ZXJpYWwiOjB9XX1dLCJtYXRlcmlhbHMiOlt7InBick1ldGFsbGljUm91Z2huZXNzIjp7ImJhc2VDb2xvckZhY3RvciI6WzEsMC43LDAuMTUsMV0sIm1ldGFsbGljRmFjdG9yIjowLjIsInJvdWdobmVzc0ZhY3RvciI6MC42fSwiZG91YmxlU2lkZWQiOnRydWV9XSwiYnVmZmVycyI6W3siYnl0ZUxlbmd0aCI6MTQ0fV0sImJ1ZmZlclZpZXdzIjpbeyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjAsImJ5dGVMZW5ndGgiOjE0NCwidGFyZ2V0IjozNDk2Mn1dLCJhY2Nlc3NvcnMiOlt7ImJ1ZmZlclZpZXciOjAsImNvbXBvbmVudFR5cGUiOjUxMjYsImNvdW50IjoxMiwidHlwZSI6IlZFQzMiLCJtaW4iOlstMC41LDAsLTAuNV0sIm1heCI6WzAuNSwxLDAuNV19XX2QAAAAQklOAAAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAPwAAAD8AAAAAAAAAPwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAPwAAAD8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAD8AAAAAAAAAvwAAAL8AAAAAAAAAvwAAAAAAAIA/AAAAAAAAAL8AAAAAAAAAvwAAAL8AAAAAAAAAPw==",
+            "sha256": "2bb149845557c4ecbe6bbdb9247da330337e9c2e41f47d93e2ca34fac665a214"
+          }
+        ],
+        "report": {
+          "nodes": 1,
+          "meshes": 1,
+          "vertices": 12,
+          "decodedBytes": 144,
+          "clips": [],
+          "materials": [
+            "[unnamed:material:0]"
+          ],
+          "warnings": []
+        },
+        "subassets": [
+          {
+            "id": "c248dc6b-97b8-4521-b7f5-b9c7dc8dd571",
+            "key": "ambiguous:0:[unnamed:material:0]",
+            "kind": "material"
+          }
+        ]
+      }
+    }
+  ],
+  "environment": {
+    "background": "#263c44",
+    "fog": "#263c44",
+    "fogNear": 30,
+    "fogFar": 100,
+    "sun": 2,
+    "gravity": -9.81
+  }
+}

@@ -37,40 +37,10 @@ export function createGame(name: string): SceneDocument {
     },
   });
 }
-/** Validate a self-contained GLB before it reaches a browser or the project database. */
+export { inspectGlb } from "../../assets/src/glb";
+import { inspectGlb } from "../../assets/src/glb";
 export function validateGlb(bytes: Uint8Array) {
-  if (bytes.byteLength < 20) throw Error("GLB is truncated");
-  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (
-    v.getUint32(0, true) !== 0x46546c67 ||
-    v.getUint32(4, true) !== 2 ||
-    v.getUint32(8, true) !== bytes.byteLength
-  )
-    throw Error("Expected a complete GLB 2.0 file");
-  const length = v.getUint32(12, true);
-  if (v.getUint32(16, true) !== 0x4e4f534a || length % 4 || length + 20 > bytes.byteLength)
-    throw Error("Invalid GLB JSON chunk");
-  const doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)));
-  if (!doc || doc.asset?.version !== "2.0") throw Error("Missing glTF 2.0 asset metadata");
-  for (const key of ["buffers", "images"])
-    for (const item of doc[key] || [])
-      if (item.uri !== undefined && !(typeof item.uri === "string" && item.uri.startsWith("data:")))
-        throw Error("External resources are unsupported: embed textures and buffers in GLB");
-  if (
-    doc.extensionsRequired?.some((name: string) =>
-      ["KHR_draco_mesh_compression", "EXT_meshopt_compression", "KHR_texture_basisu"].includes(
-        name,
-      ),
-    )
-  )
-    throw Error("Compressed GLB requires a decoder; export without Draco, Meshopt or KTX2");
-  let offset = 20 + length;
-  while (offset < bytes.length) {
-    if (offset + 8 > bytes.length) throw Error("Truncated GLB chunk");
-    const n = v.getUint32(offset, true);
-    if (n % 4 || offset + 8 + n > bytes.length) throw Error("Invalid GLB chunk length");
-    offset += 8 + n;
-  }
+  inspectGlb(bytes);
 }
 export function importModel(
   scene: SceneDocument,

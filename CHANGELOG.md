@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.3 — Worker asset pipeline, first implementation
+
+- GLB parsing/image decode in cancellable workers; shared prototype cache and independent skinned clones.
+- Bounded geometry/image/FBX admission, stable-ID reimport, import reports and original-source retention.
+- Experimental ASCII/binary FBX + PNG/JPEG conversion. Fidelity across DCC exporters is not certified.
+- PIF v3 stores provenance and original sources separately; keeps v1/v2 readers and writes v2 when no provenance is present. Older editors cannot open v3: keep backups.
+- Undo snapshot blob interning, GLB CLI import/reimport, and pinned matching Three r185 runtime/types.
+- 59 tests / 225 assertions, TypeScript/Oxlint, browser asset/runtime/PIF/export tests and production Linux Electron checks. Windows and physical CEDAR execution remain untested.
+- Persistent artifact database, reference-only documents, complete dependency invalidation and other Plan 01 gates remain open.
+
 ## 0.5.2 — PIF v2 metadata and integrity
 
 - Portable versioned project/editor metadata, stable project UUID, creation/modification timestamps, game version, author/description and last saved tool/docking side.
