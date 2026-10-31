@@ -1,0 +1,669 @@
+import * as T from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { PhysicsSystem, initPhysics } from "./physics";
+import { Effects, beam } from "./effects";
+import { Events } from "./events";
+import { LOW, cloneScene, entity, parseScene } from "./schema";
+import type { SceneDocument, Entity, RenderSettings, Primitive, Vec3 } from "./schema";
+import { registerBuiltins } from "./behaviors";
+import type { BehaviorFactory, Behavior } from "./behaviors";
+export interface Stats {
+  fps: number;
+  drawCalls: number;
+  triangles: number;
+  visible: number;
+  entities: number;
+  bodies: number;
+  frameMs: number;
+  adapter: string;
+  width: number;
+  height: number;
+}
+export interface EngineOptions {
+  onSelect?: (id: string | null) => void;
+  onTransform?: (id: string, transform: Entity["transform"]) => void;
+  onStats?: (stats: Stats) => void;
+}
+export class Engine {
+  readonly events = new Events();
+  readonly input = new Set<string>();
+  readonly objects = new Map<string, T.Group>();
+  readonly behaviors = new Map<string, Behavior>();
+  readonly registry = new Map<string, BehaviorFactory>();
+  readonly scene = new T.Scene();
+  readonly camera = new T.PerspectiveCamera(55, 1, 0.1, 300);
+  readonly renderer: T.WebGLRenderer;
+  readonly orbit: OrbitControls;
+  readonly gizmo: TransformControls;
+  physics: PhysicsSystem;
+  document!: SceneDocument;
+  settings: RenderSettings = { ...LOW };
+  playing = false;
+  paused = false;
+  jump = false;
+  look = { yaw: 0, pitch: 0 };
+  checkpoint: Vec3 = [0, 2, 8];
+  collected = new Set<string>();
+  goalCount = 0;
+  won = false;
+  speed = 0;
+  private root = new T.Group();
+  private ambient = new T.HemisphereLight("#c4ddd7", "#405344", 2);
+  private sun = new T.DirectionalLight("#ffe1b0", 2);
+  private geometries = new Map<Primitive, T.BufferGeometry>();
+  private materials = new Map<string, T.MeshStandardMaterial>();
+  private imported: T.Object3D[] = [];
+  private beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[] = [];
+  private assetLoader = new GLTFLoader();
+  private playSnapshot: SceneDocument | null = null;
+  private generation = 0;
+  private selected: string | null = null;
+  private effects: Effects | null = null;
+  private observer: ResizeObserver;
+  private raf = 0;
+  private last = 0;
+  private nextFrame = 0;
+  private accumulator = 0;
+  private dead = false;
+  private steps = 0;
+  private frames = 0;
+  private elapsed = 0;
+  private dragging = false;
+  private down = { x: 0, y: 0 };
+  private cleanup: Array<() => void> = [];
+  private bufferSize = new T.Vector2();
+  private follow = new T.Vector3();
+  private adapter = "Adapter not exposed";
+  private hudClock = 0;
+  static async create(canvas: HTMLCanvasElement, options: EngineOptions = {}) {
+    await initPhysics();
+    return new Engine(canvas, options);
+  }
+  private constructor(
+    readonly canvas: HTMLCanvasElement,
+    private options: EngineOptions,
+  ) {
+    this.renderer = new T.WebGLRenderer({
+      canvas,
+      antialias: false,
+      alpha: false,
+      powerPreference: "default",
+      failIfMajorPerformanceCaveat: false,
+    });
+    this.renderer.outputColorSpace = T.SRGBColorSpace;
+    this.renderer.toneMapping = T.ACESFilmicToneMapping;
+    this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+    this.renderer.info.autoReset = false;
+    const gl = this.renderer.getContext(),
+      ext = gl.getExtension("WEBGL_debug_renderer_info");
+    if (ext) this.adapter = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+    this.physics = new PhysicsSystem();
+    this.camera.position.set(22, 17, 25);
+    this.orbit = new OrbitControls(this.camera, canvas);
+    this.orbit.target.set(0, 1, -4);
+    this.orbit.enableDamping = true;
+    this.orbit.maxDistance = 110;
+    this.orbit.minDistance = 2;
+    this.gizmo = new TransformControls(this.camera, canvas);
+    this.gizmo.addEventListener("dragging-changed", (event) => {
+      this.orbit.enabled = !event.value;
+    });
+    this.gizmo.addEventListener("mouseUp", () => {
+      if (!this.selected || this.playing) return;
+      const o = this.objects.get(this.selected);
+      if (o)
+        this.options.onTransform?.(this.selected, {
+          position: o.position.toArray() as Vec3,
+          rotation: [
+            T.MathUtils.radToDeg(o.rotation.x),
+            T.MathUtils.radToDeg(o.rotation.y),
+            T.MathUtils.radToDeg(o.rotation.z),
+          ],
+          scale: o.scale.toArray() as Vec3,
+        });
+    });
+    this.sun.position.set(-12, 24, 10);
+    this.sun.shadow.mapSize.set(1024, 1024);
+    Object.assign(this.sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, far: 100 });
+    this.sun.shadow.bias = -0.001;
+    this.scene.add(this.root, this.ambient, this.sun, this.sun.target, this.gizmo.getHelper());
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(canvas);
+    registerBuiltins(this);
+    this.bindInput();
+    this.resize();
+    this.raf = requestAnimationFrame(this.tick);
+  }
+  registerBehavior(name: string, factory: BehaviorFactory) {
+    this.registry.set(name, factory);
+  }
+  private listen(target: EventTarget, type: string, handler: EventListener) {
+    target.addEventListener(type, handler);
+    this.cleanup.push(() => target.removeEventListener(type, handler));
+  }
+  private bindInput() {
+    this.listen(window, "keydown", (event) => {
+      const e = event as KeyboardEvent;
+      if (
+        !this.playing ||
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      )
+        return;
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code))
+        e.preventDefault();
+      if (e.code === "Escape" && !e.repeat) {
+        this.paused = !this.paused;
+        this.input.clear();
+        this.events.emit("gameplay", this.paused ? "Paused" : "Resumed");
+      }
+      if (e.code === "KeyR") this.respawn();
+      if (e.code === "Space" && !e.repeat) this.jump = true;
+      this.input.add(e.code);
+      if (e.shiftKey) this.input.add("Shift");
+    });
+    this.listen(window, "keyup", (event) => {
+      const e = event as KeyboardEvent;
+      this.input.delete(e.code);
+      if (!e.shiftKey) this.input.delete("Shift");
+    });
+    this.listen(window, "blur", () => {
+      this.input.clear();
+      if (this.playing) {
+        this.paused = true;
+        this.events.emit("gameplay", "Paused while unfocused");
+      }
+    });
+    this.listen(this.canvas, "contextmenu", (event) => event.preventDefault());
+    this.listen(this.canvas, "pointerdown", (event) => {
+      const e = event as PointerEvent;
+      this.down = { x: e.clientX, y: e.clientY };
+      this.dragging = true;
+      this.canvas.focus();
+    });
+    this.listen(window, "pointerup", (event) => {
+      const e = event as PointerEvent;
+      this.dragging = false;
+      if (this.playing) return;
+      if (
+        Math.hypot(e.clientX - this.down.x, e.clientY - this.down.y) < 4 &&
+        !this.gizmo.axis &&
+        e.target === this.canvas
+      )
+        this.options.onSelect?.(this.pick(e.clientX, e.clientY));
+    });
+    this.listen(window, "pointermove", (event) => {
+      if (!this.playing || this.paused || this.document.template === "sandbox") return;
+      const e = event as PointerEvent;
+      if (document.pointerLockElement === this.canvas || this.dragging) {
+        this.look.yaw -= e.movementX * 0.003;
+        this.look.pitch = T.MathUtils.clamp(this.look.pitch - e.movementY * 0.003, -1.2, 1.2);
+      }
+    });
+    this.listen(this.canvas, "dblclick", () => {
+      if (this.playing && this.document.template === "first-person")
+        void this.canvas
+          .requestPointerLock()
+          ?.catch(() =>
+            this.events.emit("input", "Pointer lock unavailable; drag to look instead."),
+          );
+    });
+    this.listen(this.canvas, "webglcontextlost", (event) => {
+      event.preventDefault();
+      this.paused = true;
+      this.events.emit("error", "WebGL context lost. Stop and reload the application.");
+    });
+  }
+  private geometry(primitive: Primitive) {
+    let geometry = this.geometries.get(primitive);
+    if (!geometry) {
+      geometry =
+        primitive === "sphere"
+          ? new T.SphereGeometry(0.5, 16, 12)
+          : primitive === "capsule"
+            ? new T.CapsuleGeometry(0.35, 1, 4, 8)
+            : primitive === "cylinder"
+              ? new T.CylinderGeometry(0.5, 0.5, 1, 12)
+              : primitive === "cone"
+                ? new T.ConeGeometry(0.5, 1, 5)
+                : new T.BoxGeometry(1, 1, 1);
+      this.geometries.set(primitive, geometry);
+    }
+    return geometry;
+  }
+  private material(color: string) {
+    let m = this.materials.get(color);
+    if (!m) {
+      m = new T.MeshStandardMaterial({ color, roughness: 0.82 });
+      this.materials.set(color, m);
+    }
+    return m;
+  }
+  async load(input: SceneDocument) {
+    const scene = parseScene(input),
+      generation = ++this.generation;
+    this.playing = false;
+    this.paused = false;
+    this.input.clear();
+    this.gizmo.detach();
+    this.clear();
+    this.document = cloneScene(scene);
+    this.physics = new PhysicsSystem(scene.environment.gravity);
+    this.scene.background = new T.Color(scene.environment.background);
+    this.scene.fog = new T.Fog(
+      scene.environment.fog,
+      scene.environment.fogNear,
+      Math.max(scene.environment.fogNear + 1, scene.environment.fogFar),
+    );
+    this.sun.intensity = scene.environment.sun;
+    this.goalCount = scene.entities.filter((e) => e.behavior === "collectible" && e.enabled).length;
+    this.collected.clear();
+    this.won = false;
+    this.speed = 0;
+    for (const e of scene.entities) this.addEntity(e);
+    for (const e of scene.entities)
+      if (e.parent) {
+        const parent = this.objects.get(e.parent),
+          child = this.objects.get(e.id);
+        if (parent && child) parent.add(child);
+      }
+    for (const e of scene.entities) {
+      if (e.mesh?.primitive !== "asset") continue;
+      const asset = scene.assets.find((a) => a.id === e.mesh?.asset);
+      if (!asset) continue;
+      try {
+        const data = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
+        this.validateGlb(data.buffer);
+        const gltf = await this.assetLoader.parseAsync(data.buffer, "");
+        if (this.dead || generation !== this.generation) {
+          this.disposeImported(gltf.scene);
+          continue;
+        }
+        this.imported.push(gltf.scene);
+        gltf.scene.traverse((o) => {
+          o.userData.entityId = e.id;
+          if (o instanceof T.Mesh) {
+            o.castShadow = true;
+            o.receiveShadow = true;
+          }
+        });
+        this.objects.get(e.id)?.add(gltf.scene);
+      } catch (error) {
+        this.events.emit("error", "GLB import failed: " + String(error));
+      }
+    }
+    if (generation !== this.generation) return;
+    this.orbit.enabled = true;
+    this.orbit.target.set(0, 1, -4);
+    this.camera.position.set(22, 17, 25);
+    this.orbit.update();
+    this.applySettings(this.settings);
+    this.events.emit("scene", "Loaded " + scene.name, { entities: scene.entities.length });
+  }
+  private validateGlb(buffer: ArrayBuffer) {
+    const data = new DataView(buffer);
+    if (
+      data.byteLength < 20 ||
+      data.getUint32(0, true) !== 0x46546c67 ||
+      data.getUint32(4, true) !== 2
+    )
+      throw new Error("Expected GLB 2.0");
+    const length = data.getUint32(12, true);
+    const json: unknown = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, length)));
+    if (typeof json !== "object" || json === null) throw new Error("Invalid GLB");
+    for (const key of ["buffers", "images"]) {
+      const list = Reflect.get(json, key);
+      if (Array.isArray(list))
+        for (const item of list) {
+          if (
+            item &&
+            typeof item === "object" &&
+            "uri" in item &&
+            typeof item.uri === "string" &&
+            !item.uri.startsWith("data:")
+          )
+            throw new Error("External GLB resources are not allowed");
+        }
+    }
+  }
+  private addEntity(e: Entity) {
+    const object = new T.Group();
+    object.name = e.name;
+    object.userData.entityId = e.id;
+    object.position.fromArray(e.transform.position);
+    object.rotation.set(
+      ...(e.transform.rotation.map(T.MathUtils.degToRad) as [number, number, number]),
+    );
+    object.scale.fromArray(e.transform.scale);
+    object.visible = e.enabled;
+    if (e.mesh && e.mesh.primitive !== "asset") {
+      const mesh = new T.Mesh(this.geometry(e.mesh.primitive), this.material(e.mesh.color));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.entityId = e.id;
+      object.add(mesh);
+    }
+    if (e.light) {
+      const light =
+        e.light.type === "spot"
+          ? new T.SpotLight(e.light.color, e.light.intensity, e.light.range, 0.5, 0.6, 2)
+          : new T.PointLight(e.light.color, e.light.intensity, e.light.range, 2);
+      object.add(light);
+      if (light instanceof T.SpotLight) {
+        const target = new T.Object3D();
+        target.position.set(0, -1, 0);
+        object.add(target);
+        light.target = target;
+        const volume = beam(e.light.color);
+        volume.position.y = -e.light.range * 0.35;
+        volume.scale.set(e.light.range * 0.4, e.light.range * 0.7, e.light.range * 0.4);
+        volume.userData.volume = true;
+        this.beams.push(volume);
+        object.add(volume);
+      }
+    }
+    this.root.add(object);
+    this.objects.set(e.id, object);
+    this.physics.add(e);
+  }
+  select(id: string | null) {
+    this.selected = id;
+    this.gizmo.detach();
+    if (id && !this.playing) {
+      const object = this.objects.get(id);
+      if (object) this.gizmo.attach(object);
+    }
+  }
+  transformMode(mode: "translate" | "rotate" | "scale") {
+    this.gizmo.setMode(mode);
+  }
+  focus(id: string) {
+    const object = this.objects.get(id);
+    if (object) {
+      object.getWorldPosition(this.follow);
+      this.orbit.target.copy(this.follow);
+      this.camera.position.copy(this.follow).add(new T.Vector3(7, 5, 8));
+      this.orbit.update();
+    }
+  }
+  pick(x: number, y: number) {
+    const rect = this.canvas.getBoundingClientRect(),
+      ray = new T.Raycaster();
+    ray.setFromCamera(
+      new T.Vector2(
+        ((x - rect.left) / rect.width) * 2 - 1,
+        (-(y - rect.top) / rect.height) * 2 + 1,
+      ),
+      this.camera,
+    );
+    return (
+      (ray
+        .intersectObjects([...this.objects.values()], true)
+        .find((hit) => hit.object.visible && hit.object.userData.entityId)?.object.userData
+        .entityId as string | undefined) || null
+    );
+  }
+  play() {
+    if (!this.document || this.playing) return;
+    this.playSnapshot = cloneScene(this.document);
+    this.playing = true;
+    this.paused = false;
+    this.gizmo.detach();
+    this.look = { yaw: 0, pitch: 0 };
+    this.accumulator = 0;
+    this.collected.clear();
+    this.won = false;
+    this.behaviors.clear();
+    for (const e of this.document.entities) {
+      if (!e.enabled || !e.behavior) continue;
+      const factory = this.registry.get(e.behavior);
+      if (factory) {
+        const b = factory({ engine: this, entity: e });
+        this.behaviors.set(e.id, b);
+        b.start?.();
+      } else this.events.emit("warning", "Behavior not registered: " + e.behavior);
+    }
+    const player = this.document.entities.find((e) => e.tag === "player");
+    if (player) this.checkpoint = [...player.transform.position];
+    this.orbit.enabled = this.document.template === "sandbox";
+    this.events.emit("gameplay", "Play started — " + this.document.name);
+    this.canvas.focus();
+  }
+  async stop() {
+    if (!this.document) return;
+    const snapshot = cloneScene(this.playSnapshot || this.document);
+    this.playSnapshot = null;
+    if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+    await this.load(snapshot);
+    this.select(this.selected);
+    this.events.emit("gameplay", "Stopped; authored scene restored.");
+  }
+  respawn() {
+    const e = this.document.entities.find((e) => e.tag === "player");
+    if (!e) return;
+    const body = this.physics.bodies.get(e.id);
+    body?.setTranslation(
+      { x: this.checkpoint[0], y: this.checkpoint[1], z: this.checkpoint[2] },
+      true,
+    );
+    body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    this.events.emit("gameplay", "Returned to checkpoint");
+  }
+  spawnBox() {
+    if (!this.playing || this.document.entities.length >= 200) return;
+    const e = entity(
+      "Spawned crate",
+      "box",
+      [(Math.random() - 0.5) * 4, 7, (Math.random() - 0.5) * 4],
+      [1, 1, 1],
+      "#d5b77a",
+    );
+    e.physics = {
+      type: "dynamic",
+      shape: "box",
+      mass: 2,
+      friction: 0.7,
+      restitution: 0.3,
+      sensor: false,
+    };
+    this.document.entities.push(e);
+    this.addEntity(e);
+    this.events.emit("physics", "Spawned dynamic crate");
+  }
+  impulse() {
+    for (const e of this.document.entities) {
+      if (e.physics?.type === "dynamic")
+        this.physics.bodies
+          .get(e.id)
+          ?.applyImpulse(
+            { x: (Math.random() - 0.5) * 5, y: 7, z: (Math.random() - 0.5) * 5 },
+            true,
+          );
+    }
+    this.events.emit("physics", "Applied impulses to dynamic bodies");
+  }
+  applySettings(settings: RenderSettings) {
+    this.settings = { ...settings };
+    this.renderer.shadowMap.enabled = settings.preset === "high";
+    this.sun.castShadow = settings.preset === "high";
+    this.sun.shadow.needsUpdate = true;
+    for (const b of this.beams) {
+      b.visible = settings.volumetrics;
+      b.material.uniforms.opacity.value = settings.beamOpacity;
+    }
+    if (settings.post && !this.effects)
+      this.effects = new Effects(this.renderer, this.scene, this.camera);
+    if (!settings.post && this.effects) {
+      this.effects.dispose();
+      this.effects = null;
+    }
+    this.resize();
+    this.events.emit("render", "Applied " + settings.preset + " preset", {
+      post: settings.post,
+      volumetrics: settings.volumetrics,
+    });
+  }
+  private resize() {
+    const rect = this.canvas.getBoundingClientRect(),
+      cap = this.settings.preset === "low" ? [960, 540] : [1600, 900],
+      ratio = Math.min(
+        window.devicePixelRatio || 1,
+        cap[0] / Math.max(1, rect.width),
+        cap[1] / Math.max(1, rect.height),
+      );
+    const width = Math.max(1, Math.round(rect.width * ratio)),
+      height = Math.max(1, Math.round(rect.height * ratio));
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+    this.camera.updateProjectionMatrix();
+    this.effects?.resize(width, height);
+    this.bufferSize.set(width, height);
+  }
+  private tick = (now: number) => {
+    if (this.dead) return;
+    this.raf = requestAnimationFrame(this.tick);
+    if (document.hidden) {
+      this.last = now;
+      return;
+    }
+    if (now < this.nextFrame) return;
+    const interval = 1000 / (this.settings.preset === "high" && this.playing ? 60 : 30);
+    this.nextFrame = now + interval - ((now - this.nextFrame) % interval);
+    const dt = Math.min(0.1, this.last ? (now - this.last) / 1000 : 1 / 30);
+    this.last = now;
+    const start = performance.now();
+    if (this.playing && !this.paused && this.document) {
+      this.accumulator = Math.min(this.accumulator + dt, 0.1);
+      while (this.accumulator >= 1 / 60) {
+        for (const b of this.behaviors.values()) b.fixedUpdate?.(1 / 60);
+        this.physics.step((a, b, started) => {
+          const ea = this.document.entities.find((e) => e.id === a),
+            eb = this.document.entities.find((e) => e.id === b);
+          if (ea && eb) {
+            this.behaviors.get(a)?.trigger?.(eb, started);
+            this.behaviors.get(b)?.trigger?.(ea, started);
+          }
+        });
+        this.accumulator -= 1 / 60;
+        this.steps++;
+      }
+      for (const [id, body] of this.physics.bodies) {
+        const object = this.objects.get(id);
+        if (!object) continue;
+        const p = body.translation(),
+          q = body.rotation();
+        object.position.set(p.x, p.y, p.z);
+        object.quaternion.set(q.x, q.y, q.z, q.w);
+      }
+      for (const b of this.behaviors.values()) b.update?.(dt);
+      const player = this.document.entities.find((e) => e.tag === "player"),
+        object = player && this.objects.get(player.id);
+      if (object) {
+        if (object.position.y < -20) this.respawn();
+        if (this.document.template === "first-person") {
+          this.camera.position.copy(object.position).add(new T.Vector3(0, 0.55, 0));
+          this.camera.rotation.set(this.look.pitch, this.look.yaw, 0, "YXZ");
+        } else {
+          const offset = new T.Vector3(0, 5, 9).applyAxisAngle(
+            new T.Vector3(0, 1, 0),
+            this.document.template === "driving" ? object.rotation.y : this.look.yaw,
+          );
+          this.follow.copy(object.position).add(offset);
+          this.camera.position.lerp(this.follow, 1 - Math.exp(-5 * dt));
+          this.camera.lookAt(object.position.x, object.position.y + 0.6, object.position.z);
+        }
+      }
+    }
+    if (this.orbit.enabled) this.orbit.update();
+    let visible = 0;
+    if (this.document)
+      for (const e of this.document.entities) {
+        const object = this.objects.get(e.id);
+        if (!object) continue;
+        object.getWorldPosition(this.follow);
+        object.visible =
+          e.enabled &&
+          !this.collected.has(e.id) &&
+          !(this.playing && this.document.template === "first-person" && e.tag === "player") &&
+          this.follow.distanceToSquared(this.camera.position) <
+            (this.settings.viewDistance + Math.max(...e.transform.scale) * 2) ** 2;
+        if (object.visible) visible++;
+      }
+    this.renderer.info.reset();
+    try {
+      if (this.effects) this.effects.draw(dt, this.settings);
+      else this.renderer.render(this.scene, this.camera);
+    } catch (error) {
+      this.events.emit("error", "Render failed: " + String(error));
+      this.paused = true;
+    }
+    this.frames++;
+    this.elapsed += dt;
+    this.hudClock += dt;
+    if (this.hudClock >= 0.5) {
+      this.options.onStats?.({
+        fps: this.frames / this.elapsed,
+        frameMs: performance.now() - start,
+        drawCalls: this.renderer.info.render.calls,
+        triangles: this.renderer.info.render.triangles,
+        visible,
+        entities: this.objects.size,
+        bodies: this.physics.bodies.size,
+        adapter: this.adapter,
+        width: this.bufferSize.x,
+        height: this.bufferSize.y,
+      });
+      this.frames = 0;
+      this.elapsed = 0;
+      this.hudClock = 0;
+    }
+  };
+  private disposeImported(root: T.Object3D) {
+    root.traverse((o) => {
+      if (o instanceof T.Mesh) {
+        o.geometry.dispose();
+        for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+          for (const value of Object.values(material))
+            if (value instanceof T.Texture) value.dispose();
+          material.dispose();
+        }
+      }
+    });
+  }
+  private clear() {
+    for (const b of this.behaviors.values()) b.dispose?.();
+    this.behaviors.clear();
+    this.physics.dispose();
+    for (const root of this.imported) this.disposeImported(root);
+    this.imported = [];
+    for (const b of this.beams) {
+      b.geometry.dispose();
+      b.material.dispose();
+    }
+    this.beams = [];
+    this.root.clear();
+    this.objects.clear();
+    for (const g of this.geometries.values()) g.dispose();
+    for (const m of this.materials.values()) m.dispose();
+    this.geometries.clear();
+    this.materials.clear();
+  }
+  dispose() {
+    this.dead = true;
+    this.generation++;
+    cancelAnimationFrame(this.raf);
+    this.observer.disconnect();
+    for (const fn of this.cleanup) fn();
+    this.gizmo.dispose();
+    this.orbit.dispose();
+    this.effects?.dispose();
+    this.clear();
+    this.sun.shadow.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+  }
+}
