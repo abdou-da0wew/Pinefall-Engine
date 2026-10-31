@@ -55,6 +55,7 @@ export function registerBuiltins(engine: SimulationHost) {
         const a = engine.look.yaw,
           dx = x * Math.cos(a) + z * Math.sin(a),
           dz = -x * Math.sin(a) + z * Math.cos(a);
+        grounded = engine.physics.isGrounded(entity.id);
         if (engine.jump && grounded) vertical = 5.8;
         engine.jump = false;
         vertical = Math.max(-20, vertical + engine.document.environment.gravity * dt);
@@ -65,7 +66,7 @@ export function registerBuiltins(engine: SimulationHost) {
         });
         if (grounded && vertical < 0) vertical = 0;
         const body = engine.physics.bodies.get(entity.id);
-        if (body && Math.hypot(dx, dz) > 0.1) {
+        if (body && !entity.animator?.rootMotion && Math.hypot(dx, dz) > 0.1) {
           const yaw = Math.atan2(-dx, -dz);
           body.setNextKinematicRotation(new Quaternion().setFromEuler(new Euler(0, yaw, 0)));
         }

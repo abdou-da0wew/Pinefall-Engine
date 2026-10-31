@@ -620,6 +620,7 @@ export class Engine {
     this.playSnapshot = cloneScene(this.document);
     this.fixed.clear();
     this.playing = true;
+    this.physics.deferredMotion = true;
     this.ui.interactive = true;
     this.paused = false;
     this.gizmo.detach();

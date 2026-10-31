@@ -60,8 +60,8 @@ try {
           rejected = true;
         }
         check(rejected && engine.document.name === savedName, "failed model retains world");
-        const physicsPath = "/packages/runtime/src/physics.ts";
-        const { PhysicsSystem } = await import(physicsPath);
+        // Use the actual constructor: Vite HMR can assign a cache-busting URL to dependencies.
+        const PhysicsSystem = engine.physics.constructor;
         const assetMemory = engine.assetCache.budget;
         const beforeMemory = assetMemory.snapshot.used;
         const beforePhysics = engine.physics,

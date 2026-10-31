@@ -42,3 +42,11 @@ Then implement root-motion proposals and fixed-boundary mutation ordering, follo
 Implemented strict scene3/PIF5 animator definitions, stable clip recipes, per-instance graph evaluation, headless mathematical rig evaluation, scoped SDK and dedicated editor authoring/preview. Added a shared fixed dispatcher and queued structural lifecycle, including pending-destroy callback suppression and rollback tests. See [PLAN02-INTEGRATION.md](PLAN02-INTEGRATION.md) for exact semantics, evidence and remaining scope.
 
 Verified 105 unit tests / 524 assertions; integrated skinned browser parity and 100 Play/Stop cycles; editor, asset, runtime browser suites; check and build. **This is not full Plan02 acceptance.** Root-motion controller proposals/path preview, authored production audio and AA6 tutorial/export/native integration remain incomplete. No new native binary or public release has been certified.
+
+## Root-motion implementation work order (2026-10-31)
+
+Before the broader UI refactor, implement the remaining motion authority: strict opt-in root-node binding; original-track SE(2) sampling (horizontal translation plus yaw), loop/reverse/trim/seek-safe deltas, pose compensation, and bounded fixed-tick controller proposals. Preserve controller-owned vertical movement, reject unsupported animated ancestors/nonuniform parent scales, and use a kinematic upright capsule profile. Add mathematical and real imported-rig wall tests, serialization and browser parity. Root-path inspection belongs in an on-demand preview rather than extra permanent asset-library controls. Production audio and AA6 remain subsequent unfinished work; no full-plan acceptance is implied by this work order.
+
+## Root-motion implementation evidence
+
+The work order above now has an implemented, validated kinematic-capsule profile: loop/trim/reverse/seek-safe horizontal/yaw sampling, cubic fidelity, pose compensation, controller proposal resolution and on-demand modal path inspection. Fixed the freshly admitted collider query gap without adding a second Rapier step. Full suite 114 tests / 567 assertions; root browser/headless wall parity and 100 cycles; Linux Electron and standalone export smoke; check/build pass. See ROOT-MOTION.md. Audio AA4/AA5 and the combined AA6 tutorial/export/device gates remain unfinished. UI modularization remains scheduled after Plan02, as requested.

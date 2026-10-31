@@ -10,6 +10,12 @@ export interface GraphFrame {
   fadeToken: number;
   alpha: number;
 }
+export interface MotionInterval {
+  before: number;
+  after: number;
+  frame: GraphFrame;
+  gain: number;
+}
 export interface GraphEvent extends MarkerEvent {
   state: string;
   clip: string;
@@ -137,7 +143,7 @@ export class AnimationGraph {
       }),
     };
   }
-  advance(dt: number): { events: GraphEvent[]; overflow: boolean } {
+  advance(dt: number): { events: GraphEvent[]; overflow: boolean; motion?: MotionInterval } {
     if (!Number.isFinite(dt) || dt < 0 || dt > 3600) throw Error("Invalid graph delta");
     if (this.clock.paused) return { events: [], overflow: false };
     const candidates = this.definition.transitions
@@ -161,6 +167,8 @@ export class AnimationGraph {
     );
     const cadence = this.clock.duration / duration;
     this.clock.speed = this.playbackSpeed ?? this.definition.states[this.current].speed;
+    const before = this.clock.cursor,
+      frame = this.frame();
     const result = this.clock.advance(dt, cadence);
     if (!result.overflow) {
       this.elapsed += dt;
@@ -168,6 +176,16 @@ export class AnimationGraph {
     }
     return {
       overflow: result.overflow,
+      ...(!result.overflow
+        ? {
+            motion: {
+              before,
+              after: this.clock.cursor,
+              frame,
+              gain: (frame.alpha + this.frame().alpha) / 2,
+            },
+          }
+        : {}),
       events: result.events.map((event) => ({
         ...event,
         state: this.current,

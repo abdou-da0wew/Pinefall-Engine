@@ -23,6 +23,7 @@ export interface AnimationTransition {
 }
 export interface AnimatorDefinition {
   version: 1;
+  rootMotion?: { node: string };
   initial: string;
   parameters: Record<string, number | boolean>;
   clips: Record<string, ClipBinding>;
@@ -55,7 +56,7 @@ function number(value: unknown, min: number, max: number) {
 export function parseAnimator(input: unknown): AnimatorDefinition {
   const raw = obj(input);
   if (JSON.stringify(raw).length > 64000) throw Error("Animator metadata budget");
-  fields(raw, ["version", "initial", "parameters", "clips", "states", "transitions"]);
+  fields(raw, ["version", "initial", "parameters", "clips", "states", "transitions", "rootMotion"]);
   if (raw.version !== 1) throw Error("Unsupported animator version");
   const parameters: AnimatorDefinition["parameters"] = {},
     clips: AnimatorDefinition["clips"] = {},
@@ -169,5 +170,19 @@ export function parseAnimator(input: unknown): AnimatorDefinition {
     done.add(id);
   };
   for (const id of Object.keys(states)) visit(id);
-  return { version: 1, initial, parameters, clips, states, transitions };
+  let rootMotion: AnimatorDefinition["rootMotion"];
+  if (raw.rootMotion !== undefined) {
+    const motion = obj(raw.rootMotion);
+    fields(motion, ["node"]);
+    rootMotion = { node: text(motion.node) };
+  }
+  return {
+    version: 1,
+    initial,
+    parameters,
+    clips,
+    states,
+    transitions,
+    ...(rootMotion ? { rootMotion } : {}),
+  };
 }

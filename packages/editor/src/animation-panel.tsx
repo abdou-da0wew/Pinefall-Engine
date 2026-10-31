@@ -1,3 +1,5 @@
+import { RootMotion } from "../../animation/src/root-motion";
+import { RootPathPreview } from "./root-path-preview";
 import { useEffect, useState } from "react";
 import * as T from "three";
 import type { Entity, Asset, SceneDocument } from "../../runtime/src/schema";
@@ -108,7 +110,8 @@ function Draft({
         onClick={() => {
           try {
             const value = parseAnimator(JSON.parse(draft));
-            bindAnimationClips(value, asset.import!, root!.animations, root);
+            const bound = bindAnimationClips(value, asset.import!, root!.animations, root);
+            if (value.rootMotion) new RootMotion(root!, value, bound);
             onApply(value);
             setError("");
           } catch (e) {
@@ -123,6 +126,7 @@ function Draft({
   );
 }
 export function AnimationPanel({ entity, asset, engine, disabled, commit }: Props) {
+  const [pathOpen, setPathOpen] = useState(false);
   const [clip, setClip] = useState(
       asset.import?.subassets.find((s) => s.kind === "clip")?.id || "",
     ),
@@ -361,6 +365,18 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
             Preview markers are not delivered to gameplay listeners. Play resets authored parameters
             and activation state.
           </p>
+        </>
+      )}
+      {player?.rootMotion && (
+        <>
+          <button onClick={() => setPathOpen(true)}>Inspect root path</button>
+          {pathOpen && (
+            <RootPathPreview
+              key={player.root.uuid}
+              player={player}
+              onClose={() => setPathOpen(false)}
+            />
+          )}
         </>
       )}
       {error && <p role="alert">{error}</p>}

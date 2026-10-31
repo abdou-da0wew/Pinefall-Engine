@@ -2,6 +2,10 @@
 
 Date: 2026-10-31. Candidate remains 0.6.0; this is not a new public release.
 
+## Root-motion continuation
+
+Root motion and its on-demand path dialog are now implemented for the documented kinematic-capsule profile. Current evidence: 114 unit tests / 567 assertions, graphical/headless wall parity, 100 motion Play/Stop cycles, Linux Electron smoke and standalone export smoke. See [ROOT-MOTION.md](ROOT-MOTION.md) for contracts and limits. The original checkpoint evidence below is retained as history; full Plan02 is still incomplete.
+
 ## Implemented and locally tested
 
 - Scene v3 animator components and PIF v5 integrity-covered persistence. Previous scene/PIF versions remain readable. Downgrading an animated scene is rejected.
@@ -38,9 +42,8 @@ Browser evidence uses Chromium/SwiftShader in this environment. It is not CEDAR 
 
 ## Still required for the full requested Plan02
 
-1. **Root motion:** horizontal/yaw extraction, loop/seek/reset handling, pose compensation, collision-correct controller proposal integration, root-path preview and wall fixture. Existing character controllers still resolve movement inside fixed scripts; the shared dispatcher is a prerequisite, not completion of the controller-proposal phase.
-2. **Authored production audio:** audio assets/cues/buses in schema and PIF, preview/unlock/mixer editor UI, scheduling epochs, bounded streaming, spatial listener/emitters, scene/persistent ownership, pause/focus/Stop behavior and scoped SDK. Existing audio modules remain the earlier AA0 foundation.
-3. **AA6:** the complete authored attack/footstep/wall/audio tutorial, export and native integration, and combined animation/audio lifecycle regression.
-4. **External acceptance:** physical Linux/Windows listening, measured audiovisual alignment, CEDAR hardware, native Windows run and independent acceptance. Earlier Plan01 external gates remain open.
+1. **Authored production audio:** audio assets/cues/buses in schema and PIF, preview/unlock/mixer editor UI, scheduling epochs, bounded streaming, spatial listener/emitters, scene/persistent ownership, pause/focus/Stop behavior and scoped SDK. Existing audio modules remain the earlier AA0 foundation.
+2. **AA6:** the complete authored attack/footstep/wall/audio tutorial, export and native integration, and combined animation/audio lifecycle regression.
+3. **External acceptance:** physical Linux/Windows listening, measured audiovisual alignment, CEDAR hardware, native Windows run and independent acceptance. Earlier Plan01 external gates remain open.
 
-Do not mark AA1–AA6 or the full Plan02 complete from this checkpoint. The missing root-path preview alone prevents full AA1 acceptance; root motion and production audio are substantial unimplemented work, not documentation-only gates.
+Do not mark AA1–AA6 or the full Plan02 complete from this checkpoint. Root motion/path inspection is now covered by the documented profile; production audio and combined AA6 integration are still substantial unfinished work, not documentation-only gates.

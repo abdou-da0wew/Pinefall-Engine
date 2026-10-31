@@ -102,6 +102,7 @@ export class HeadlessEngine implements SimulationHost {
     this.behaviorBuilder = createBehavior;
     this.fixed.clear();
     this.playing = true;
+    this.physics.deferredMotion = true;
     this.ui.interactive = true;
     for (const animator of this.animators.values()) {
       animator.graph.reset();

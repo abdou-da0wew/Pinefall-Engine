@@ -1,3 +1,4 @@
+import { RootMotion } from "./root-motion";
 import { assetMemory, type Reservation } from "../../assets/src/budget";
 import * as T from "three";
 import { AnimationGraph, type GraphFrame } from "./graph";
@@ -14,6 +15,7 @@ interface Pose {
 /** Interrupted fades freeze the actually evaluated source pose, not the old state's nominal clip. */
 export class AnimationGraphPlayer {
   readonly graph: AnimationGraph;
+  rootMotion?: RootMotion;
   private mixer: T.AnimationMixer;
   private clips: Map<string, T.AnimationClip>;
   private rest: Pose[];
@@ -38,6 +40,8 @@ export class AnimationGraphPlayer {
     this.rest = [];
     try {
       this.rest = this.capture();
+      if (this.graph.definition.rootMotion)
+        this.rootMotion = new RootMotion(root, this.graph.definition, this.clips);
       this.sample();
     } catch (error) {
       this.dispose();
@@ -102,12 +106,15 @@ export class AnimationGraphPlayer {
         }
       }
     else this.frozen = [];
+    this.rootMotion?.compensate();
     this.root.updateMatrixWorld(true);
   }
   advance(dt: number) {
     const result = this.graph.advance(dt);
+    const rootDelta =
+      this.rootMotion && result.motion ? this.rootMotion.delta(result.motion) : undefined;
     this.sample();
-    return result;
+    return { ...result, rootDelta };
   }
   seek(normalized: number) {
     this.graph.seek(normalized);
@@ -121,6 +128,7 @@ export class AnimationGraphPlayer {
     this.rest = [];
     this.frozen = [];
     this.clips.clear();
+    this.rootMotion = undefined;
     this.reservation.release();
     this.dead = true;
   }

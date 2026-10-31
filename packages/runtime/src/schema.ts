@@ -315,6 +315,20 @@ export function parseScene(value: unknown): SceneDocument {
         sensor: e.physics.sensor,
       };
     }
+    if (out.animator?.rootMotion) {
+      const t = out.transform;
+      if (
+        out.physics?.type !== "kinematic" ||
+        out.physics.shape !== "capsule" ||
+        out.physics.sensor ||
+        out.parent ||
+        Math.abs(t.rotation[0]) > 1e-6 ||
+        Math.abs(t.rotation[2]) > 1e-6 ||
+        Math.abs(t.scale[0] - t.scale[1]) > 1e-6 ||
+        Math.abs(t.scale[0] - t.scale[2]) > 1e-6
+      )
+        fail("Root motion requires an upright, uniformly scaled, nonsensor kinematic capsule");
+    }
     if (e.light !== undefined) {
       if (!record(e.light)) fail("light");
       out.light = {

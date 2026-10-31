@@ -12,3 +12,6 @@ export { AnimationGraph } from "./graph";
 export type { GraphFrame, GraphEvent, PoseSample } from "./graph";
 export { AnimationGraphPlayer } from "./graph-player";
 export { bindAnimationClips } from "./bindings";
+
+export { RootMotion } from "./root-motion";
+export type { RootDelta } from "./root-motion";

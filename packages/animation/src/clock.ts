@@ -85,6 +85,9 @@ export class ClipClock {
     if (!this.loop) return Math.max(0, Math.min(this.duration, this.elapsed));
     return ((this.elapsed % this.duration) + this.duration) % this.duration;
   }
+  get cursor() {
+    return this.elapsed / this.duration;
+  }
   get normalized() {
     return this.time / this.duration;
   }

@@ -57,3 +57,62 @@ export async function animatedScene() {
   );
   return { scene: placed.scene, id: placed.entity.id, asset: imported.asset };
 }
+
+/** Original owned fixture: two metres of horizontal root travel per second. */
+export async function rootMotionScene(wall = true) {
+  const bytes = skinnedTriangle(),
+    view = new DataView(bytes.buffer),
+    jsonLength = view.getUint32(12, true),
+    doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)));
+  const channel = doc.animations[0].samplers[0],
+    accessor = doc.accessors[channel.output],
+    offset =
+      28 +
+      jsonLength +
+      doc.bufferViews[accessor.bufferView].byteOffset +
+      (accessor.byteOffset || 0);
+  view.setFloat32(offset + 4 * 4, 0, true);
+  view.setFloat32(offset + 5 * 4, 2, true);
+  const imported = adoptImport(
+      createGame("Root-motion wall"),
+      await prepareGlbRecord("walk.glb", bytes),
+    ),
+    placed = placeModel(imported.scene, imported.asset.id),
+    scene = placed.scene,
+    id = placed.entity.id;
+  scene.version = 3;
+  scene.entities = scene.entities.filter((e) => e.tag !== "player");
+  const actor = scene.entities.find((e) => e.id === id)!;
+  actor.transform.position = [0, 1, 0];
+  actor.behavior = "character";
+  actor.tag = "player";
+  actor.physics = {
+    type: "kinematic",
+    shape: "capsule",
+    mass: 75,
+    friction: 0.5,
+    restitution: 0,
+    sensor: false,
+  };
+  actor.animator = animatorDefinition(
+    imported.asset.import!.subassets.find((s) => s.kind === "clip")!.id,
+  );
+  actor.animator.rootMotion = { node: "Bone" };
+  if (wall)
+    scene.entities.push({
+      id: "wall",
+      name: "Wall",
+      enabled: true,
+      transform: { position: [0, 1.5, 3], rotation: [0, 0, 0], scale: [10, 3, 0.5] },
+      mesh: { primitive: "box", color: "#667c60" },
+      physics: {
+        type: "fixed",
+        shape: "box",
+        mass: 1,
+        friction: 0.5,
+        restitution: 0,
+        sensor: false,
+      },
+    });
+  return { scene, id };
+}

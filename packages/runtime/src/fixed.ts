@@ -75,6 +75,7 @@ export class FixedSimulation {
         ),
         active = (id: string) => !this.pendingDestroy.has(id);
       this.inputSnapshot = new Set(host.input);
+      host.physics.beginMotion();
       this.trace.push("fixed");
       for (const entity of entities)
         if (entity.enabled && active(entity.id))
@@ -85,7 +86,11 @@ export class FixedSimulation {
         const animator = host.animators.get(entity.id);
         if (!animator || !entity.enabled || !active(entity.id)) continue;
         try {
+          if (animator.rootMotion)
+            host.physics.proposeRoot(entity.id, { x: 0, z: 0, yaw: 0 }, entity.transform.scale[0]);
           const result = animator.advance(1 / 60);
+          if (result.rootDelta)
+            host.physics.proposeRoot(entity.id, result.rootDelta, entity.transform.scale[0]);
           if (result.overflow)
             host.events.emit("error", "Animation marker overflow", { entity: entity.id });
           for (const event of result.events) pending.push({ id: entity.id, event });
@@ -98,6 +103,7 @@ export class FixedSimulation {
         }
       }
       this.trace.push("physics");
+      host.physics.resolveMotion(active);
       const contacts: { a: string; b: string; started: boolean }[] = [];
       let overflow = false;
       host.physics.step((x, y, started) => {
@@ -160,6 +166,7 @@ export class FixedSimulation {
       }
       this.ticks++;
     } finally {
+      host.physics.endMotion();
       this.running = false;
     }
   }

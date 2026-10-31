@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-31",
+  "status": "root-motion-profile-implemented-full-plan02-incomplete",
+  "profile": "upright-uniform-kinematic-capsule-static-rig-ancestors",
+  "unit": {
+    "pass": 114,
+    "assertions": 567,
+    "files": 21
+  },
+  "typecheck": "pass",
+  "oxlint": {
+    "status": "pass",
+    "files": 147
+  },
+  "build": "pass-with-large-chunk-warning",
+  "browser": {
+    "wallZ": 2.3750224113464355,
+    "headlessWallZ": 2.3750224113464355,
+    "cycles": 100,
+    "stagedRollback": "pass",
+    "admittedMemoryPlateau": true,
+    "pathModal": "pass"
+  },
+  "native": "Linux Electron Xvfb SwiftShader smoke pass",
+  "export": "standalone-web-load-and-render-smoke-pass",
+  "firstTickCollision": "direct conservative sweep, one Rapier step verified",
+  "remaining": [
+    "authored-production-audio",
+    "combined-AA6-tutorial-and-regressions",
+    "physical-device-and-independent-acceptance",
+    "UI-modularization-after-Plan02"
+  ]
+}
