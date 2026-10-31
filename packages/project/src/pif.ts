@@ -1,3 +1,4 @@
+import { newProjectMetadata, parseProjectMetadata } from "./metadata";
 import { ensureInlineInit, xzAsync } from "./xz";
 import { parseScene } from "../../runtime/src/schema";
 import type { SceneDocument } from "../../runtime/src/schema";
@@ -7,7 +8,9 @@ export const PIF_EXPANDED_LIMIT = 40 * 1024 * 1024;
 const encoder = new TextEncoder(),
   decoder = new TextDecoder("utf-8", { fatal: true });
 const safePath = (s: string) =>
-  /^(project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|scripts\/[A-Za-z0-9_-]+\.ts)$/.test(s);
+  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|scripts\/[A-Za-z0-9_-]+\.ts)$/.test(
+    s,
+  );
 export function writeTar(files: Map<string, Uint8Array>): Uint8Array {
   let size = 1024;
   for (const [path, bytes] of files) {
@@ -88,6 +91,12 @@ function base64(bytes: Uint8Array) {
 export function projectFiles(scene: SceneDocument) {
   const checked = parseScene(scene),
     files = new Map<string, Uint8Array>();
+  const metadata = parseProjectMetadata(checked.project || newProjectMetadata(checked.name));
+  metadata.title = checked.name;
+  metadata.modifiedAt = new Date(
+    Math.max(Date.now(), Date.parse(metadata.createdAt)),
+  ).toISOString();
+  metadata.editor.version = "0.5.2-dev";
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
       bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
@@ -102,17 +111,29 @@ export function projectFiles(scene: SceneDocument) {
   });
   files.set(
     "project.json",
-    encoder.encode(JSON.stringify({ format: "pinefall-project", version: 1, scene: "scene.json" })),
+    encoder.encode(
+      JSON.stringify({
+        format: "pinefall-project",
+        version: 2,
+        minimumReader: 2,
+        scene: "scene.json",
+        project: metadata,
+      }),
+    ),
   );
   files.set(
     "scene.json",
     encoder.encode(
-      JSON.stringify({ ...checked, assets, ...(scripts ? { scripts } : {}) }, null, 2),
+      JSON.stringify(
+        { ...checked, project: undefined, assets, ...(scripts ? { scripts } : {}) },
+        null,
+        2,
+      ),
     ),
   );
   return files;
 }
-export function sceneFromFiles(files: Map<string, Uint8Array>): SceneDocument {
+function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   const used = new Set<string>();
   const get = (path: unknown) => {
     if (typeof path !== "string" || !safePath(path) || !files.has(path))
@@ -123,11 +144,31 @@ export function sceneFromFiles(files: Map<string, Uint8Array>): SceneDocument {
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    manifest.version !== 1 ||
+    ![1, 2].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
+  if (manifest.version === 2) {
+    if (manifest.minimumReader !== 2) throw Error("Unsupported minimum PIF reader");
+    parseProjectMetadata(manifest.project);
+  }
+  if (
+    Object.keys(manifest).some(
+      (k) =>
+        !(
+          manifest.version === 2
+            ? ["format", "version", "minimumReader", "scene", "project"]
+            : ["format", "version", "scene"]
+        ).includes(k),
+    )
+  )
+    throw Error("Unknown PIF manifest field");
   const scene = JSON.parse(decoder.decode(get("scene.json")));
+  if (manifest.version === 2) {
+    if (scene.project !== undefined) throw Error("Duplicate project metadata");
+    scene.project = parseProjectMetadata(manifest.project);
+  }
+
   if (
     !Array.isArray(scene.assets) ||
     scene.assets.length > 16 ||
@@ -150,21 +191,113 @@ export function sceneFromFiles(files: Map<string, Uint8Array>): SceneDocument {
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
   return parseScene(scene);
 }
+export const PIF_VERSION = 2;
+export async function sha256(bytes: Uint8Array) {
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+export async function sealProjectFiles(files: Map<string, Uint8Array>) {
+  const copy = new Map(files);
+  copy.delete("integrity.json");
+  const entries = [];
+  for (const [path, bytes] of [...copy].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    entries.push({ path, size: bytes.length, sha256: await sha256(bytes) });
+  const root = await sha256(encoder.encode(JSON.stringify(entries)));
+  copy.set(
+    "integrity.json",
+    encoder.encode(JSON.stringify({ version: 1, algorithm: "SHA-256", entries, root }, null, 2)),
+  );
+  return copy;
+}
+export interface PIFReadOptions {
+  expectedSha256?: string;
+  requireIntegrity?: boolean;
+}
+export async function sceneFromFiles(
+  files: Map<string, Uint8Array>,
+  options: PIFReadOptions = {},
+): Promise<SceneDocument> {
+  const manifestBytes = files.get("project.json");
+  if (!manifestBytes || manifestBytes.length > 16384) throw Error("Missing/oversized PIF manifest");
+  const manifest = JSON.parse(decoder.decode(manifestBytes));
+  if (manifest.version === 1) {
+    if (options.requireIntegrity) throw Error("Legacy PIF has no integrity proof");
+    if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
+    return decodeFiles(files);
+  }
+  if (manifest.version !== 2) throw Error("Unsupported PIF manifest version");
+  const proofBytes = files.get("integrity.json");
+  if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");
+  const proof = JSON.parse(decoder.decode(proofBytes));
+  if (
+    Object.keys(proof).some((k) => !["version", "algorithm", "entries", "root"].includes(k)) ||
+    proof.version !== 1 ||
+    proof.algorithm !== "SHA-256" ||
+    !Array.isArray(proof.entries) ||
+    proof.entries.length !== files.size - 1 ||
+    proof.entries.length > 99 ||
+    typeof proof.root !== "string" ||
+    !/^[a-f0-9]{64}$/.test(proof.root)
+  )
+    throw Error("Invalid integrity proof");
+  const canonical: Array<{ path: string; size: number; sha256: string }> = [];
+  let previous = "";
+  for (const entry of proof.entries) {
+    if (
+      !entry ||
+      Object.keys(entry).some((k) => !["path", "size", "sha256"].includes(k)) ||
+      typeof entry.path !== "string" ||
+      entry.path <= previous ||
+      entry.path === "integrity.json" ||
+      !safePath(entry.path) ||
+      !Number.isSafeInteger(entry.size) ||
+      entry.size < 0 ||
+      typeof entry.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(entry.sha256)
+    )
+      throw Error("Invalid integrity inventory");
+    const bytes = files.get(entry.path);
+    if (!bytes || bytes.length !== entry.size || (await sha256(bytes)) !== entry.sha256)
+      throw Error("PIF integrity mismatch: " + entry.path);
+    previous = entry.path;
+    canonical.push({ path: entry.path, size: entry.size, sha256: entry.sha256 });
+  }
+  if ((await sha256(encoder.encode(JSON.stringify(canonical)))) !== proof.root)
+    throw Error("PIF root hash mismatch");
+  const payload = new Map(files);
+  payload.delete("integrity.json");
+  return decodeFiles(payload);
+}
 export async function packProject(scene: SceneDocument): Promise<Uint8Array> {
-  const tar = writeTar(projectFiles(scene));
+  const tar = writeTar(await sealProjectFiles(projectFiles(scene)));
   await ensureInlineInit();
   const bytes = await xzAsync(tar, { preset: 6 });
   if (bytes.length > PIF_COMPRESSED_LIMIT) throw Error("Compressed project too large");
   return bytes;
 }
 /** Fixed-size output allocation: malformed XZ cannot expand beyond the project budget. */
-export async function unpackProject(bytes: Uint8Array): Promise<SceneDocument> {
+export async function inspectProject(
+  bytes: Uint8Array,
+  options: PIFReadOptions = {},
+): Promise<{
+  scene: SceneDocument;
+  formatVersion: number;
+  integrity: "sha256-verified" | "legacy-unverified";
+  archiveSha256: string;
+}> {
   if (
     bytes.length < 24 ||
     bytes.length > PIF_COMPRESSED_LIMIT ||
     ![253, 55, 122, 88, 90, 0].every((v, i) => bytes[i] === v)
   )
     throw Error("Expected an XZ-compressed .pif project");
+  if (
+    options.expectedSha256 !== undefined &&
+    (!/^[a-fA-F0-9]{64}$/.test(options.expectedSha256) ||
+      (await sha256(bytes)) !== options.expectedSha256.toLowerCase())
+  )
+    throw Error("PIF external SHA-256 mismatch");
   const m = await ensureInlineInit();
   let input = 0,
     output = 0,
@@ -193,10 +326,25 @@ export async function unpackProject(bytes: Uint8Array): Promise<SceneDocument> {
         "Invalid XZ stream or project exceeds memory/expansion budget (code " + code + ")",
       );
     const size = m.getValue(meta + 12, "i32");
-    return sceneFromFiles(readTar(m.HEAPU8.slice(output, output + size)));
+    const files = readTar(m.HEAPU8.slice(output, output + size));
+    const scene = await sceneFromFiles(files, options);
+    const formatVersion = JSON.parse(decoder.decode(files.get("project.json"))).version;
+    return {
+      scene,
+      formatVersion,
+      integrity: formatVersion === 2 ? "sha256-verified" : "legacy-unverified",
+      archiveSha256: await sha256(bytes),
+    };
   } finally {
     if (input) m._free(input);
     if (output) m._free(output);
     if (meta) m._free(meta);
   }
+}
+
+export async function unpackProject(
+  bytes: Uint8Array,
+  options: PIFReadOptions = {},
+): Promise<SceneDocument> {
+  return (await inspectProject(bytes, options)).scene;
 }

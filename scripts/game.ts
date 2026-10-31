@@ -1,4 +1,5 @@
-import { packProject, unpackProject } from "../packages/project/src/pif";
+import { newProjectMetadata, parseProjectMetadata } from "../packages/project/src/metadata";
+import { packProject, unpackProject, inspectProject } from "../packages/project/src/pif";
 import { typecheckScripts } from "./typecheck-scripts";
 import { compileScript } from "../packages/scripting/src/compiler";
 import { mkdir, copyFile, cp, stat, rename } from "node:fs/promises";
@@ -26,9 +27,43 @@ async function main() {
     throw Error(
       "Commands: new, inspect, validate, import, place, edit, simulate, export-web. See docs/CREATING-GAMES.md",
     );
+  if (command === "verify-pif") {
+    const hashIndex = args.indexOf("--sha256");
+    if (hashIndex >= 0 && !args[hashIndex + 1]) throw Error("Provide an expected SHA-256 digest");
+    const result = await inspectProject(await Bun.file(path).bytes(), {
+      requireIntegrity: args.includes("--require-integrity"),
+      ...(hashIndex >= 0 ? { expectedSha256: args[hashIndex + 1] } : {}),
+    });
+    return {
+      valid: true,
+      formatVersion: result.formatVersion,
+      integrity: result.integrity,
+      archiveSha256: result.archiveSha256,
+      externalDigestMatched: hashIndex >= 0,
+      authenticated: false,
+      project: result.scene.project || null,
+    };
+  }
   const scene = path.toLowerCase().endsWith(".pif")
     ? await unpackProject(await Bun.file(path).bytes())
     : parseScene(await Bun.file(path).json());
+  if (command === "metadata") {
+    if (!args[0]) return scene.project || { metadata: "absent in legacy project" };
+    const patch = JSON.parse(args[0]);
+    if (
+      !patch ||
+      typeof patch !== "object" ||
+      Array.isArray(patch) ||
+      Object.keys(patch).some((k) => !["author", "description", "projectVersion"].includes(k))
+    )
+      throw Error("Metadata patch accepts author, description and projectVersion only");
+    scene.project = parseProjectMetadata({
+      ...(scene.project || newProjectMetadata(scene.name)),
+      ...patch,
+    });
+    await writeScene(path, scene);
+    return { updated: true, projectId: scene.project.id };
+  }
   if (command === "pack" || command === "unpack") {
     if (!args[0] || (await Bun.file(args[0]).exists())) throw Error("Specify a new destination");
     if (

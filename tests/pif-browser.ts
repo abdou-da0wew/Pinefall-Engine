@@ -28,7 +28,9 @@ try {
   const download = await wait;
   expect(download.suggestedFilename()).toBe("UI Lab.pif");
   await download.saveAs("build/browser-project.pif");
-  expect(await unpackProject(await Bun.file("build/browser-project.pif").bytes())).toEqual(sample);
+  expect(await unpackProject(await Bun.file("build/browser-project.pif").bytes())).toMatchObject({
+    ...sample,
+  });
   await page
     .locator('input[accept=".pif,.json"]')
     .setInputFiles({ name: "same.pif", mimeType: "application/x-xz", buffer: Buffer.from(bytes) });

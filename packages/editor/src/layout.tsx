@@ -181,6 +181,7 @@ export function useWorkspaceLayout(scripts: boolean) {
     </div>
   ) : null;
   return {
+    dock: layout.dock,
     toolbar,
     handles,
     dockGrip,

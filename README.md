@@ -1,4 +1,4 @@
-# Pinefall Engine 0.5.1
+# Pinefall Engine 0.5.2-dev
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
@@ -7,6 +7,10 @@
 **0.5.1:** real XZ-compressed `.pif` projects, separate asset/script files, cancellable worker open/save, desktop binary saves and project keyboard shortcuts. Includes the complete **0.5.0 UI toolkit**. See [PIF projects](docs/PIF.md) and [Game UI toolkit](docs/UI-TOOLKIT.md). Release preparation does not imply GitHub publication; verify the release page for availability.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
+
+## Unreleased: PIF v2
+
+Current source writes portable project/editor metadata and a verified SHA-256 resource inventory. Strict verification and an optional trusted external digest are supported. These are integrity checks, not signatures. Published 0.5.1 reads only PIF v1; see [format compatibility and verification](docs/PIF.md).
 
 ## Work in progress: 0.6
 

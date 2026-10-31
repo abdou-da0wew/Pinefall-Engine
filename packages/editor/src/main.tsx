@@ -1,3 +1,4 @@
+import { newProjectMetadata } from "../../project/src/metadata";
 import { projectJob } from "../../project/src/pif-client";
 import { UIEditor } from "./ui-editor";
 import { ColorPicker } from "./color-picker";
@@ -64,7 +65,11 @@ function App() {
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
-  const [scene, setScene] = useState(initialScene),
+  const [scene, setScene] = useState(() => {
+      const scene = initialScene();
+      scene.project ??= newProjectMetadata(scene.name);
+      return scene;
+    }),
     [selected, setSelected] = useState<string | null>(null),
     [playing, setPlaying] = useState(false),
     [paused, setPaused] = useState(false),
@@ -115,7 +120,12 @@ function App() {
     setStatus("Compressing PIF project in worker…");
     try {
       const name = current.current.name;
-      const bytes = await projectJob("pack", current.current, controller.signal);
+      const snapshot = cloneScene(current.current);
+      if (snapshot.project) {
+        snapshot.project.editor.activeTool = tool;
+        snapshot.project.editor.layout = workspace.dock;
+      }
+      const bytes = await projectJob("pack", snapshot, controller.signal);
       if (controller.signal.aborted) return;
       if (window.engineDesktop) {
         const saved = await window.engineDesktop.save(name + ".pif", bytes);
@@ -145,6 +155,7 @@ function App() {
         gameStarter === "blank" ? createGame(gameName) : createTemplate(gameStarter as Template);
       next.name = gameName;
       const checked = parseScene(next);
+      checked.project ??= newProjectMetadata(checked.name);
       if (JSON.stringify(checked) === JSON.stringify(current.current)) return;
       history.current.commit(current.current);
       current.current = checked;
@@ -166,6 +177,7 @@ function App() {
       const next = cloneScene(current.current);
       fn(next);
       const checked = parseScene(next);
+      checked.project ??= newProjectMetadata(checked.name);
       if (JSON.stringify(checked) === JSON.stringify(current.current)) return;
       history.current.commit(current.current);
       current.current = checked;
@@ -297,6 +309,7 @@ function App() {
     if (playing) return;
     history.current.commit(scene);
     const next = createTemplate(template);
+    next.project = newProjectMetadata(next.name);
     current.current = next;
     setScene(next);
     setSelected(null);
@@ -343,6 +356,7 @@ function App() {
       if (current.current !== before)
         throw Error("Project changed while opening. Retry after finishing your edits.");
       if (engine.current?.playing) throw Error("Stop gameplay before replacing the project");
+      next.project ??= newProjectMetadata(next.name);
       setTrustedSignature(null);
       setStatus("Project opened; executable scripts require approval");
       history.current.commit(scene);
@@ -565,7 +579,7 @@ function App() {
           </span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.5.1</small>
+            <small>WORKSHOP / 0.5.2-dev</small>
           </div>
         </div>
         <div className="project-path">

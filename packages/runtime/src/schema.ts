@@ -1,3 +1,4 @@
+import { parseProjectMetadata, type ProjectMetadata } from "../../project/src/metadata";
 import { parseUI } from "../../ui/src/schema";
 import type { UIDocument } from "../../ui/src/schema";
 export type Vec3 = [number, number, number];
@@ -53,6 +54,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  project?: ProjectMetadata;
   ui?: UIDocument;
   collections?: Collection[];
   scripts?: ScriptAsset[];
@@ -304,6 +306,7 @@ export function parseScene(value: unknown): SceneDocument {
   }
   const env = value.environment;
   return {
+    ...(value.project !== undefined ? { project: parseProjectMetadata(value.project) } : {}),
     version: 1,
     name: text(value.name, "scene name"),
     template: oneOf(value.template, ["adventure", "first-person", "driving", "sandbox"]),

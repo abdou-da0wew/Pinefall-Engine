@@ -31,7 +31,9 @@ try {
   }, process.cwd() + "/build/native-project.pif");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
   await expect(page.locator(".statusbar")).toContainText("PIF project saved");
-  expect(await unpackProject(await Bun.file("build/native-project.pif").bytes())).toEqual(scene);
+  expect(await unpackProject(await Bun.file("build/native-project.pif").bytes())).toMatchObject({
+    ...scene,
+  });
   expect(errors).toEqual([]);
   console.log("PASS Linux Electron production renderer: PIF worker and binary IPC save roundtrip");
 } finally {
