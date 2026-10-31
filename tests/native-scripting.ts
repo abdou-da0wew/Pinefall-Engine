@@ -12,7 +12,7 @@ try {
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
   await page
-    .locator('input[type=file][accept=".json"]')
+    .locator('input[type=file][accept=".pif,.json"]')
     .first()
     .setInputFiles("examples/projects/script-lab.scene.json");
   await expect(page.getByLabel("Allow trusted scripts")).not.toBeChecked();

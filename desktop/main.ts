@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { appendFileSync, existsSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, renameSync, statSync } from "node:fs";
 if (process.argv.includes("--legacy-gl")) {
   app.commandLine.appendSwitch("use-gl", "angle");
   app.commandLine.appendSwitch("use-angle", "gl");
@@ -46,15 +47,15 @@ void app.whenReady().then(() => {
     if (
       event.sender !== win.webContents ||
       typeof name !== "string" ||
-      typeof text !== "string" ||
-      text.length > 9000000
+      !(typeof text === "string" || text instanceof Uint8Array) ||
+      text.length > (typeof text === "string" ? 9000000 : 16 * 1024 * 1024)
     )
       throw Error("Invalid save");
     const result = await dialog.showSaveDialog(win, {
       defaultPath: name.replace(/[^a-zA-Z0-9._ -]/g, "_"),
     });
     if (result.canceled || !result.filePath) return false;
-    writeFileSync(result.filePath, text);
+    await writeFile(result.filePath, text);
     return true;
   });
   Menu.setApplicationMenu(

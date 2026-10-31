@@ -190,6 +190,7 @@ export class Engine {
   private bindInput() {
     this.listen(window, "keydown", (event) => {
       const e = event as KeyboardEvent;
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey) return;
       if (
         e.target instanceof Element &&
         e.target.closest("[data-pinefall-ui]") &&

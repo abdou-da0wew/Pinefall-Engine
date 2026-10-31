@@ -1,3 +1,4 @@
+import { projectJob } from "../../project/src/pif-client";
 import { UIEditor } from "./ui-editor";
 import { ColorPicker } from "./color-picker";
 import { descendants } from "./hierarchy-model";
@@ -54,6 +55,9 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [projectBusy, setProjectBusy] = useState(false);
+  const projectAbort = useRef<AbortController | null>(null);
+  const projectCommands = useRef<(event: KeyboardEvent) => void>(() => {});
   const [uiSelected, setUISelected] = useState("");
   const [trustedSignature, setTrustedSignature] = useState<string | null>(null),
     [scriptId, setScriptId] = useState("");
@@ -84,6 +88,57 @@ function App() {
     glb = useRef<HTMLInputElement>(null),
     prefabFile = useRef<HTMLInputElement>(null);
   const applyRef = useRef<(fn: (scene: SceneDocument) => void) => void>(() => {});
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => projectCommands.current(e);
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      projectAbort.current?.abort();
+    };
+  }, []);
+  projectCommands.current = (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      if (!projectBusy) void saveProject();
+    }
+    if (e.key.toLowerCase() === "o") {
+      e.preventDefault();
+      if (!projectBusy && !playing) file.current?.click();
+    }
+  };
+  async function saveProject() {
+    if (projectAbort.current) return;
+    const controller = new AbortController();
+    projectAbort.current = controller;
+    setProjectBusy(true);
+    setStatus("Compressing PIF project in worker…");
+    try {
+      const name = current.current.name;
+      const bytes = await projectJob("pack", current.current, controller.signal);
+      if (controller.signal.aborted) return;
+      if (window.engineDesktop) {
+        const saved = await window.engineDesktop.save(name + ".pif", bytes);
+        setStatus(saved ? "PIF project saved" : "Save cancelled");
+      } else {
+        const url = URL.createObjectURL(
+          new Blob([new Uint8Array(bytes)], { type: "application/x-xz" }),
+        );
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name + ".pif";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus("PIF project exported");
+      }
+    } catch (error) {
+      setStatus(String(error));
+    } finally {
+      if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
+    }
+  }
+
   function createNewGame() {
     try {
       const next =
@@ -194,7 +249,7 @@ function App() {
     const timer = setTimeout(() => {
       try {
         localStorage.setItem("pinefall-engine.scene.v1", serializeScene(scene));
-        setStatus("Scene saved locally");
+        // Autosave must not overwrite import/export results or errors.
       } catch {
         setStatus("Local storage unavailable/full. Export your scene to keep it.");
       }
@@ -271,10 +326,25 @@ function App() {
   async function loadScene(event: React.ChangeEvent<HTMLInputElement>) {
     const f = event.target.files?.[0];
     event.target.value = "";
-    if (!f) return;
+    if (!f || projectAbort.current) return;
+    const before = current.current;
     try {
-      if (f.size > 9_000_000) throw new Error("Scene exceeds 9 MB limit");
-      const next = parseScene(JSON.parse(await f.text()));
+      const isPif = f.name.toLowerCase().endsWith(".pif");
+      if (f.size > (isPif ? 16 * 1024 * 1024 : 9_000_000))
+        throw Error("Project exceeds file size limit");
+      const controller = new AbortController();
+      projectAbort.current = controller;
+      setProjectBusy(true);
+      setStatus(isPif ? "Opening PIF in worker…" : "Opening legacy JSON…");
+      const next = isPif
+        ? await projectJob("unpack", new Uint8Array(await f.arrayBuffer()), controller.signal)
+        : parseScene(JSON.parse(await f.text()));
+      if (controller.signal.aborted) throw Error("Project operation cancelled");
+      if (current.current !== before)
+        throw Error("Project changed while opening. Retry after finishing your edits.");
+      if (engine.current?.playing) throw Error("Stop gameplay before replacing the project");
+      setTrustedSignature(null);
+      setStatus("Project opened; executable scripts require approval");
       history.current.commit(scene);
       current.current = next;
       setScene(next);
@@ -282,6 +352,9 @@ function App() {
       setRevision((r) => r + 1);
     } catch (e) {
       setStatus(String(e));
+    } finally {
+      projectAbort.current = null;
+      setProjectBusy(false);
     }
   }
   async function importFiles(files: File[]) {
@@ -503,9 +576,24 @@ function App() {
           <button disabled={playing} onClick={() => setNewGameOpen(true)}>
             <Icon name="plus" /> New game
           </button>
-          <button disabled={playing} onClick={() => file.current?.click()}>
-            <Icon name="upload" /> Open scene
+          <button
+            disabled={playing || projectBusy}
+            title="Open project · Ctrl/⌘+O"
+            onClick={() => file.current?.click()}
+          >
+            <Icon name="upload" /> Open project
           </button>
+          <button
+            disabled={projectBusy}
+            title="Save PIF project · Ctrl/⌘+S"
+            onClick={() => void saveProject()}
+          >
+            <Icon name="save" />
+            Save project
+          </button>
+          {projectBusy && (
+            <button onClick={() => projectAbort.current?.abort()}>Cancel project operation</button>
+          )}
           <button onClick={() => void download(scene.name + ".scene.json", serializeScene(scene))}>
             <Icon name="download" /> Export scene
           </button>
@@ -1405,7 +1493,13 @@ function App() {
           <span>WebGL 2</span>
         </div>
       </footer>
-      <input ref={file} hidden type="file" accept=".json" onChange={(e) => void loadScene(e)} />
+      <input
+        ref={file}
+        hidden
+        type="file"
+        accept=".pif,.json"
+        onChange={(e) => void loadScene(e)}
+      />
       <input
         ref={glb}
         hidden

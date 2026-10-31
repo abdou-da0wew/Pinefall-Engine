@@ -1,3 +1,4 @@
+import { packProject, unpackProject } from "../packages/project/src/pif";
 import { typecheckScripts } from "./typecheck-scripts";
 import { compileScript } from "../packages/scripting/src/compiler";
 import { mkdir, copyFile, cp, stat, rename } from "node:fs/promises";
@@ -8,7 +9,10 @@ import { HeadlessEngine } from "../packages/headless/src";
 const [command, path, ...args] = process.argv.slice(2);
 async function writeScene(path: string, scene: ReturnType<typeof createGame>) {
   const tmp = path + ".tmp-" + crypto.randomUUID();
-  await Bun.write(tmp, serializeScene(scene));
+  await Bun.write(
+    tmp,
+    path.toLowerCase().endsWith(".pif") ? await packProject(scene) : serializeScene(scene),
+  );
   await rename(tmp, path);
 }
 async function main() {
@@ -22,7 +26,19 @@ async function main() {
     throw Error(
       "Commands: new, inspect, validate, import, place, edit, simulate, export-web. See docs/CREATING-GAMES.md",
     );
-  const scene = parseScene(await Bun.file(path).json());
+  const scene = path.toLowerCase().endsWith(".pif")
+    ? await unpackProject(await Bun.file(path).bytes())
+    : parseScene(await Bun.file(path).json());
+  if (command === "pack" || command === "unpack") {
+    if (!args[0] || (await Bun.file(args[0]).exists())) throw Error("Specify a new destination");
+    if (
+      (command === "pack" && !args[0].endsWith(".pif")) ||
+      (command === "unpack" && !args[0].endsWith(".json"))
+    )
+      throw Error("Use .pif for pack and .json for legacy unpack");
+    await writeScene(args[0], scene);
+    return { written: args[0] };
+  }
   if (command === "validate")
     return { valid: true, entities: scene.entities.length, assets: scene.assets.length };
   if (command === "inspect") return scene;

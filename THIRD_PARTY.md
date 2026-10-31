@@ -27,3 +27,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## XZ project codec (unreleased PIF milestone)
+
+`node-liblzma` 5.1.3: https://github.com/oorabona/node-liblzma — LGPL-3.0, full license in `docs/licenses/node-liblzma-LGPL-3.0.txt`. The matching liblzma WASM binary is encoded in `packages/project/src/xz-binary.ts`; its loader/glue remains the pinned dependency. Source and build instructions are available from the upstream release/npm source package. The application source permits rebuilding/replacing the codec; see `docs/PIF.md`. No native addon or system xz installation is used by the project codec.
