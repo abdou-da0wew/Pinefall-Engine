@@ -1,3 +1,5 @@
+import { waveBytes, waveURI } from "../../audio/src/definition";
+import { inspectWave } from "../../audio/src/wav";
 import { materializeScene } from "../../assets/src/documents";
 import { parseImport, verifyImport } from "../../assets/src/record";
 import { fromDataURI } from "../../assets/src/glb";
@@ -11,7 +13,7 @@ export const PIF_EXPANDED_LIMIT = 40 * 1024 * 1024;
 const encoder = new TextEncoder(),
   decoder = new TextDecoder("utf-8", { fatal: true });
 const safePath = (s: string) =>
-  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts)$/.test(
+  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|audio\/[A-Za-z0-9_-]+\.wav)$/.test(
     s,
   );
 export function writeTar(files: Map<string, Uint8Array>): Uint8Array {
@@ -123,6 +125,18 @@ export function projectFiles(scene: SceneDocument) {
       ...(provenance ? { import: provenance } : {}),
     };
   });
+  const audio = checked.audio
+    ? {
+        ...checked.audio,
+        assets: checked.audio.assets.map((asset, i) => {
+          const file = `audio/${i}.wav`,
+            bytes = waveBytes(asset.data);
+          inspectWave(bytes);
+          files.set(file, bytes);
+          return { id: asset.id, name: asset.name, file };
+        }),
+      }
+    : undefined;
   const scripts = checked.scripts?.map((script, i) => {
     const path = `scripts/${i}.ts`;
     files.set(path, encoder.encode(script.source));
@@ -133,16 +147,18 @@ export function projectFiles(scene: SceneDocument) {
     encoder.encode(
       JSON.stringify({
         format: "pinefall-project",
-        version:
-          checked.version === 3 || checked.entities.some((e) => e.animator)
+        version: checked.audio
+          ? 6
+          : checked.version === 3 || checked.entities.some((e) => e.animator)
             ? 5
             : checked.assets.some((a) => a.import?.version === 2)
               ? 4
               : checked.assets.some((a) => a.import)
                 ? 3
                 : 2,
-        minimumReader:
-          checked.version === 3 || checked.entities.some((e) => e.animator)
+        minimumReader: checked.audio
+          ? 6
+          : checked.version === 3 || checked.entities.some((e) => e.animator)
             ? 5
             : checked.assets.some((a) => a.import?.version === 2)
               ? 4
@@ -158,7 +174,13 @@ export function projectFiles(scene: SceneDocument) {
     "scene.json",
     encoder.encode(
       JSON.stringify(
-        { ...checked, project: undefined, assets, ...(scripts ? { scripts } : {}) },
+        {
+          ...checked,
+          project: undefined,
+          assets,
+          ...(audio ? { audio } : {}),
+          ...(scripts ? { scripts } : {}),
+        },
         null,
         2,
       ),
@@ -177,7 +199,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3, 4, 5].includes(manifest.version) ||
+    ![1, 2, 3, 4, 5, 6].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
@@ -215,6 +237,24 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   )
     throw Error("Animator definitions require PIF v5");
   if (scene.version === 3 && manifest.version < 5) throw Error("Scene v3 requires PIF v5");
+  if (scene.audio !== undefined) {
+    if (manifest.version < 6) throw Error("Authored audio requires PIF v6");
+    if (!scene.audio || !Array.isArray(scene.audio.assets) || scene.audio.assets.length > 16)
+      throw Error("Invalid PIF audio catalog");
+    scene.audio.assets = scene.audio.assets.map((a: Record<string, unknown>) => {
+      if (
+        !a ||
+        "data" in a ||
+        typeof a.file !== "string" ||
+        !a.file.startsWith("audio/") ||
+        Object.keys(a).some((k) => !["id", "name", "file"].includes(k))
+      )
+        throw Error("Invalid audio archive reference");
+      const bytes = get(a.file);
+      inspectWave(bytes);
+      return { id: a.id, name: a.name, data: waveURI(bytes) };
+    });
+  }
   scene.assets = scene.assets.map((a: Record<string, unknown>) => {
     if (!a || "data" in a || typeof a.file !== "string" || !a.file.startsWith("assets/"))
       throw Error("PIF assets must reference files");
@@ -262,7 +302,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
   return parseScene(scene);
 }
-export const PIF_VERSION = 5;
+export const PIF_VERSION = 6;
 export async function sha256(bytes: Uint8Array) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -297,7 +337,7 @@ export async function sceneFromFiles(
     if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
     return decodeFiles(files);
   }
-  if (![2, 3, 4, 5].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
+  if (![2, 3, 4, 5, 6].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
   const proofBytes = files.get("integrity.json");
   if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");
   const proof = JSON.parse(decoder.decode(proofBytes));

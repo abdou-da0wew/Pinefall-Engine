@@ -7,7 +7,7 @@ const style = document.createElement("style");
 style.textContent = `*{box-sizing:border-box}body{margin:0;background:#14291e;color:#e3e4ca;font:13px system-ui}canvas{width:100vw;height:100vh;display:block}aside{position:absolute;top:20px;left:20px;padding:20px;background:#10251ee6;border:1px solid #74856855;border-radius:8px;max-width:360px}h1{font-weight:500}button,select,label{font:12px system-ui;padding:8px;background:#344b33;color:#e5e4c8;border:1px solid #647455;border-radius:4px;cursor:pointer}p{line-height:1.8;font-size:12px;color:#b3c5a9}#error{color:#ffbca2;white-space:pre-wrap}small{letter-spacing:2px;color:#b0ba8a}`;
 document.head.append(style);
 document.body.innerHTML =
-  '<canvas tabindex="0" aria-label="Game viewport"></canvas><aside><small style="display:flex;align-items:center;gap:8px"><img src="./pinefall-logo.svg" width="26" height="26" alt="Pinefall">PINEFALL / STANDALONE PLAYER</small><h1 id="title"></h1><p id="score">Loading physics…</p><p>WASD move/drive · Space jump/brake · Shift sprint · drag look · R recover · Escape pause. Sandbox: drag orbit.</p><button id="pause">Pause / resume</button> <button id="restart">Restart</button><p><select id="quality"><option value="low">Low / CEDAR</option><option value="high">High / FX</option></select> <label>Load scene<input hidden id="file" type="file" accept=".pif,.json"></label></p><div id="sandbox" hidden><button id="spawn">Spawn crate</button> <button id="impulse">Impulse</button></div><p id="trust" hidden>Scene contains executable code. Run only scripts you trust. <button id="allow-scripts">Trust scripts and play</button></p><p id="stats"></p><p id="error"></p></aside>';
+  '<canvas tabindex="0" aria-label="Game viewport"></canvas><aside><small style="display:flex;align-items:center;gap:8px"><img src="./pinefall-logo.svg" width="26" height="26" alt="Pinefall">PINEFALL / STANDALONE PLAYER</small><h1 id="title"></h1><p id="score">Loading physics…</p><p>WASD move/drive · Space jump/brake · Shift sprint · drag look · R recover · Escape pause. Sandbox: drag orbit.</p><button id="pause">Pause / resume</button> <button id="restart">Restart</button><p><select id="quality"><option value="low">Low / CEDAR</option><option value="high">High / FX</option></select> <label>Load scene<input hidden id="file" type="file" accept=".pif,.json"></label></p><div id="sandbox" hidden><button id="spawn">Spawn crate</button> <button id="impulse">Impulse</button></div><p id="trust" hidden>Scene contains executable code. Run only scripts you trust. <button id="allow-scripts">Trust scripts and play</button></p><p><button id="unlock-audio">Unlock audio</button></p><p id="stats"></p><p id="error"></p></aside>';
 const $ = (id: string) => document.getElementById(id)!;
 async function main() {
   let runtime: Engine;
@@ -54,6 +54,16 @@ async function main() {
     $("trust").hidden = true;
   };
   await load();
+  $("unlock-audio").onclick = () => {
+    void runtime.audio
+      .unlock()
+      .then((ready) => {
+        $("unlock-audio").textContent = ready ? "Audio ready" : "Audio blocked — retry";
+      })
+      .catch((error) => {
+        $("error").textContent = String(error);
+      });
+  };
   $("pause").onclick = () => {
     runtime.paused = !runtime.paused;
   };

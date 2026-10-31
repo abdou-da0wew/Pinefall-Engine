@@ -2,6 +2,10 @@
 
 Date: 2026-10-31. Candidate remains 0.6.0; this is not a new public release.
 
+## Authored buffered audio continuation
+
+AudioDefinition1/scene3/PIF6, content-addressed working audio, scoped SDK, pause/spatial/epoch routing and the Audio studio are implemented. The original combined workshop passes headless, exported-browser and Linux Electron PIF-player tests. Current full suite: **123 tests / 628 assertions**. See [AUTHORED-AUDIO.md](AUTHORED-AUDIO.md) for precise contracts and evidence. Streaming, persistent ownership and remaining acceptance are still open. Earlier numbers below are historical checkpoints.
+
 ## Root-motion continuation
 
 Root motion and its on-demand path dialog are now implemented for the documented kinematic-capsule profile. Current evidence: 114 unit tests / 567 assertions, graphical/headless wall parity, 100 motion Play/Stop cycles, Linux Electron smoke and standalone export smoke. See [ROOT-MOTION.md](ROOT-MOTION.md) for contracts and limits. The original checkpoint evidence below is retained as history; full Plan02 is still incomplete.
@@ -42,8 +46,8 @@ Browser evidence uses Chromium/SwiftShader in this environment. It is not CEDAR 
 
 ## Still required for the full requested Plan02
 
-1. **Authored production audio:** audio assets/cues/buses in schema and PIF, preview/unlock/mixer editor UI, scheduling epochs, bounded streaming, spatial listener/emitters, scene/persistent ownership, pause/focus/Stop behavior and scoped SDK. Existing audio modules remain the earlier AA0 foundation.
-2. **AA6:** the complete authored attack/footstep/wall/audio tutorial, export and native integration, and combined animation/audio lifecycle regression.
+1. **Remaining production audio:** long-track streaming, explicit persistent ownership and complete focus/hidden-tab/device-loss policy. Buffered authored audio is now implemented; it is not the whole audio plan.
+2. **Remaining AA6:** complete seek/listener/overflow/cancellation acceptance matrices. The original attack/footstep/wall/UI-audio workshop now has headless, exported-browser and Linux Electron PIF-player coverage, including 100 buffered-audio lifecycle cycles in the browser suite.
 3. **External acceptance:** physical Linux/Windows listening, measured audiovisual alignment, CEDAR hardware, native Windows run and independent acceptance. Earlier Plan01 external gates remain open.
 
-Do not mark AA1–AA6 or the full Plan02 complete from this checkpoint. Root motion/path inspection is now covered by the documented profile; production audio and combined AA6 integration are still substantial unfinished work, not documentation-only gates.
+Do not mark full Plan02 complete from this checkpoint. Broader UI modularization remains after Plan02.

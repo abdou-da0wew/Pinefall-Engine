@@ -1,3 +1,4 @@
+import { Vector3 } from "three";
 import type { Entity } from "./schema";
 import type { SimulationHost } from "./behaviors";
 import type { GraphEvent } from "../../animation/src/graph";
@@ -76,6 +77,7 @@ export class FixedSimulation {
         active = (id: string) => !this.pendingDestroy.has(id);
       this.inputSnapshot = new Set(host.input);
       host.physics.beginMotion();
+      host.audio.setTime(this.ticks / 60);
       this.trace.push("fixed");
       for (const entity of entities)
         if (entity.enabled && active(entity.id))
@@ -153,6 +155,15 @@ export class FixedSimulation {
       for (const { id, event } of pending) {
         const animator = host.animators.get(id);
         if (!active(id) || !animator || animator.graph.activation !== event.activation) continue;
+        host.audio.setEventOffset(event.offset);
+        const cue = byId.get(id)?.audioCues?.[event.id],
+          node = host.objects.get(id);
+        if (cue)
+          host.audio.play(
+            cue,
+            id,
+            node?.getWorldPosition(new Vector3()).toArray() as [number, number, number] | undefined,
+          );
         host.events.emit("animation", event.id, {
           entity: id,
           state: event.state,
@@ -163,6 +174,7 @@ export class FixedSimulation {
           offset: event.offset,
           tick: this.ticks,
         });
+        host.audio.setEventOffset(0);
       }
       this.ticks++;
     } finally {

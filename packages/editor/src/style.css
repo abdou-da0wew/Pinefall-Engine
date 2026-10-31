@@ -2091,3 +2091,90 @@ button:active:not(:disabled) {
   font-size: 12px;
   color: #aabda4;
 }
+.audio-dialog {
+  width: min(960px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 28px;
+  color: #d5dfd2;
+  background: #15251c;
+  border: 1px solid #40553d;
+  border-radius: 8px;
+}
+.audio-dialog::backdrop {
+  background: #000a;
+}
+.audio-dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.audio-dialog h2 {
+  margin: 6px 0;
+}
+.audio-dialog p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #aabda4;
+}
+.audio-dialog button {
+  padding: 9px 14px;
+  background: #283b29;
+  border: 1px solid #40553d;
+  border-radius: 4px;
+}
+.audio-dialog button:disabled {
+  opacity: 0.45;
+}
+.audio-dialog .audio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 22px 0;
+}
+.audio-dialog .audio-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.4fr);
+  gap: 32px;
+}
+.audio-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin-bottom: 12px;
+  color: #d5dfd2;
+  background: #101b16;
+  border: 1px solid #40553d;
+  font: 12px/1.6 monospace;
+  resize: vertical;
+}
+.audio-dialog label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+}
+.audio-dialog li {
+  margin: 12px 0;
+}
+.audio-dialog li code {
+  display: block;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+}
+.audio-dialog input[type="file"] {
+  max-width: 230px;
+}
+.audio-dialog [role="alert"] {
+  color: #efb9a3;
+}
+@media (max-width: 760px) {
+  .audio-dialog .audio-columns {
+    grid-template-columns: 1fr;
+  }
+}

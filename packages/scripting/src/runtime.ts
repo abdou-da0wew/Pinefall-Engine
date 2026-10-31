@@ -130,6 +130,7 @@ export function createBehaviorSession(
           listener(event);
         } catch (error) {
           inactive = true;
+          host.audio.stopOwner(scope);
           report(asset.name, "ui-event", error);
         }
       };
@@ -171,7 +172,33 @@ export function createBehaviorSession(
         if (!value) throw Error("Entity has no animator");
         return value;
       };
+      const scope = entity.id + ":" + attachment.id;
+      const audioLive = () => {
+        if (inactive || host.fixed.pendingDestroy.has(entity.id))
+          throw Error("Audio script scope disposed");
+      };
       const context: ScriptContext = {
+        audio: {
+          play: (cue) => {
+            audioLive();
+            return host.audio.play(
+              cue,
+              scope,
+              host.objects.get(entity.id)?.getWorldPosition(new THREE.Vector3()).toArray() as
+                | [number, number, number]
+                | undefined,
+              entity.id,
+            );
+          },
+          stop: (handle, fade) => {
+            audioLive();
+            host.audio.stop(handle, scope, fade);
+          },
+          setBusGain: (bus, db) => {
+            audioLive();
+            host.audio.setBusGain(bus, db);
+          },
+        },
         animation: {
           get snapshot() {
             return host.animators.get(entity.id)?.graph.snapshot;
@@ -192,6 +219,7 @@ export function createBehaviorSession(
                 listener(event);
               } catch (error) {
                 inactive = true;
+                host.audio.stopOwner(scope);
                 report(asset.name, "animation event", error);
               }
             });
@@ -261,6 +289,7 @@ export function createBehaviorSession(
               listener(event);
             } catch (error) {
               inactive = true;
+              host.audio.stopOwner(scope);
               report(asset.name, "event", error);
             }
           });
@@ -297,6 +326,7 @@ export function createBehaviorSession(
         { engine: host, entity },
         (hook, error) => {
           inactive = true;
+          host.audio.stopOwner(scope);
           report(asset.name, hook, error);
         },
       );
@@ -323,6 +353,7 @@ export function createBehaviorSession(
         },
         dispose() {
           inactive = true;
+          host.audio.stopOwner(scope);
           wrapped.dispose?.();
           for (const off of cleanup) off();
           cleanup.clear();

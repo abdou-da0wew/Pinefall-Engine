@@ -50,3 +50,15 @@ Before the broader UI refactor, implement the remaining motion authority: strict
 ## Root-motion implementation evidence
 
 The work order above now has an implemented, validated kinematic-capsule profile: loop/trim/reverse/seek-safe horizontal/yaw sampling, cubic fidelity, pose compensation, controller proposal resolution and on-demand modal path inspection. Fixed the freshly admitted collider query gap without adding a second Rapier step. Full suite 114 tests / 567 assertions; root browser/headless wall parity and 100 cycles; Linux Electron and standalone export smoke; check/build pass. See ROOT-MOTION.md. Audio AA4/AA5 and the combined AA6 tutorial/export/device gates remain unfinished. UI modularization remains scheduled after Plan02, as requested.
+
+## Authored audio integration work order (2026-10-31)
+
+After pushing the validated root-motion checkpoint, add strict authored audio catalogs/cues/bus gains, separate integrity-covered WAV archive members (PIF6), staged bounded source admission, browser/null shared cue ownership, scoped SDK and animation marker bindings. Add buffered pause/resume, positional sources/listener updates and a simulation/device scheduling epoch with explicit blocked/late results. Put audio authoring, import, preview/unlock and mixer controls in an on-demand dialog. Validate roundtrips, malicious/downgraded data, failed-load retention, paused UI audio, disposal, browser/native/export integration. Long music streaming/persistent ownership and combined AA6 acceptance must remain explicit until implemented and tested; PCM-only integration is not the whole remaining plan.
+
+## Authored buffered audio / integrated workshop checkpoint (2026-10-31)
+
+Implemented the preceding work order's buffered slice, plus SHA-256 blob-backed working audio, deduplicating imports and confirmed asset/cue/binding removal. PIF6 keeps separate verified WAVs. Scene staging failures retain the old world; pending decode replacement/disposal and script-fault cleanup now have dedicated tests. Paused UI cues use device time rather than the simulation epoch.
+
+The original procedural workshop combines independent rigs, attack/footstep cues, root-motion collision, turns and a paused UI sound. Exported browser and Linux Electron PIF-player execution pass; visual inspection corrected character occlusion by the wall and native HUD scrollbars. Added regeneration and test commands. Full current suite: **123 tests / 628 assertions / 22 files**, dedicated audio **9 / 61**, check156files and desktop build pass. Browser output/spatial/pause/rollback/100 cycles and editor/native import/dedup/remove/focus checks pass. See AUTHORED-AUDIO.md and evidence/plan02-authored-audio.json.
+
+Not complete: streaming music, persistent-world audio ownership, complete focus/device-loss behavior and remaining AA6 acceptance matrices. External Windows/CEDAR/physical timing/listening/independent gates remain open. No public release or hardware certification is implied. Continue these before the broader shared-control/layout refactor.

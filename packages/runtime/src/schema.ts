@@ -1,3 +1,4 @@
+import { parseAudio, audioId, type AudioDefinition } from "../../audio/src/definition";
 import { parseAnimator, type AnimatorDefinition } from "../../animation/src/definition";
 import { isBlobRef } from "../../assets/src/blobs";
 import { materializeScene } from "../../assets/src/documents";
@@ -32,6 +33,7 @@ export interface Collection {
   parent?: string;
 }
 export interface Entity {
+  audioCues?: Record<string, string>;
   animator?: AnimatorDefinition;
   collection?: string;
   scripts?: ScriptAttachment[];
@@ -60,6 +62,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  audio?: AudioDefinition;
   project?: ProjectMetadata;
   ui?: UIDocument;
   collections?: Collection[];
@@ -340,6 +343,23 @@ export function parseScene(value: unknown): SceneDocument {
     }
     return out;
   });
+  const audio = value.audio !== undefined ? parseAudio(value.audio) : undefined;
+  if (audio && value.version !== 3) fail("Audio requires scene v3");
+  for (let i = 0; i < entities.length; i++) {
+    const raw = value.entities[i];
+    if (raw.audioCues !== undefined) {
+      if (!record(raw.audioCues) || Object.keys(raw.audioCues).length > 32)
+        fail("Audio marker binding budget");
+      const bindings: Record<string, string> = {};
+      for (const [marker, cue] of Object.entries(raw.audioCues)) {
+        audioId(marker);
+        const id = audioId(cue);
+        if (!audio?.cues.some((c) => c.id === id)) fail("Missing audio cue");
+        bindings[marker] = id;
+      }
+      entities[i].audioCues = bindings;
+    }
+  }
   const ids = new Set(entities.map((e) => e.id));
   if (collections?.some((c) => ids.has(c.id))) fail("collection/entity ID collision");
   if (ids.size !== entities.length) fail("duplicate IDs");
@@ -363,6 +383,7 @@ export function parseScene(value: unknown): SceneDocument {
     entities,
     assets,
     ...(scripts ? { scripts } : {}),
+    ...(audio ? { audio } : {}),
     ...(collections ? { collections } : {}),
     ...(value.ui !== undefined ? { ui: parseUI(value.ui) } : {}),
     environment: {

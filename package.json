@@ -30,7 +30,10 @@
     "dev:animation-audio": "bun scripts/animation-audio-lab.ts",
     "test:animation-audio": "bun tests/animation-audio-browser.ts",
     "test:animator": "bun tests/animator-browser.ts",
-    "test:root-motion": "bun tests/root-motion-browser.ts"
+    "test:root-motion": "bun tests/root-motion-browser.ts",
+    "generate:animation-audio": "bun scripts/generate-animation-audio-workshop.ts",
+    "test:authored-audio": "bun tests/authored-audio-browser.ts",
+    "test:animation-audio-export": "bun tests/animation-audio-export.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

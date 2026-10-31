@@ -18,7 +18,13 @@ export interface AnimationAPI {
   crossFade(state: string, seconds: number): void;
   onEvent(listener: (event: EngineEvent) => void): () => void;
 }
+export interface AudioAPI {
+  play(cue: string): import("../../audio/src/voices").VoiceResult;
+  stop(handle: import("../../audio/src/voices").VoiceHandle, fadeSeconds?: number): void;
+  setBusGain(bus: import("../../audio/src/voices").Bus, db: number): void;
+}
 export interface ScriptContext {
+  readonly audio: AudioAPI;
   readonly animation: AnimationAPI;
   readonly ui: UIAPI;
   readonly engine: SimulationHost;

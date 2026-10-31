@@ -1,3 +1,4 @@
+import { AudioDialog } from "./audio-dialog";
 import { AnimationPanel } from "./animation-panel";
 import {
   rememberMissing,
@@ -99,6 +100,7 @@ function App() {
   const [uiSelected, setUISelected] = useState("");
   const [trustedSignature, setTrustedSignature] = useState<string | null>(null),
     [scriptId, setScriptId] = useState("");
+  const [audioOpen, setAudioOpen] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
@@ -414,6 +416,7 @@ function App() {
       }
       engine.current.allowSceneScripts = scriptsTrusted;
       try {
+        if (scene.audio?.assets.length) await engine.current.audio.unlock();
         engine.current.play();
         setPlaying(true);
       } catch (e) {
@@ -730,6 +733,16 @@ function App() {
       style={workspace.style}
       className={"workbench " + workspace.className + (tab === "scripts" ? " scripting-open" : "")}
     >
+      {audioOpen && engine.current && (
+        <AudioDialog
+          loading={loadBusy || projectBusy || loadedScene !== scene}
+          scene={scene}
+          engine={engine.current}
+          disabled={playing || loadBusy || projectBusy}
+          commit={commit}
+          onClose={() => setAudioOpen(false)}
+        />
+      )}
       {workspace.handles}
       {workspace.dockTargets}
       {newGameOpen && (
@@ -1056,6 +1069,9 @@ function App() {
             onClick={() => setInspector("render")}
           >
             Rendering
+          </button>
+          <button aria-label="Audio studio" onClick={() => setAudioOpen(true)}>
+            Audio
           </button>
         </div>
         <div className="inspector-content">

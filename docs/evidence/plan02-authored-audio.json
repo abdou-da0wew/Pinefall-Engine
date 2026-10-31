@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-31",
+  "scope": "authored buffered audio and original combined workshop",
+  "fullPlan02Accepted": false,
+  "unit": {
+    "tests": 123,
+    "assertions": 628,
+    "files": 22
+  },
+  "dedicatedAudio": {
+    "tests": 9,
+    "assertions": 61
+  },
+  "check": {
+    "files": 156,
+    "errors": 0,
+    "warnings": 0
+  },
+  "desktopBuild": "pass",
+  "browserAudio": {
+    "result": "pass",
+    "cycles": 100,
+    "restingVoices": 0,
+    "restingBuffers": 1,
+    "pcmBytes": 12800,
+    "memoryClaim": "stable tracked admission reservations, not RSS/GPU cap"
+  },
+  "editor": {
+    "browser": "pass",
+    "linuxElectron": "pass",
+    "checks": [
+      "import",
+      "deduplicate",
+      "unlock",
+      "preview",
+      "invalid draft isolation",
+      "remove",
+      "focus"
+    ]
+  },
+  "workshop": {
+    "headless": "pass",
+    "exportedBrowser": "pass",
+    "linuxElectronPifPlayer": "pass",
+    "checks": [
+      "wall stop",
+      "one attack hit",
+      "turn and recovery",
+      "paused UI analyser output",
+      "no page errors",
+      "HUD overflow"
+    ],
+    "screenshotsInspected": true
+  },
+  "open": [
+    "streaming",
+    "persistent ownership",
+    "complete focus/hidden/device-loss policy",
+    "remaining AA6 matrices",
+    "physical timing/listening",
+    "Windows",
+    "CEDAR",
+    "independent acceptance"
+  ],
+  "releaseCertified": false
+}

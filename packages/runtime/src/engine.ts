@@ -1,3 +1,5 @@
+import { AudioService, AudioCatalog } from "../../audio/src/service";
+import { BrowserAudioBackend } from "../../audio/src/browser";
 import { FixedSimulation } from "./fixed";
 import { AnimationGraphPlayer } from "../../animation/src/graph-player";
 import { assetMemory, type Reservation } from "../../assets/src/budget";
@@ -72,6 +74,9 @@ export interface EngineOptions {
 }
 export type CameraRig = "auto" | "orbit" | "first-person" | "follow" | "vehicle";
 export class Engine {
+  readonly audio = new AudioService(new BrowserAudioBackend(), (message, data) =>
+    this.events.emit("audio", message, data),
+  );
   readonly fixed = new FixedSimulation();
   animators = new Map<string, AnimationGraphPlayer>();
   readonly ui = new UIStore((error) =>
@@ -113,7 +118,14 @@ export class Engine {
   settings: RenderSettings = { ...LOW };
   loading = false;
   playing = false;
-  paused = false;
+  private _paused = false;
+  get paused() {
+    return this._paused;
+  }
+  set paused(value: boolean) {
+    this._paused = value;
+    this.audio.setPaused(value);
+  }
   jump = false;
   look = { yaw: 0, pitch: 0 };
   checkpoint: Vec3 = [0, 2, 8];
@@ -346,9 +358,11 @@ export class Engine {
     this.loadAbort = controller;
     const staged = new Map<string, ModelLease>();
     let world: WorldResources | undefined;
+    let audio: AudioCatalog | undefined;
     let worldReservation: Reservation | undefined;
     try {
       scene = await referenceScene(scene, controller.signal);
+      audio = await AudioCatalog.prepare(scene.audio, controller.signal);
       for (const asset of scene.assets) {
         if (!scene.entities.some((e) => e.mesh?.asset === asset.id)) continue;
         await this.assetCache.prepare(asset.data, controller.signal, (update) => {
@@ -440,6 +454,8 @@ export class Engine {
       controller.signal.throwIfAborted();
       if (this.dead || generation !== this.generation) return;
     } catch (error) {
+      audio?.dispose();
+      audio = undefined;
       if (world) {
         disposeWorld(world);
         world = undefined;
@@ -453,6 +469,8 @@ export class Engine {
       throw error;
     } finally {
       if (this.dead || generation !== this.generation) {
+        audio?.dispose();
+        audio = undefined;
         if (world) {
           disposeWorld(world);
           world = undefined;
@@ -467,6 +485,7 @@ export class Engine {
     this.input.clear();
     this.gizmo.detach();
     this.clear();
+    this.audio.adopt(audio!);
     this.scene.remove(this.root);
     this.root = world.root;
     this.scene.add(this.root);
@@ -619,6 +638,7 @@ export class Engine {
     this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
     this.fixed.clear();
+    this.audio.reset();
     this.playing = true;
     this.physics.deferredMotion = true;
     this.ui.interactive = true;
@@ -753,6 +773,7 @@ export class Engine {
         }
     }
     for (const key of ids) {
+      this.audio.stopOwner(key);
       const b = this.behaviors.get(key);
       this.behaviors.delete(key);
       b?.dispose?.();
@@ -852,6 +873,15 @@ export class Engine {
     if (this.playing && !this.paused) this.fixed.discard(rawDt - dt, this);
     this.last = now;
     const start = performance.now();
+    this.audio.advance(dt, (id) => {
+      const node = this.objects.get(id);
+      return node ? (node.getWorldPosition(new T.Vector3()).toArray() as Vec3) : undefined;
+    });
+    this.audio.listener(
+      this.camera.getWorldPosition(new T.Vector3()).toArray() as Vec3,
+      this.camera.getWorldDirection(new T.Vector3()).toArray() as Vec3,
+      this.camera.up.toArray() as Vec3,
+    );
     this.uiRenderer.draw();
     if (this.playing && !this.paused && this.document) {
       this.fixed.discard(Math.max(0, this.accumulator + dt - 0.1), this);
@@ -929,6 +959,7 @@ export class Engine {
     }
   };
   private clear() {
+    this.audio.reset();
     this.behaviorBuilder = undefined;
     for (const b of this.behaviors.values()) {
       try {
@@ -953,6 +984,7 @@ export class Engine {
     this.effects?.dispose();
     this.clear();
     this.assetCache.dispose();
+    void this.audio.dispose();
     this.uiRenderer.dispose();
     this.ui.dispose();
     this.sun.shadow.dispose();

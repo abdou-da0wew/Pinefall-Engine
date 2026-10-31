@@ -18,6 +18,7 @@ export type SimulationHost = Pick<
   | "document"
   | "physics"
   | "objects"
+  | "audio"
   | "animators"
   | "fixed"
   | "behaviors"
@@ -56,8 +57,10 @@ export function registerBuiltins(engine: SimulationHost) {
           dx = x * Math.cos(a) + z * Math.sin(a),
           dz = -x * Math.sin(a) + z * Math.cos(a);
         grounded = engine.physics.isGrounded(entity.id);
-        if (engine.jump && grounded) vertical = 5.8;
-        engine.jump = false;
+        if (entity.tag === "player") {
+          if (engine.jump && grounded) vertical = 5.8;
+          engine.jump = false;
+        }
         vertical = Math.max(-20, vertical + engine.document.environment.gravity * dt);
         grounded = engine.physics.move(entity.id, {
           x: dx * speed * dt,

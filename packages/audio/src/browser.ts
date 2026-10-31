@@ -14,6 +14,29 @@ export class BrowserAudioBackend implements VoiceBackend {
   private voices = new Set<{ asset: string; finish: () => void }>();
   private loading = new Set<string>();
   private bytes = 0;
+  get time() {
+    return this.context?.currentTime ?? 0;
+  }
+  setListener(
+    position: [number, number, number],
+    forward: [number, number, number],
+    up: [number, number, number],
+  ) {
+    if (!this.context) return;
+    const l = this.context.listener,
+      t = this.context.currentTime;
+    [
+      l.positionX,
+      l.positionY,
+      l.positionZ,
+      l.forwardX,
+      l.forwardY,
+      l.forwardZ,
+      l.upX,
+      l.upY,
+      l.upZ,
+    ].forEach((p, i) => p.setValueAtTime([...position, ...forward, ...up][i], t));
+  }
   get ready() {
     return !this.dead && this.context?.state === "running";
   }
@@ -127,45 +150,109 @@ export class BrowserAudioBackend implements VoiceBackend {
       asset = this.buffers.get(request.asset),
       bus = this.buses.get(request.bus);
     if (!context || !this.ready || !asset || !bus) throw Error("Audio device/asset unavailable");
-    const source = context.createBufferSource(),
-      gain = context.createGain();
-    let finished = false;
+    const gain = context.createGain(),
+      panner = request.position ? context.createPanner() : undefined;
+    let source: AudioBufferSourceNode | undefined,
+      offset = 0,
+      startedAt = 0,
+      finished = false,
+      paused = false,
+      serial = 0;
+    const setPosition = (position: [number, number, number]) => {
+      if (panner) {
+        const t = context.currentTime;
+        panner.positionX.setValueAtTime(position[0], t);
+        panner.positionY.setValueAtTime(position[1], t);
+        panner.positionZ.setValueAtTime(position[2], t);
+      }
+    };
+    const detach = () => {
+      serial++;
+      if (source) {
+        source.onended = null;
+        try {
+          source.stop();
+        } catch {}
+        source.disconnect();
+        source = undefined;
+      }
+    };
     const voice = {
       asset: request.asset,
       finish: () => {
         if (finished) return;
         finished = true;
-        source.onended = null;
-        try {
-          source.stop();
-        } catch {
-          /* Already ended. */
-        }
-        source.disconnect();
+        detach();
         gain.disconnect();
+        panner?.disconnect();
         this.voices.delete(voice);
         ended();
       },
     };
+    const begin = (delay: number) => {
+      detach();
+      const current = context.createBufferSource(),
+        token = serial;
+      source = current;
+      current.buffer = asset.buffer;
+      current.loop = request.loop;
+      current.connect(gain);
+      startedAt = context.currentTime + Math.max(0.005, delay);
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setValueAtTime(0, context.currentTime);
+      gain.gain.setValueAtTime(0, startedAt);
+      gain.gain.linearRampToValueAtTime(10 ** (request.gainDb / 20), startedAt + 0.005);
+      current.onended = () => {
+        if (token === serial && !paused) voice.finish();
+      };
+      current.start(startedAt, offset);
+    };
     try {
-      source.buffer = asset.buffer;
-      source.loop = request.loop;
-      const startAt = context.currentTime + 0.005;
-      gain.gain.setValueAtTime(0, startAt);
-      gain.gain.linearRampToValueAtTime(10 ** (request.gainDb / 20), startAt + 0.005);
-      source.connect(gain);
-      gain.connect(bus);
-      source.onended = voice.finish;
-      source.start(startAt);
+      if (panner) {
+        panner.panningModel = "equalpower";
+        panner.distanceModel = "inverse";
+        panner.refDistance = request.refDistance;
+        panner.maxDistance = request.maxDistance;
+        panner.rolloffFactor = request.rolloff;
+        setPosition(request.position!);
+        gain.connect(panner);
+        panner.connect(bus);
+      } else gain.connect(bus);
+      begin(request.delay);
       this.voices.add(voice);
     } catch (error) {
       voice.finish();
       throw error;
     }
     return {
+      setPosition,
+      setPaused: (value) => {
+        if (finished || paused === value) return;
+        paused = value;
+        const now = context.currentTime;
+        if (value) {
+          offset += Math.max(0, now - startedAt);
+          offset = request.loop
+            ? offset % asset.buffer.duration
+            : Math.min(offset, asset.buffer.duration);
+          serial++;
+          if (source) {
+            const old = source;
+            old.onended = () => {
+              old.disconnect();
+              if (source === old) source = undefined;
+            };
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setValueAtTime(gain.gain.value, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.005);
+            old.stop(now + 0.005);
+          }
+        } else if (!request.loop && offset >= asset.buffer.duration) voice.finish();
+        else begin(0);
+      },
       stop: (fade) => {
         if (finished) return;
-        if (fade <= 0) {
+        if (fade <= 0 || paused || !source) {
           voice.finish();
           return;
         }

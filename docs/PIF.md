@@ -138,7 +138,10 @@ reference-only runtime documents and a persistent artifact database are not yet
 implemented. Undo history interns those strings rather than repeating them in
 every retained snapshot.
 
-
 ## v4 normalized provenance
 
 Recipe version 2 contains validated unit multiplier/output-axis settings. Provenance version 2 includes node, mesh and skeleton identity records as well as materials/clips. These semantics require manifest `version: 4` / `minimumReader: 4`; attempting to reseal this provenance inside v3 is rejected. Original sources remain separate archive files and the cooked asset remains a self-contained GLB. The existing integrity inventory covers both. Scene reference documents are materialized only at portable export boundaries; they are not interchangeable with a PIF archive.
+
+## PIF6 authored audio extension
+
+Audio-bearing scene3 projects write PIF6 (minimum reader6); non-audio animator projects remain PIF5. The audio definition and marker→cue bindings are validated with the scene. Each PCM16 WAV is a separate `audio/<index>.wav` member covered by the integrity inventory, not an ad hoc unverified payload. Downgrading an audio project to an older manifest rejects. Session SHA-256 blob references are materialized for transport and re-interned on opening; audio is included in recovery/worker blob inventories. See [AUTHORED-AUDIO.md](AUTHORED-AUDIO.md) for admission limits and codec restrictions. PIF integrity does not authenticate the project author or make trusted scripts safe to execute.

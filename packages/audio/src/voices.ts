@@ -5,9 +5,16 @@ export interface VoiceRequest {
   priority?: number;
   gainDb?: number;
   loop?: boolean;
+  position?: [number, number, number] | null;
+  refDistance?: number;
+  maxDistance?: number;
+  rolloff?: number;
+  delay?: number;
 }
 export interface VoiceControl {
   stop(fadeSeconds: number): void;
+  setPaused?(paused: boolean): void;
+  setPosition?(position: [number, number, number]): void;
 }
 export interface VoiceBackend {
   readonly rendered: boolean;
@@ -37,6 +44,21 @@ export class VoiceSystem {
   private serial = 0;
   private generation = 1;
   private dead = false;
+  private paused = false;
+  has(handle: VoiceHandle) {
+    return handle.generation === this.generation && this.active.has(handle.id);
+  }
+  setPaused(paused: boolean) {
+    this.paused = paused;
+    for (const voice of this.active.values())
+      if (voice.request.bus !== "ui") voice.control.setPaused?.(paused);
+  }
+  setPosition(handle: VoiceHandle, position: [number, number, number]) {
+    if (position.length !== 3 || !position.every((n) => Number.isFinite(n) && Math.abs(n) <= 1e6))
+      throw Error("Invalid audio position");
+    if (handle.generation === this.generation)
+      this.active.get(handle.id)?.control.setPosition?.(position);
+  }
   constructor(
     readonly backend: VoiceBackend,
     readonly limit = 24,
@@ -63,6 +85,11 @@ export class VoiceSystem {
       priority: input.priority ?? 0,
       gainDb: input.gainDb ?? 0,
       loop: input.loop ?? false,
+      position: input.position ?? null,
+      refDistance: input.refDistance ?? 1,
+      maxDistance: input.maxDistance ?? 50,
+      rolloff: input.rolloff ?? 1,
+      delay: input.delay ?? 0,
     };
     if (
       typeof request.asset !== "string" ||
@@ -76,9 +103,41 @@ export class VoiceSystem {
       request.gainDb < -80 ||
       request.gainDb > 6 ||
       typeof request.loop !== "boolean" ||
-      Object.keys(input).some((k) => !["asset", "bus", "priority", "gainDb", "loop"].includes(k))
+      (request.position !== null &&
+        (!Array.isArray(request.position) ||
+          request.position.length !== 3 ||
+          !request.position.every((n) => Number.isFinite(n) && Math.abs(n) <= 1e6))) ||
+      !Number.isFinite(request.refDistance) ||
+      request.refDistance < 0.01 ||
+      request.refDistance > 1000 ||
+      !Number.isFinite(request.maxDistance) ||
+      request.maxDistance < request.refDistance ||
+      request.maxDistance > 10000 ||
+      !Number.isFinite(request.rolloff) ||
+      request.rolloff < 0 ||
+      request.rolloff > 10 ||
+      !Number.isFinite(request.delay) ||
+      request.delay < 0 ||
+      request.delay > 0.25 ||
+      Object.keys(input).some(
+        (k) =>
+          ![
+            "asset",
+            "bus",
+            "priority",
+            "gainDb",
+            "loop",
+            "position",
+            "refDistance",
+            "maxDistance",
+            "rolloff",
+            "delay",
+          ].includes(k),
+      )
     )
       throw Error("Invalid audio cue");
+    if (this.paused && request.bus !== "ui")
+      return { status: "blocked", reason: "Game audio paused" };
     if (this.backend.duration(request.asset) === undefined)
       return { status: "rejected", reason: "Missing audio asset" };
     if (!this.backend.ready)

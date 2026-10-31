@@ -1,8 +1,10 @@
+import { AudioService, AudioCatalog } from "../../audio/src/service";
+import { NullAudioBackend } from "../../audio/src/null";
 import { FixedSimulation } from "../../runtime/src/fixed";
 import { AnimationGraphPlayer } from "../../animation/src/graph-player";
 import { HeadlessModels } from "../../animation/src/headless-models";
 import { UIStore } from "../../ui/src/store";
-import { Group, MathUtils } from "three";
+import { Group, MathUtils, Vector3 } from "three";
 import { initPhysics, PhysicsSystem } from "../../runtime/src/physics";
 import { parseScene, cloneScene } from "../../runtime/src/schema";
 import type { SceneDocument, Vec3, Entity } from "../../runtime/src/schema";
@@ -12,11 +14,21 @@ import type { Behavior, BehaviorFactory, SimulationHost } from "../../runtime/sr
 import { createBehaviorSession } from "../../scripting/src/runtime";
 /** DOM-free simulation: same physics, scene schema and behaviors as the graphical engine. */
 export class HeadlessEngine implements SimulationHost {
+  readonly audio = new AudioService(new NullAudioBackend(), (message, data) =>
+    this.events.emit("audio", message, data),
+  );
   readonly fixed = new FixedSimulation();
   readonly animators = new Map<string, AnimationGraphPlayer>();
   private models = new HeadlessModels();
   allowSceneScripts = false;
-  paused = false;
+  private _paused = false;
+  get paused() {
+    return this._paused;
+  }
+  set paused(value: boolean) {
+    this._paused = value;
+    this.audio.setPaused(value);
+  }
   readonly ui = new UIStore((error) =>
     this.events.emit("error", "UI callback failed", { error: String(error) }),
   );
@@ -42,6 +54,10 @@ export class HeadlessEngine implements SimulationHost {
     await initPhysics();
     const engine = new HeadlessEngine(parseScene(scene));
     try {
+      engine.audio.adopt(
+        await AudioCatalog.prepare(engine.document.audio, new AbortController().signal),
+      );
+      await engine.audio.settled();
       for (const asset of engine.document.assets)
         if (asset.import?.report.clips.length) await engine.models.prepare(asset.id, asset.data);
       for (const e of engine.document.entities) engine.attachAnimator(e);
@@ -101,6 +117,7 @@ export class HeadlessEngine implements SimulationHost {
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
     this.fixed.clear();
+    this.audio.reset();
     this.playing = true;
     this.physics.deferredMotion = true;
     this.ui.interactive = true;
@@ -199,6 +216,7 @@ export class HeadlessEngine implements SimulationHost {
         }
     }
     for (const key of ids) {
+      this.audio.stopOwner(key);
       const b = this.behaviors.get(key);
       this.behaviors.delete(key);
       b?.dispose?.();
@@ -221,7 +239,10 @@ export class HeadlessEngine implements SimulationHost {
     this.play();
 
     for (let i = 0; i < ticks; i++) {
-      if (this.paused) break;
+      if (this.paused) {
+        this.audio.advance(1 / 60);
+        continue;
+      }
       this.fixed.run(this);
       for (const entity of this.document.entities) {
         if (entity.tag !== "player") continue;
@@ -237,6 +258,10 @@ export class HeadlessEngine implements SimulationHost {
       if (!this.paused)
         for (const [id, b] of this.behaviors)
           if (!this.fixed.pendingDestroy.has(id)) b.update?.(1 / 60);
+      this.audio.advance(1 / 60, (id) => {
+        const node = this.objects.get(id);
+        return node ? (node.getWorldPosition(new Vector3()).toArray() as Vec3) : undefined;
+      });
       this.ticks++;
     }
   }
@@ -272,6 +297,7 @@ export class HeadlessEngine implements SimulationHost {
   dispose() {
     if (this.dead) return;
     this.dead = true;
+    void this.audio.dispose();
     for (const b of this.behaviors.values()) b.dispose?.();
     this.behaviors.clear();
     this.fixed.clear();
