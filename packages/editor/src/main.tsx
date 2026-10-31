@@ -1,3 +1,4 @@
+import { ColorPicker } from "./color-picker";
 import { descendants } from "./hierarchy-model";
 import { Hierarchy } from "./hierarchy";
 import { Icon } from "./icons";
@@ -809,14 +810,14 @@ function App() {
                     </label>
                     <label className="row-field">
                       Albedo
-                      <input
-                        aria-label="Material color"
-                        type="color"
-                        defaultValue={chosen.mesh.color}
+                      <ColorPicker
+                        key={chosen.id + ":material"}
+                        label="Material color"
+                        value={chosen.mesh.color}
                         disabled={playing}
-                        onBlur={(e) =>
+                        onChange={(color) =>
                           patchEntity((item) => {
-                            if (item.mesh) item.mesh.color = e.target.value;
+                            if (item.mesh) item.mesh.color = color;
                           })
                         }
                       />
@@ -1031,14 +1032,14 @@ function App() {
                     )}
                     <label className="row-field">
                       Color
-                      <input
-                        aria-label="Light color"
-                        type="color"
-                        defaultValue={chosen.light.color}
+                      <ColorPicker
+                        key={chosen.id + ":light"}
+                        label="Light color"
+                        value={chosen.light.color}
                         disabled={playing}
-                        onBlur={(event) =>
-                          patchEntity((e) => {
-                            if (e.light) e.light.color = event.target.value;
+                        onChange={(color) =>
+                          patchEntity((item) => {
+                            if (item.light) item.light.color = color;
                           })
                         }
                       />

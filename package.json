@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -21,7 +21,8 @@
     "test:runtime-browser": "bun tests/runtime-browser.ts",
     "game": "bun scripts/game.ts",
     "test:scripting-browser": "bun tests/scripting-browser.ts",
-    "test:workspace": "bun tests/workspace-browser.ts"
+    "test:workspace": "bun tests/workspace-browser.ts",
+    "test:color-picker": "bun tests/color-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

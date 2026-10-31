@@ -1,8 +1,10 @@
-# Pinefall Engine 0.4.0
+# Pinefall Engine 0.4.1
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
+
+**Local 0.4.1 patch:** material and light colors use a custom, viewport-bounded picker instead of the native clipped popup. See [Color editor](docs/COLOR-PICKER.md). The release/download links below still refer to published 0.4.0; 0.4.1 has not been published.
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
