@@ -3,11 +3,11 @@ import { inspectGlb, fromDataURI } from "./glb";
 import { encodeModel, transfers } from "./wire";
 import { LoadingManager } from "three";
 // One request per disposable worker: no re-entrant loader state, no stale result after termination.
-self.onmessage = async (event: MessageEvent<{ data: string }>) => {
+self.onmessage = async (event: MessageEvent<{ data?: string; bytes?: Uint8Array }>) => {
   const started = performance.now();
   try {
     self.postMessage({ stage: "inspect" });
-    const bytes = fromDataURI(event.data.data),
+    const bytes = event.data.bytes || fromDataURI(event.data.data!),
       report = inspectGlb(bytes);
     const manager = new LoadingManager();
     manager.setURLModifier((url) => {

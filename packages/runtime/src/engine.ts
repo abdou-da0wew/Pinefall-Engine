@@ -1,3 +1,4 @@
+import { referenceScene } from "../../assets/src/documents";
 import { UIStore } from "../../ui/src/store";
 import { UIRenderer } from "../../ui/src/renderer";
 import { ModelCache, type ModelLease } from "../../assets/src/cache";
@@ -298,14 +299,15 @@ export class Engine {
     const savedView = options.preserveView
       ? { position: this.camera.position.clone(), target: this.orbit.target.clone() }
       : null;
-    const scene = parseScene(input),
-      generation = ++this.generation;
+    let scene = parseScene(input);
+    const generation = ++this.generation;
     this.loading = true;
     this.loadAbort?.abort();
     const controller = new AbortController();
     this.loadAbort = controller;
     const staged = new Map<string, ModelLease>();
     try {
+      scene = await referenceScene(scene, controller.signal);
       for (const asset of scene.assets) {
         if (!scene.entities.some((e) => e.mesh?.asset === asset.id)) continue;
         await this.assetCache.prepare(asset.data, controller.signal, (update) => {

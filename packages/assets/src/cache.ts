@@ -1,3 +1,4 @@
+import { fromDataURI } from "./glb";
 import * as T from "three";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { workerJob, type JobUpdate } from "./jobs";
@@ -27,7 +28,7 @@ export class ModelCache {
     }
     const result = await workerJob<{ wire: ModelWire; report: ModelInspection; workerMs: number }>(
       () => new Worker(new URL("./model.worker.ts", import.meta.url), { type: "module" }),
-      { data },
+      { bytes: fromDataURI(data) },
       signal,
       onStage,
     );

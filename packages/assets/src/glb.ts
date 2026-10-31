@@ -1,3 +1,4 @@
+import { blobs, isBlobRef } from "./blobs";
 /** Allocation admission for self-contained glTF 2.0. No browser/Three dependencies. */
 export const MODEL_LIMIT = 2_000_000;
 export const LIMITS = {
@@ -41,6 +42,7 @@ const list = (v: unknown, max: number): Obj[] => {
   return v.map(object);
 };
 export function fromDataURI(uri: string): Uint8Array {
+  if (isBlobRef(uri)) return blobs.read(uri);
   const m =
     /^data:(?:model\/gltf-binary|application\/octet-stream|application\/gltf-buffer|image\/png|image\/jpeg);base64,([A-Za-z0-9+/]*={0,2})$/.exec(
       uri,

@@ -1,3 +1,5 @@
+import { isBlobRef } from "../../assets/src/blobs";
+import { materializeScene } from "../../assets/src/documents";
 import { parseImport, type AssetImport } from "../../assets/src/record";
 import { parseProjectMetadata, type ProjectMetadata } from "../../project/src/metadata";
 import { parseUI } from "../../ui/src/schema";
@@ -60,7 +62,7 @@ export interface SceneDocument {
   ui?: UIDocument;
   collections?: Collection[];
   scripts?: ScriptAsset[];
-  version: 1;
+  version: 1 | 2;
   name: string;
   template: Template;
   entities: Entity[];
@@ -157,7 +159,7 @@ function oneOf<T extends string>(v: unknown, options: readonly T[]): T {
 export function parseScene(value: unknown): SceneDocument {
   if (
     !record(value) ||
-    value.version !== 1 ||
+    ![1, 2].includes(value.version as number) ||
     !Array.isArray(value.entities) ||
     value.entities.length > 500 ||
     !Array.isArray(value.assets) ||
@@ -168,12 +170,21 @@ export function parseScene(value: unknown): SceneDocument {
   const assets: Asset[] = value.assets.map((a) => {
     if (!record(a)) fail("asset");
     const data = text(a.data, "asset data", 3_000_000);
-    if (!/^data:model\/gltf-binary;base64,[A-Za-z0-9+/=]+$/.test(data)) fail("embedded GLB only");
+    if (
+      !/^data:model\/gltf-binary;base64,[A-Za-z0-9+/=]+$/.test(data) &&
+      !(value.version === 2 && isBlobRef(data))
+    )
+      fail("embedded GLB or v2 asset reference required");
+    const provenance = a.import !== undefined ? parseImport(a.import) : undefined;
+    if (provenance && value.version === 1 && provenance.sources.some((s) => isBlobRef(s.data)))
+      fail("Portable scene sources must be embedded");
+    if (provenance && isBlobRef(data) && data !== "asset:sha256:" + provenance.artifactHash)
+      fail("Artifact reference/hash mismatch");
     return {
       id: text(a.id, "asset ID"),
       name: text(a.name, "asset name"),
       data,
-      ...(a.import !== undefined ? { import: parseImport(a.import) } : {}),
+      ...(provenance ? { import: provenance } : {}),
     };
   });
   if (
@@ -320,7 +331,7 @@ export function parseScene(value: unknown): SceneDocument {
   const env = value.environment;
   return {
     ...(value.project !== undefined ? { project: parseProjectMetadata(value.project) } : {}),
-    version: 1,
+    version: value.version as 1 | 2,
     name: text(value.name, "scene name"),
     template: oneOf(value.template, ["adventure", "first-person", "driving", "sandbox"]),
     entities,
@@ -339,7 +350,7 @@ export function parseScene(value: unknown): SceneDocument {
   };
 }
 export function serializeScene(scene: SceneDocument) {
-  return JSON.stringify(parseScene(scene), null, 2);
+  return JSON.stringify(parseScene(materializeScene(scene)), null, 2);
 }
 
 function validateScriptValue(value: unknown, depth: number): void {

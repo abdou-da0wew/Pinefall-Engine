@@ -203,3 +203,7 @@ tests and remaining A0–A6 gates](../ASSET-PIPELINE-IMPLEMENTATION.md). In part
 reference-only documents/persistent artifact storage and full dependency invalidation,
 DCC fidelity/normalization, complete subasset conflict UX and physical hardware
 acceptance are still open. Do not mark Plan 01 fully implemented from this checkpoint.
+
+## Continuation checkpoint — 0.5.4 candidate
+
+Implemented SHA-256 reference working documents, persistent IndexedDB source/artifact/cache/recovery storage, named-source/recipe conversion identity, current model/source/entity dependency semantics, and explicit material/clip identity remapping. PIF remains portable v3. Verified tests and outstanding gates are listed in `../RELEASE-0.5.4.md`; do not infer full Plan 01 completion or publication from the version bump. Plan 02 has not started.

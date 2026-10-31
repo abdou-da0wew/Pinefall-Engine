@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 const repository = "abdou-da0wew/Pinefall-Engine";
 const versions = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
-if (!versions.length) versions.push("0.5.3");
+if (!versions.length) versions.push("0.5.4");
 if (versions.some((v) => !/^\d+\.\d+\.\d+$/.test(v)))
   throw Error("Expected release version numbers");
 const checkOnly = process.argv.includes("--check");

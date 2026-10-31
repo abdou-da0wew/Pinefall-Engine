@@ -253,6 +253,8 @@ try {
     mimeType: "model/gltf-binary",
     buffer: Buffer.from(triangle(1)),
   });
+  await expect(page.getByRole("dialog", { name: "Review reimport" })).toBeVisible();
+  await page.getByRole("button", { name: "Apply reimport", exact: true }).click();
   await expect(page.locator(".statusbar")).toContainText("Reimported triangle.glb");
   expect(errors).toEqual([]);
   console.log("PASS editor import/reimport UI");

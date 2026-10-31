@@ -1,3 +1,5 @@
+import { blobs } from "../../assets/src/blobs";
+import { sceneReferences } from "../../assets/src/documents";
 import type { SceneDocument } from "../../runtime/src/schema";
 export function projectJob(
   operation: "pack",
@@ -34,18 +36,37 @@ export function projectJob(
       reject(new Error("Project operation timed out"));
     }, 120000);
     signal?.addEventListener("abort", abort, { once: true });
-    worker.onmessage = (event) => {
-      cleanup();
-      if (event.data.error) reject(new Error(event.data.error));
-      else resolve(event.data.result);
+    worker.onmessage = async (event) => {
+      worker.terminate();
+      try {
+        if (event.data.error) throw Error(event.data.error);
+        if (event.data.blobs) await blobs.admit(event.data.blobs);
+        signal?.throwIfAborted();
+        resolve(event.data.result);
+      } catch (e) {
+        reject(e);
+      } finally {
+        cleanup();
+      }
     };
     worker.onerror = (event) => {
       cleanup();
       reject(new Error(event.message));
     };
-    worker.postMessage(
-      operation === "pack" ? { operation, scene: value } : { operation, bytes: value },
-      value instanceof Uint8Array ? [value.buffer] : [],
-    );
+    try {
+      worker.postMessage(
+        operation === "pack"
+          ? {
+              operation,
+              scene: value,
+              blobs: blobs.entries(sceneReferences(value as SceneDocument)),
+            }
+          : { operation, bytes: value },
+        value instanceof Uint8Array ? [value.buffer] : [],
+      );
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
   });
 }

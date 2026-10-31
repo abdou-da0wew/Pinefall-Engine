@@ -1,3 +1,8 @@
+import { sceneDependencyGraph } from "../../assets/src/dependencies";
+import { ReimportReview } from "./ReimportReview";
+import { assetDatabase } from "../../assets/src/database";
+import { referenceScene, sceneReferences } from "../../assets/src/documents";
+import { blobs } from "../../assets/src/blobs";
 import { prepareImport, adoptImport } from "../../assets/src/import";
 import { newProjectMetadata } from "../../project/src/metadata";
 import { projectJob } from "../../project/src/pif-client";
@@ -37,7 +42,11 @@ const templateNames: Record<Template, string> = {
   driving: "Arcade driving",
   sandbox: "Physics sandbox",
 };
+let bootScene: SceneDocument | undefined;
+let bootNotice = "";
+let recoveryBlocked = false;
 function initialScene() {
+  if (bootScene) return bootScene;
   try {
     const saved = localStorage.getItem("pinefall-engine.scene.v1");
     if (saved) return parseScene(JSON.parse(saved));
@@ -57,6 +66,8 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [review, setReview] = useState<React.ComponentProps<typeof ReimportReview> | null>(null);
+  const checkpointRevision = useRef(0);
   const [loadBusy, setLoadBusy] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importOnly, setImportOnly] = useState(false);
@@ -86,7 +97,7 @@ function App() {
     [inspector, setInspector] = useState<"entity" | "render">("entity"),
     [logs, setLogs] = useState<EngineEvent[]>([]),
     [error, setError] = useState(""),
-    [status, setStatus] = useState("Initializing physics and renderer…"),
+    [status, setStatus] = useState(bootNotice || "Initializing physics and renderer…"),
     [ready, setReady] = useState(false),
     [stats, setStats] = useState<Stats | null>(null),
     [score, setScore] = useState({ collected: 0, total: 5, won: false, speed: 0 }),
@@ -159,6 +170,7 @@ function App() {
   }
 
   function createNewGame() {
+    recoveryBlocked = false;
     importAbort.current?.abort();
     try {
       const next =
@@ -246,7 +258,7 @@ function App() {
         await instance.load(current.current);
         if (!disposed) {
           setReady(true);
-          setStatus("Ready · changes are saved locally");
+          setStatus(bootNotice || "Ready · reference-only recovery in local asset database");
         }
       })
       .catch((e) => {
@@ -276,13 +288,25 @@ function App() {
           if (active) setLoadBusy(false);
         });
     }
+    const revision = ++checkpointRevision.current;
     const timer = setTimeout(() => {
-      try {
-        localStorage.setItem("pinefall-engine.scene.v1", serializeScene(scene));
-        // Autosave must not overwrite import/export results or errors.
-      } catch {
-        setStatus("Local storage unavailable/full. Export your scene to keep it.");
-      }
+      if (recoveryBlocked) return;
+      void assetDatabase
+        .saveCheckpoint(scene, revision)
+        .then(() => {
+          // The previous legacy backup is removed only after a committed database checkpoint.
+          try {
+            localStorage.removeItem("pinefall-engine.scene.v1");
+          } catch {
+            /* local preferences unavailable */
+          }
+        })
+        .catch(() => {
+          if (active)
+            setStatus(
+              "Recovery storage unavailable/full. Save a PIF backup now; the previous checkpoint was preserved.",
+            );
+        });
     }, 400);
     return () => {
       active = false;
@@ -327,6 +351,7 @@ function App() {
     }
   }
   function newScene(template: Template) {
+    recoveryBlocked = false;
     if (playing) return;
     importAbort.current?.abort();
     history.current.commit(scene);
@@ -374,12 +399,13 @@ function App() {
       setStatus(isPif ? "Opening PIF in worker…" : "Opening legacy JSON…");
       const next = isPif
         ? await projectJob("unpack", new Uint8Array(await f.arrayBuffer()), controller.signal)
-        : parseScene(JSON.parse(await f.text()));
+        : await referenceScene(parseScene(JSON.parse(await f.text())), controller.signal);
       if (controller.signal.aborted) throw Error("Project operation cancelled");
       if (current.current !== before)
         throw Error("Project changed while opening. Retry after finishing your edits.");
       if (engine.current?.playing) throw Error("Stop gameplay before replacing the project");
       next.project ??= newProjectMetadata(next.name);
+      recoveryBlocked = false;
       setTrustedSignature(null);
       setStatus("Project opened; executable scripts require approval");
       history.current.commit(scene);
@@ -413,14 +439,33 @@ function App() {
       controller.signal.throwIfAborted();
       if (current.current.project?.id !== projectId || engine.current?.playing)
         throw Error("Project/Play changed during import; no changes applied");
-      if (
-        target &&
-        !window.confirm(
-          `Reimport ${result.name}? ${result.metadata.report.nodes} nodes, ${result.metadata.report.materials.length} materials, ${result.metadata.report.clips.length} clips. Entity transforms and asset ID will be retained. Ambiguous subassets receive new IDs.`,
-        )
-      )
-        return;
-      const adopted = adoptImport(current.current, result, target);
+      let mapping: Record<string, string> | undefined;
+      if (target) {
+        mapping = await new Promise<Record<string, string> | undefined>((resolve) => {
+          const abort = () => finish(undefined);
+          const finish = (value: Record<string, string> | undefined) => {
+            controller.signal.removeEventListener("abort", abort);
+            setReview(null);
+            resolve(value);
+          };
+          controller.signal.addEventListener("abort", abort, { once: true });
+          const affected = sceneDependencyGraph(current.current).changed("model:" + target.id, {
+            sourceHash: JSON.stringify(result.metadata.sources.map((s) => [s.name, s.sha256])),
+            artifactHash: result.metadata.artifactHash,
+          });
+          setReview({
+            previous: current.current.assets.find((a) => a.id === target.id)?.import,
+            incoming: result.metadata,
+            affected: affected.length,
+            finish,
+          });
+        });
+        if (!mapping) return;
+      }
+      controller.signal.throwIfAborted();
+      if (current.current.project?.id !== projectId || engine.current?.playing)
+        throw Error("Project/Play changed during reimport review");
+      const adopted = adoptImport(current.current, result, target, mapping);
       const placed =
         !target && !importOnly ? placeModel(adopted.scene, adopted.asset.id) : undefined;
       const next = placed?.scene || adopted.scene;
@@ -470,12 +515,13 @@ function App() {
     if (!f) return;
     try {
       if (f.size > 9_000_000) throw new Error("Prefab too large");
-      const prefab = parseScene(JSON.parse(await f.text()));
+      const prefab = await referenceScene(parseScene(JSON.parse(await f.text())));
       const mapping = new Map(prefab.entities.map((e) => [e.id, crypto.randomUUID()]));
       const collectionMap = new Map(
         (prefab.collections || []).map((c) => [c.id, crypto.randomUUID()]),
       );
       commit((d) => {
+        d.version = 2;
         if (prefab.collections?.length) {
           d.collections ??= [];
           d.collections.push(
@@ -1405,6 +1451,31 @@ function App() {
                 <button disabled={playing} onClick={() => prefabFile.current?.click()}>
                   <Icon name="upload" /> Import prefab
                 </button>
+                <button
+                  disabled={playing || importBusy || loadBusy || projectBusy}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Clear undo history and regenerable conversion cache? The active project and recovery checkpoints stay intact.",
+                      )
+                    )
+                      return;
+                    history.current.reset();
+                    const refs = new Set(sceneReferences(current.current));
+                    if (engine.current?.document)
+                      for (const ref of sceneReferences(engine.current.document)) refs.add(ref);
+                    blobs.retain(refs);
+                    void assetDatabase
+                      .clearArtifacts()
+                      .then(() =>
+                        setStatus("Conversion cache and undo cleared; active project retained."),
+                      )
+                      .catch((e) => setStatus(String(e)));
+                    setRevision((r) => r + 1);
+                  }}
+                >
+                  Clear cache / undo
+                </button>
               </>
             ) : tab === "console" ? (
               <>
@@ -1622,6 +1693,7 @@ function App() {
         multiple
         onChange={(e) => void importGlb(e)}
       />
+      {review && <ReimportReview {...review} />}
       <input
         ref={prefabFile}
         hidden
@@ -1634,4 +1706,26 @@ function App() {
 }
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing editor root");
-createRoot(root).render(<App />);
+async function boot() {
+  root!.textContent = "Opening asset database…";
+  try {
+    const restored = await assetDatabase.restoreCheckpoint();
+    bootScene = restored?.scene || (await referenceScene(initialScene()));
+    if (restored?.recovered)
+      bootNotice =
+        "Recovered previous verified checkpoint; the newest checkpoint was invalid. Save a PIF backup.";
+  } catch (error) {
+    bootNotice =
+      "Recovery unavailable: " +
+      String(error) +
+      ". Existing storage retained; open a PIF or create a new project.";
+    recoveryBlocked = true;
+    try {
+      bootScene = await referenceScene(initialScene());
+    } catch {
+      bootScene = createTemplate("adventure");
+    }
+  }
+  createRoot(root!).render(<App />);
+}
+void boot();

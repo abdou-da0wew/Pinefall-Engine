@@ -1,3 +1,4 @@
+import { isBlobRef, BLOB_PREFIX } from "./blobs";
 import { inspectGlb, fromDataURI, toDataURI, type ModelInspection } from "./glb";
 export interface SourceFile {
   name: string;
@@ -60,7 +61,7 @@ export function parseImport(value: unknown): AssetImport {
       !isHash(s.sha256) ||
       typeof s.name !== "string" ||
       typeof s.data !== "string" ||
-      !s.data.startsWith("data:application/octet-stream;base64,")
+      (!s.data.startsWith("data:application/octet-stream;base64,") && !isBlobRef(s.data))
     )
       throw Error("Invalid source record");
     const name = safeName(s.name),
@@ -70,10 +71,13 @@ export function parseImport(value: unknown): AssetImport {
     size += s.data.length;
     if (size > 6_000_000) throw Error("Original-source budget exceeded");
     if (
-      !/^data:application\/octet-stream;base64,[A-Za-z0-9+/]*={0,2}$/.test(s.data) ||
-      s.data.split(",")[1].length % 4
+      !isBlobRef(s.data) &&
+      (!/^data:application\/octet-stream;base64,[A-Za-z0-9+/]*={0,2}$/.test(s.data) ||
+        s.data.split(",")[1].length % 4)
     )
       throw Error("Invalid source encoding");
+    if (isBlobRef(s.data) && s.data !== BLOB_PREFIX + s.sha256)
+      throw Error("Source reference/hash mismatch");
     return { name, data: s.data, sha256: s.sha256 };
   });
   const r = v.report;
@@ -134,7 +138,11 @@ export function parseImport(value: unknown): AssetImport {
 function isHash(v: unknown) {
   return typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
 }
-export function reconcileSubassets(report: ModelInspection, previous?: AssetImport) {
+export function reconcileSubassets(
+  report: ModelInspection,
+  previous?: AssetImport,
+  mapping?: Record<string, string>,
+) {
   const result: AssetImport["subassets"] = [];
   for (const kind of ["material", "clip"] as const) {
     const names = kind === "material" ? report.materials : report.clips;
@@ -144,7 +152,12 @@ export function reconcileSubassets(report: ModelInspection, previous?: AssetImpo
       const old = unique
         ? previous?.subassets.find((s) => s.kind === kind && s.key === key)
         : undefined;
-      result.push({ id: old?.id || crypto.randomUUID(), key, kind });
+      const selected = mapping?.[kind + ":" + key];
+      if (selected && !previous?.subassets.some((s) => s.id === selected && s.kind === kind))
+        throw Error("Invalid subasset remap");
+      const id = mapping ? selected || crypto.randomUUID() : old?.id || crypto.randomUUID();
+      if (result.some((s) => s.id === id)) throw Error("Subasset identity mapped more than once");
+      result.push({ id, key, kind });
     }
   }
   return result;

@@ -1,12 +1,19 @@
+import { blobs } from "../../assets/src/blobs";
+import { referenceScene, sceneReferences } from "../../assets/src/documents";
 import { packProject, unpackProject } from "./pif";
 self.onmessage = async (event: MessageEvent) => {
   try {
-    const result =
+    if (event.data.blobs) await blobs.admit(event.data.blobs);
+    let result =
       event.data.operation === "pack"
         ? await packProject(event.data.scene)
         : await unpackProject(event.data.bytes);
+    if (!(result instanceof Uint8Array)) result = await referenceScene(result);
     self.postMessage(
-      { result },
+      {
+        result,
+        ...(result instanceof Uint8Array ? {} : { blobs: blobs.entries(sceneReferences(result)) }),
+      },
       result instanceof Uint8Array ? [result.buffer as ArrayBuffer] : [],
     );
   } catch (error) {

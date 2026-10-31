@@ -105,3 +105,7 @@ suite (including binary FBX) and existing PIF native suite passed against the
 packaged Linux executable. The new Asset Pipeline sample verifies as PIF v3 with
 source provenance. Publication is authorized by the owner; public verification is
 reported separately after upload rather than assumed from the local build.
+
+## Superseding 0.5.4 continuation evidence
+
+The A1 reference-document/persistent-storage work and material/clip remap portion of A5 now have implementation and tests. See `RELEASE-0.5.4.md` for exact scope, limits and the remaining gates; the historical table above describes the 0.5.3 baseline. Current evidence: 64 tests / 250 assertions, typecheck/lint/build, real IndexedDB recovery/corruption/injected-quota/cache/reload tests, browser regressions, fresh standalone export, and packaged Linux native tests. Windows packaging passed, execution untested. No physical-GPU or broad DCC acceptance claim.

@@ -1,8 +1,10 @@
-# Pinefall Engine 0.5.3
+# Pinefall Engine 0.5.4
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
+
+**0.5.4 candidate:** reference-only editor documents, verified persistent asset cache/recovery, and explicit material/clip reimport mapping. GitHub publication is pending authentication. See [candidate notes](docs/RELEASE-0.5.4.md). Plan 01 still has open acceptance gates.
 
 **0.5.3:** worker-based model parsing, cached instances, cancellable import/reimport, experimental FBX + PNG/JPEG conversion, and PIF v3 source provenance. This is a tested first asset-pipeline slice, not full Plan 01 completion. See [release notes](docs/RELEASE-0.5.3.md).
 

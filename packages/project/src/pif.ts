@@ -1,3 +1,4 @@
+import { materializeScene } from "../../assets/src/documents";
 import { parseImport, verifyImport } from "../../assets/src/record";
 import { fromDataURI } from "../../assets/src/glb";
 import { newProjectMetadata, parseProjectMetadata } from "./metadata";
@@ -92,14 +93,14 @@ function base64(bytes: Uint8Array) {
   return btoa(s);
 }
 export function projectFiles(scene: SceneDocument) {
-  const checked = parseScene(scene),
+  const checked = parseScene(materializeScene(scene)),
     files = new Map<string, Uint8Array>();
   const metadata = parseProjectMetadata(checked.project || newProjectMetadata(checked.name));
   metadata.title = checked.name;
   metadata.modifiedAt = new Date(
     Math.max(Date.now(), Date.parse(metadata.createdAt)),
   ).toISOString();
-  metadata.editor.version = "0.5.3";
+  metadata.editor.version = "0.5.4";
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
       bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
