@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-labelledby="title">
+  <title id="title">Pinefall</title>
+  <path d="M 50 10 L 90 50 L 50 90 L 10 50 Z" fill="none" stroke="#d8d1a7" stroke-width="8"/>
+  <path d="M 50 25 L 75 50 L 50 75 L 25 50 Z" fill="#c4cfa4"/>
+</svg>

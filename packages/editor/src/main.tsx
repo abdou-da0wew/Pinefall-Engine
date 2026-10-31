@@ -471,7 +471,7 @@ function App() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">
-            <Icon name="cube" size={32} />
+            <img src="./pinefall-logo.svg" width="32" height="32" alt="Pinefall" />
           </span>
           <div>
             PINEFALL <b>ENGINE</b>

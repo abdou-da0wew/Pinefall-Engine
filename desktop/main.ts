@@ -20,6 +20,7 @@ function log(type: string, message: string) {
 }
 void app.whenReady().then(() => {
   const win = new BrowserWindow({
+    icon: join(import.meta.dirname, "../dist/pinefall-app-icon.png"),
     width: 1440,
     height: 900,
     minWidth: 850,

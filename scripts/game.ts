@@ -101,6 +101,8 @@ async function main() {
     await mkdir(output, { recursive: true });
     await cp("dist/assets", join(output, "assets"), { recursive: true });
     await copyFile("dist/game.html", join(output, "index.html"));
+    for (const name of ["pinefall-logo.svg", "pinefall-app-icon.svg"])
+      await copyFile(join("dist", name), join(output, name));
     const html = await Bun.file(join(output, "index.html")).text();
     await Bun.write(
       join(output, "index.html"),

@@ -61,10 +61,12 @@
     ],
     "linux": {
       "target": "AppImage",
-      "category": "Development"
+      "category": "Development",
+      "icon": "public/pinefall-app-icon.png"
     },
     "win": {
-      "target": "zip"
+      "target": "zip",
+      "icon": "desktop/icon.ico"
     }
   }
 }
