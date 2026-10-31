@@ -1,3 +1,5 @@
+import { typecheckScripts } from "./typecheck-scripts";
+import { compileScript } from "../packages/scripting/src/compiler";
 import { mkdir, copyFile, cp, stat, rename } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { createGame, importModel, placeModel } from "../packages/project/src";
@@ -50,10 +52,40 @@ async function main() {
     await writeScene(path, parseScene(scene));
     return { edited: item.id };
   }
+  if (command === "script-add") {
+    if (!args[0]) throw Error("script-add requires a TypeScript file");
+    const source = await Bun.file(args[0]).text();
+    compileScript(source, args[0]);
+    const id = crypto.randomUUID();
+    scene.scripts ??= [];
+    scene.scripts.push({ id, name: args[0].split(/[\\/]/).pop()!, source });
+    await writeScene(path, scene);
+    return { script: id };
+  }
+  if (command === "script-attach") {
+    const e = scene.entities.find((e) => e.id === args[0]);
+    if (!e) throw Error("Entity not found");
+    const id = crypto.randomUUID();
+    e.scripts ??= [];
+    e.scripts.push({ id, script: args[1], enabled: true, props: JSON.parse(args[2] || "{}") });
+    await writeScene(path, scene);
+    return { attachment: id };
+  }
+  if (command === "script-typecheck") return await typecheckScripts(scene);
+  if (command === "script-check") {
+    for (const script of scene.scripts || []) compileScript(script.source, script.name);
+    return {
+      syntaxValid: true,
+      scripts: scene.scripts?.length || 0,
+      note: "Syntax only, no type checking or execution",
+    };
+  }
   if (command === "simulate") {
     const engine = await HeadlessEngine.create(scene);
+    engine.allowSceneScripts = args.includes("--trust-scripts");
     try {
-      for (const key of (args[1] || "").split(",").filter(Boolean)) engine.input.add(key);
+      for (const key of (args[1]?.startsWith("--") ? "" : args[1] || "").split(",").filter(Boolean))
+        engine.input.add(key);
       engine.step(Number(args[0] || 120));
       return engine.report();
     } finally {

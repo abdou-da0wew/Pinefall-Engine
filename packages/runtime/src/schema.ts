@@ -1,7 +1,26 @@
 export type Vec3 = [number, number, number];
 export type Template = "adventure" | "first-person" | "driving" | "sandbox";
 export type Primitive = "box" | "sphere" | "capsule" | "cylinder" | "cone" | "asset";
+export type ScriptValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ScriptValue[]
+  | { [key: string]: ScriptValue };
+export interface ScriptAsset {
+  id: string;
+  name: string;
+  source: string;
+}
+export interface ScriptAttachment {
+  id: string;
+  script: string;
+  enabled: boolean;
+  props: Record<string, ScriptValue>;
+}
 export interface Entity {
+  scripts?: ScriptAttachment[];
   id: string;
   name: string;
   enabled: boolean;
@@ -26,6 +45,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  scripts?: ScriptAsset[];
   version: 1;
   name: string;
   template: Template;
@@ -138,6 +158,23 @@ export function parseScene(value: unknown): SceneDocument {
     return { id: text(a.id, "asset ID"), name: text(a.name, "asset name"), data };
   });
   if (assets.reduce((s, a) => s + a.data.length, 0) > 8_000_000) fail("asset budget");
+  let scripts: ScriptAsset[] | undefined;
+  if (value.scripts !== undefined) {
+    if (!Array.isArray(value.scripts) || value.scripts.length > 32) fail("script limit");
+    scripts = value.scripts.map((s) => {
+      if (!record(s)) fail("script");
+      return {
+        id: text(s.id, "script ID"),
+        name: text(s.name, "script name"),
+        source: text(s.source, "script source", 64000),
+      };
+    });
+    if (
+      new Set(scripts.map((s) => s.id)).size !== scripts.length ||
+      scripts.reduce((n, s) => n + s.source.length, 0) > 512000
+    )
+      fail("script IDs/budget");
+  }
   const entities: Entity[] = value.entities.map((e) => {
     if (!record(e) || !record(e.transform) || typeof e.enabled !== "boolean") fail("entity");
     const out: Entity = {
@@ -150,6 +187,25 @@ export function parseScene(value: unknown): SceneDocument {
         scale: vector(e.transform.scale, true),
       },
     };
+    if (e.scripts !== undefined) {
+      if (!Array.isArray(e.scripts) || e.scripts.length > 16) fail("attachment limit");
+      out.scripts = e.scripts.map((a) => {
+        if (!record(a) || typeof a.enabled !== "boolean" || !record(a.props)) fail("attachment");
+        const script = text(a.script, "script reference");
+        if (!scripts?.some((s) => s.id === script)) fail("missing script");
+        const props = JSON.stringify(a.props);
+        if (props.length > 8000) fail("script property budget");
+        validateScriptValue(a.props, 0);
+        return {
+          id: text(a.id, "attachment ID"),
+          script,
+          enabled: a.enabled,
+          props: JSON.parse(props),
+        };
+      });
+      if (new Set(out.scripts.map((a) => a.id)).size !== out.scripts.length)
+        fail("duplicate attachment IDs");
+    }
     if (e.parent !== undefined) out.parent = text(e.parent, "parent");
     if (e.tag !== undefined) out.tag = text(e.tag, "tag");
     if (e.behavior !== undefined) out.behavior = text(e.behavior, "behavior");
@@ -213,6 +269,7 @@ export function parseScene(value: unknown): SceneDocument {
     template: oneOf(value.template, ["adventure", "first-person", "driving", "sandbox"]),
     entities,
     assets,
+    ...(scripts ? { scripts } : {}),
     environment: {
       background: color(env.background),
       fog: color(env.fog),
@@ -225,4 +282,22 @@ export function parseScene(value: unknown): SceneDocument {
 }
 export function serializeScene(scene: SceneDocument) {
   return JSON.stringify(parseScene(scene), null, 2);
+}
+
+function validateScriptValue(value: unknown, depth: number): void {
+  if (depth > 10) fail("property nesting limit");
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number" && Number.isFinite(value)) return;
+  if (Array.isArray(value)) {
+    for (const item of value) validateScriptValue(item, depth + 1);
+    return;
+  }
+  if (record(value)) {
+    for (const [key, item] of Object.entries(value)) {
+      if (["__proto__", "constructor", "prototype"].includes(key)) fail("unsafe property key");
+      validateScriptValue(item, depth + 1);
+    }
+    return;
+  }
+  fail("script properties must be JSON values");
 }

@@ -1,8 +1,10 @@
-# Pinefall Engine 0.2.0 — game creation and headless tools
+# Pinefall Engine 0.3.0 — attachable TypeScript scripting
 
 **New in 0.2:** named New Game workflow, reusable multi-model imports and drag/drop, player-model replacement, a DOM-free simulator sharing real physics/gameplay behaviors, JSON CLI authoring, and standalone custom-game web export. See [Creating games](docs/CREATING-GAMES.md) for the complete workflow, API, supported assets, limits and example.
 
-The published 0.1.1 release below predates these changes; 0.2 is currently local development.
+**New in 0.3:** in-editor TypeScript script assets, multiple per-object attachments, editable JSON properties, class/factory lifecycle hooks, a typed gameplay SDK, helper-module imports, runtime spawn/destroy, script diagnostics, explicit code trust, and the same scripts running headlessly or in exported players. See [Scripting](docs/SCRIPTING.md) and `examples/projects/script-lab.scene.json`.
+
+The published 0.1.1 release below predates these changes; 0.3 is currently local development.
 
 A separate TypeScript 3D runtime and visual workshop, built with Bun, Three.js, Rapier and React. The original Pinefall game is unchanged. This is a small usable engine foundation, **not Unity feature parity or a production-certified engine**.
 
@@ -95,3 +97,9 @@ The engine remains an experimental foundation with the feature limits listed abo
 ## 0.2 validation
 
 14 unit/physics/headless tests, 46 assertions; TypeScript and Oxlint pass. Browser creation test passed new game, GLB import, play/stop and custom standalone export; existing browser regression suites pass. Packaged Linux editor start/play/stop passes under Xvfb/SwiftShader. Headless tests verify all four starters, real character movement and sensors, custom behavior isolation, model validation/deduplication, and completion of the Beacon Run example. Windows packages were generated but not executed.
+
+## 0.3 validation
+
+24 unit/physics/headless/scripting tests, 67 assertions, TypeScript and Oxlint pass. New editor browser test verifies create/edit/save/attach, permission gating, execution, source-change/reload permission reset, and real script spawning in an exported player. The three Script Lab modules pass real TypeScript semantic checking. Packaged Linux script import, trust gate, physics spawning and Stop restoration pass under Xvfb/SwiftShader. Existing browser starter/runtime/creation regressions pass. Windows 0.3 packages were generated, not executed.
+
+This is a local 0.3 build; no 0.3 GitHub publication has been performed.

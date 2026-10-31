@@ -12,7 +12,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["bun", "vite/client"]
+    "types": ["bun", "vite/client"],
+    "paths": {
+      "@pinefall/sdk": ["./packages/scripting/src/sdk.ts"]
+    }
   },
   "include": ["packages", "examples", "scripts", "tests", "desktop", "*.ts"]
 }

@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "name": "Script Lab",
+  "template": "adventure",
+  "entities": [
+    {
+      "id": "a47b1da1-d80b-4c74-b968-548563bfb3b1",
+      "name": "Ground",
+      "enabled": true,
+      "transform": {
+        "position": [0, -0.5, 0],
+        "rotation": [0, 0, 0],
+        "scale": [40, 1, 40]
+      },
+      "scripts": [
+        {
+          "id": "spawner-instance",
+          "script": "Spawner",
+          "enabled": true,
+          "props": {
+            "interval": 2,
+            "maxCrates": 6
+          }
+        }
+      ],
+      "mesh": {
+        "primitive": "box",
+        "color": "#667c60"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0.7,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "bdf026eb-0cb3-4304-92bb-8b9faba33e32",
+      "name": "Player",
+      "enabled": true,
+      "transform": {
+        "position": [0, 1, 6],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "scripts": [
+        {
+          "id": "boost-instance",
+          "script": "Boost",
+          "enabled": true,
+          "props": {
+            "dashSpeed": 12
+          }
+        }
+      ],
+      "tag": "player",
+      "behavior": "character",
+      "mesh": {
+        "primitive": "capsule",
+        "color": "#b9d9be"
+      },
+      "physics": {
+        "type": "kinematic",
+        "shape": "capsule",
+        "mass": 75,
+        "friction": 0.5,
+        "restitution": 0,
+        "sensor": false
+      }
+    },
+    {
+      "id": "43c7655a-6bab-43d4-b793-f2af1fd4d04b",
+      "name": "Scripted bounce pad",
+      "enabled": true,
+      "transform": {
+        "position": [4, 0.15, 0],
+        "rotation": [0, 0, 0],
+        "scale": [3, 0.3, 3]
+      },
+      "scripts": [
+        {
+          "id": "bounce-instance",
+          "script": "BouncePad",
+          "enabled": true,
+          "props": {
+            "height": 4
+          }
+        }
+      ],
+      "mesh": {
+        "primitive": "box",
+        "color": "#79ceb5"
+      },
+      "physics": {
+        "type": "fixed",
+        "shape": "box",
+        "mass": 1,
+        "friction": 0,
+        "restitution": 0,
+        "sensor": true
+      }
+    }
+  ],
+  "assets": [],
+  "scripts": [
+    {
+      "id": "Boost",
+      "name": "Boost.ts",
+      "source": "import { Script, Vector3 } from \"@pinefall/sdk\";\n// Attach alongside the built-in character controller; hold E for a forward dash.\nexport const defaults = { dashSpeed: 9 };\nexport default class Boost extends Script {\n  fixedUpdate(dt: number) {\n    if (!this.ctx.input.has(\"KeyE\")) return;\n    const direction = new Vector3(\n      -Math.sin(this.ctx.engine.look.yaw),\n      0,\n      -Math.cos(this.ctx.engine.look.yaw),\n    );\n    const body = this.ctx.body();\n    if (!body) return;\n    // Extend the controller's already scheduled displacement, preserving wall collisions.\n    const current = body.translation(),\n      next = body.nextTranslation();\n    this.ctx.engine.physics.move(this.ctx.entity.id, {\n      x: next.x - current.x + direction.x * Number(this.ctx.props.dashSpeed) * dt,\n      y: next.y - current.y,\n      z: next.z - current.z + direction.z * Number(this.ctx.props.dashSpeed) * dt,\n    });\n  }\n}\n"
+    },
+    {
+      "id": "BouncePad",
+      "name": "BouncePad.ts",
+      "source": "import { Script } from \"@pinefall/sdk\";\nimport type { Entity } from \"@pinefall/sdk\";\nexport const defaults = { height: 3 };\nexport default class BouncePad extends Script {\n  trigger(other: Entity, started: boolean) {\n    if (!started || other.tag !== \"player\") return;\n    const target = this.ctx.objectFor(other.id);\n    if (!target) return;\n    this.ctx.teleport(\n      [target.position.x, target.position.y + Number(this.ctx.props.height), target.position.z],\n      other.id,\n    );\n    this.ctx.emit(\"bounce\", { player: other.id });\n  }\n}\n"
+    },
+    {
+      "id": "Spawner",
+      "name": "Spawner.ts",
+      "source": "import { Script, entity } from \"@pinefall/sdk\";\nexport const defaults = { interval: 2, maxCrates: 8 };\nexport default class Spawner extends Script {\n  private next = 0;\n  private spawned: string[] = [];\n  fixedUpdate() {\n    if (this.ctx.time.elapsed < this.next) return;\n    this.next = this.ctx.time.elapsed + Math.max(0.2, Number(this.ctx.props.interval));\n    const p = this.ctx.object.position;\n    const box = entity(\"Scripted crate\", \"box\", [p.x, p.y + 4, p.z]);\n    box.physics = {\n      type: \"dynamic\",\n      shape: \"box\",\n      mass: 1,\n      friction: 0.6,\n      restitution: 0.3,\n      sensor: false,\n    };\n    this.spawned.push(this.ctx.spawn(box).id);\n    if (this.spawned.length > Math.max(1, Number(this.ctx.props.maxCrates)))\n      this.ctx.destroy(this.spawned.shift()!);\n  }\n}\n"
+    }
+  ],
+  "environment": {
+    "background": "#263c44",
+    "fog": "#263c44",
+    "fogNear": 30,
+    "fogFar": 100,
+    "sun": 2,
+    "gravity": -9.81
+  }
+}

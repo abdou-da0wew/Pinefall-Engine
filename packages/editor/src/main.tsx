@@ -1,3 +1,5 @@
+import { ScriptPanel, ScriptAttachments } from "./scripting";
+import { hasSceneScripts } from "../../scripting/src/runtime";
 import { createGame, importModel, placeModel } from "../../project/src";
 /* oxlint-disable react/refs -- Event-handler closures access runtime refs; no React Compiler is used. History is revision-driven. */
 import React, { useEffect, useRef, useState } from "react";
@@ -46,6 +48,8 @@ async function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function App() {
+  const [trustedSignature, setTrustedSignature] = useState<string | null>(null),
+    [scriptId, setScriptId] = useState("");
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
@@ -54,7 +58,7 @@ function App() {
     [playing, setPlaying] = useState(false),
     [paused, setPaused] = useState(false),
     [settings, setSettings] = useState<RenderSettings>({ ...LOW }),
-    [tab, setTab] = useState<"assets" | "console" | "guide">("assets"),
+    [tab, setTab] = useState<"assets" | "console" | "guide" | "scripts">("assets"),
     [inspector, setInspector] = useState<"entity" | "render">("entity"),
     [logs, setLogs] = useState<EngineEvent[]>([]),
     [error, setError] = useState(""),
@@ -179,6 +183,8 @@ function App() {
   useEffect(() => {
     engine.current?.applySettings(settings);
   }, [settings, ready]);
+  const scriptSignature = JSON.stringify(scene.scripts || []) + scene.name;
+  const scriptsTrusted = trustedSignature === scriptSignature;
   function patchEntity(patch: (entity: Entity) => void) {
     if (!selected) return;
     commit((d) => {
@@ -251,8 +257,18 @@ function App() {
       setPlaying(false);
       setPaused(false);
     } else {
-      engine.current.play();
-      setPlaying(true);
+      if (hasSceneScripts(scene) && !scriptsTrusted) {
+        setStatus("Scripts blocked. Review the code and check Allow trusted scripts before Play.");
+        setTab("scripts");
+        return;
+      }
+      engine.current.allowSceneScripts = scriptsTrusted;
+      try {
+        engine.current.play();
+        setPlaying(true);
+      } catch (e) {
+        setStatus(String(e));
+      }
     }
   }
   async function loadScene(event: React.ChangeEvent<HTMLInputElement>) {
@@ -327,6 +343,10 @@ function App() {
       const prefab = parseScene(JSON.parse(await f.text()));
       const mapping = new Map(prefab.entities.map((e) => [e.id, crypto.randomUUID()]));
       commit((d) => {
+        for (const script of prefab.scripts || []) {
+          d.scripts ??= [];
+          if (!d.scripts.some((s) => s.id === script.id)) d.scripts.push(script);
+        }
         for (const asset of prefab.assets)
           if (!d.assets.some((a) => a.id === asset.id)) d.assets.push(asset);
         for (const e of prefab.entities) {
@@ -399,7 +419,7 @@ function App() {
     );
   }
   return (
-    <div className="workbench">
+    <div className={"workbench " + (tab === "scripts" ? "scripting-open" : "")}>
       {newGameOpen && (
         <div className="project-modal" role="dialog" aria-modal="true" aria-label="New game">
           <form
@@ -455,7 +475,7 @@ function App() {
           <span className="brand-mark">◈</span>
           <div>
             PINEFALL <b>ENGINE</b>
-            <small>WORKSHOP / 0.1</small>
+            <small>WORKSHOP / 0.3</small>
           </div>
         </div>
         <div className="project-path">
@@ -481,6 +501,21 @@ function App() {
           <span className="dot" /> {scene.name}.scene <span className="dim">3D ONLY</span>
         </div>
         <div className="play-controls">
+          {scene.scripts?.length ? (
+            <label
+              className="script-trust"
+              title="Trusted code runs with host privileges. Not a sandbox."
+            >
+              <input
+                type="checkbox"
+                aria-label="Allow trusted scripts"
+                checked={scriptsTrusted}
+                disabled={playing}
+                onChange={(e) => setTrustedSignature(e.target.checked ? scriptSignature : null)}
+              />
+              Allow trusted scripts
+            </label>
+          ) : null}
           <button
             aria-label={playing ? "Stop scene" : "Play scene"}
             className={playing ? "stop" : "play"}
@@ -960,10 +995,19 @@ function App() {
                     ))}
                   </select>
                   <small className="hint">
-                    Typed behaviors run only in Play. Custom behavior modules register through the
-                    runtime API.
+                    Built-in behaviors run in Play. Attach custom TypeScript below to extend them.
                   </small>
                 </section>
+                <ScriptAttachments
+                  entity={chosen}
+                  scene={scene}
+                  disabled={playing}
+                  patch={patchEntity}
+                  onOpen={(id) => {
+                    setScriptId(id);
+                    setTab("scripts");
+                  }}
+                />
                 {chosen.light && (
                   <section>
                     <h3>☀ Light</h3>
@@ -1136,13 +1180,15 @@ function App() {
       <section className="bottom-panel">
         <div className="bottom-tabs">
           <div>
-            {(["assets", "console", "guide"] as const).map((t) => (
+            {(["assets", "console", "scripts", "guide"] as const).map((t) => (
               <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
                 {t === "assets"
                   ? "◫ Asset library"
                   : t === "console"
                     ? `›_ Console (${logs.length})`
-                    : "⌘ Quick start"}
+                    : t === "scripts"
+                      ? "{ } Scripts"
+                      : "⌘ Quick start"}
               </button>
             ))}
           </div>
@@ -1177,7 +1223,17 @@ function App() {
             ) : null}
           </div>
         </div>
-        {tab === "assets" ? (
+        {tab === "scripts" ? (
+          <ScriptPanel
+            key={scriptId + (scene.scripts?.find((s) => s.id === scriptId)?.source || "")}
+            scene={scene}
+            disabled={playing}
+            commit={commit}
+            exportText={download}
+            selectedId={scriptId}
+            onSelect={setScriptId}
+          />
+        ) : tab === "assets" ? (
           <div className="asset-content">
             <div className="asset-folders">
               <span className="active">▾ Built-in library</span>
@@ -1232,7 +1288,10 @@ function App() {
               <div className={e.type === "error" ? "error" : ""} key={i}>
                 <time>{e.time.slice(11, 19)}</time>
                 <b>{e.type}</b>
-                <span>{e.message}</span>
+                <span>
+                  {e.message}
+                  {e.data && <code className="log-details">{JSON.stringify(e.data)}</code>}
+                </span>
               </div>
             ))}
             {!logs.length && <p>No events yet.</p>}

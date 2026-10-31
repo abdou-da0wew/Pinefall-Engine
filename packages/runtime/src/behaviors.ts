@@ -23,6 +23,8 @@ export type SimulationHost = Pick<
   | "checkpoint"
   | "events"
   | "registerBehavior"
+  | "spawn"
+  | "destroy"
 >;
 export interface BehaviorContext {
   engine: SimulationHost;

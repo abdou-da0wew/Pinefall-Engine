@@ -1,13 +1,15 @@
 import { Group, MathUtils } from "three";
 import { initPhysics, PhysicsSystem } from "../../runtime/src/physics";
 import { parseScene, cloneScene } from "../../runtime/src/schema";
-import type { SceneDocument, Vec3 } from "../../runtime/src/schema";
+import type { SceneDocument, Vec3, Entity } from "../../runtime/src/schema";
 import { Events } from "../../runtime/src/events";
 import { registerBuiltins } from "../../runtime/src/behaviors";
 import type { Behavior, BehaviorFactory, SimulationHost } from "../../runtime/src/behaviors";
-import { safeBehavior } from "../../runtime/src/behavior-safety";
+import { createBehaviorSession } from "../../scripting/src/runtime";
 /** DOM-free simulation: same physics, scene schema and behaviors as the graphical engine. */
 export class HeadlessEngine implements SimulationHost {
+  allowSceneScripts = false;
+  private behaviorBuilder?: (entity: Entity) => Behavior;
   readonly input = new Set<string>();
   readonly objects = new Map<string, Group>();
   readonly events = new Events();
@@ -54,39 +56,71 @@ export class HeadlessEngine implements SimulationHost {
   play() {
     this.assertAlive();
     if (this.playing) return;
+    const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
+    this.behaviorBuilder = createBehavior;
     this.playing = true;
-    for (const e of this.document.entities) {
-      if (!e.enabled || !e.behavior) continue;
-      const factory = this.registry.get(e.behavior);
-      if (!factory) {
-        this.events.emit("warning", "Unregistered behavior", {
-          entity: e.id,
-          behavior: e.behavior,
-        });
-        continue;
-      }
-      const instance = safeBehavior(factory, { engine: this, entity: e }, (hook, error) =>
-        this.events.emit("error", "Behavior disabled after exception", {
-          entity: e.id,
-          hook,
-          error: String(error),
-        }),
-      );
+    for (const e of [...this.document.entities]) {
+      if (!e.enabled) continue;
+      const instance = createBehavior(e);
       this.behaviors.set(e.id, instance);
       instance.start?.();
     }
+  }
+
+  spawn(input: Entity) {
+    this.assertAlive();
+    if (!this.playing) throw Error("Runtime spawning requires Play");
+    if (input.parent) throw Error("Spawn a root entity");
+    const next = parseScene({ ...this.document, entities: [...this.document.entities, input] });
+    const e = next.entities.at(-1)!;
+    this.document.entities.push(e);
+    this.physics.add(e);
+    const node = new Group();
+    node.position.fromArray(e.transform.position);
+    node.rotation.set(...(e.transform.rotation.map(MathUtils.degToRad) as Vec3));
+    node.scale.fromArray(e.transform.scale);
+    node.visible = e.enabled;
+    this.objects.set(e.id, node);
+    if (e.enabled && this.behaviorBuilder) {
+      const b = this.behaviorBuilder(e);
+      this.behaviors.set(e.id, b);
+      b.start?.();
+    }
+    return e;
+  }
+  destroy(id: string) {
+    this.assertAlive();
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const e of this.document.entities)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          changed = true;
+        }
+    }
+    for (const key of ids) {
+      const b = this.behaviors.get(key);
+      this.behaviors.delete(key);
+      b?.dispose?.();
+      this.physics.remove(key);
+      this.objects.get(key)?.removeFromParent();
+      this.objects.delete(key);
+    }
+    this.document.entities = this.document.entities.filter((e) => !ids.has(e.id));
   }
   step(ticks = 1) {
     this.assertAlive();
     if (!Number.isInteger(ticks) || ticks < 0 || ticks > 36000)
       throw Error("Ticks must be an integer between 0 and 36000");
     this.play();
-    const entities = new Map(this.document.entities.map((e) => [e.id, e]));
+
     for (let i = 0; i < ticks; i++) {
       for (const b of this.behaviors.values()) b.fixedUpdate?.(1 / 60);
       this.physics.step((a, b, started) => {
-        const ea = entities.get(a),
-          eb = entities.get(b);
+        const ea = this.document.entities.find((e) => e.id === a),
+          eb = this.document.entities.find((e) => e.id === b);
         if (ea && eb) {
           this.behaviors.get(a)?.trigger?.(eb, started);
           this.behaviors.get(b)?.trigger?.(ea, started);
@@ -98,7 +132,7 @@ export class HeadlessEngine implements SimulationHost {
           q = body.rotation();
         node.position.set(p.x, p.y, p.z);
         node.quaternion.set(q.x, q.y, q.z, q.w);
-        if (entities.get(id)?.tag === "player" && p.y < -20) {
+        if (this.document.entities.find((e) => e.id === id)?.tag === "player" && p.y < -20) {
           body.setTranslation(
             { x: this.checkpoint[0], y: this.checkpoint[1], z: this.checkpoint[2] },
             true,

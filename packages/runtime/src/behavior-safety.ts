@@ -14,10 +14,14 @@ export function safeBehavior(
     report("factory", error);
     return {};
   }
-  function invoke(hook: keyof Behavior, run: () => void) {
+  function invoke(hook: keyof Behavior, run: () => unknown) {
     if (failed) return;
     try {
-      run();
+      const result = run();
+      if (result && typeof result === "object" && "then" in result) {
+        void Promise.resolve(result).catch(() => {});
+        throw Error("Lifecycle hooks must be synchronous, not return a Promise");
+      }
     } catch (error) {
       failed = true;
       report(hook, error);

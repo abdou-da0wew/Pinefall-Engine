@@ -62,7 +62,7 @@ bun run build
 bun run game export-web my-game.scene.json build/my-game-web
 ```
 
-Serve that output directory with any static **HTTP** server; open `index.html`. Do not double-click it as `file://`: browser module/fetch policies prevent that. The output automatically loads your custom `scene.json` and runs the player without the editor. Custom code behaviors must already be registered in the built player; JSON does not execute scripts. This exporter packages a single scene, not a multi-level application. Desktop editor packaging remains available via `desktop:linux` and `desktop:windows`; per-game desktop export is not yet automated.
+Serve that output directory with any static **HTTP** server; open `index.html`. Do not double-click it as `file://`: browser module/fetch policies prevent that. The output automatically loads your custom `scene.json` and runs the player without the editor. Scene script assets now travel in JSON and run after explicit approval; see [Scripting](SCRIPTING.md). Code-first behaviors that are not scene scripts must still be registered in the built player. This exporter packages a single scene, not a multi-level application. Desktop editor packaging remains available via `desktop:linux` and `desktop:windows`; per-game desktop export is not yet automated.
 
 ## Included example: Beacon Run
 

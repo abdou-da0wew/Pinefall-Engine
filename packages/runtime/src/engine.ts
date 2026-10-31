@@ -1,5 +1,5 @@
 import { validateGlb } from "../../project/src";
-import { safeBehavior } from "./behavior-safety";
+import { createBehaviorSession } from "../../scripting/src/runtime";
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -30,6 +30,8 @@ export interface EngineOptions {
 }
 export type CameraRig = "auto" | "orbit" | "first-person" | "follow" | "vehicle";
 export class Engine {
+  allowSceneScripts = false;
+  private behaviorBuilder?: (entity: Entity) => Behavior;
   private requestedRig: CameraRig = "auto";
   get cameraRig(): Exclude<CameraRig, "auto"> {
     if (this.requestedRig !== "auto") return this.requestedRig;
@@ -406,6 +408,8 @@ export class Engine {
   }
   play() {
     if (!this.document || this.playing) return;
+    const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
+    this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
     this.playing = true;
     this.paused = false;
@@ -415,21 +419,11 @@ export class Engine {
     this.collected.clear();
     this.won = false;
     this.behaviors.clear();
-    for (const e of this.document.entities) {
-      if (!e.enabled || !e.behavior) continue;
-      const factory = this.registry.get(e.behavior);
-      if (factory) {
-        const b = safeBehavior(factory, { engine: this, entity: e }, (hook, error) =>
-          this.events.emit("error", "Behavior disabled after exception", {
-            entity: e.id,
-            behavior: e.behavior || "",
-            hook,
-            error: String(error).slice(0, 1000),
-          }),
-        );
-        this.behaviors.set(e.id, b);
-        b.start?.();
-      } else this.events.emit("warning", "Behavior not registered: " + e.behavior);
+    for (const e of [...this.document.entities]) {
+      if (!e.enabled) continue;
+      const instance = createBehavior(e);
+      this.behaviors.set(e.id, instance);
+      instance.start?.();
     }
     const player = this.document.entities.find((e) => e.tag === "player");
     if (player) this.checkpoint = [...player.transform.position];
@@ -456,6 +450,59 @@ export class Engine {
     );
     body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
     this.events.emit("gameplay", "Returned to checkpoint");
+  }
+  spawn(input: Entity) {
+    if (!this.playing) throw Error("Runtime spawning requires Play");
+    if (input.parent)
+      throw Error("Spawn a root entity; parent it explicitly through authored scenes");
+    const next = parseScene({ ...this.document, entities: [...this.document.entities, input] });
+    const e = next.entities.at(-1)!;
+    let visual: T.Object3D | undefined;
+    if (e.mesh?.primitive === "asset") {
+      const source = this.document.entities.find((a) => a.mesh?.asset === e.mesh?.asset);
+      const object = source && this.objects.get(source.id);
+      if (!object)
+        throw Error("Instantiate this model in the authored scene before spawning copies");
+      visual = object.clone(true);
+    }
+    this.document.entities.push(e);
+    this.addEntity(e);
+    if (visual) {
+      const target = this.objects.get(e.id)!;
+      for (const child of [...visual.children]) {
+        child.traverse((o) => {
+          o.userData.entityId = e.id;
+        });
+        target.add(child);
+      }
+    }
+    if (e.enabled && this.behaviorBuilder) {
+      const behavior = this.behaviorBuilder(e);
+      this.behaviors.set(e.id, behavior);
+      behavior.start?.();
+    }
+    return e;
+  }
+  destroy(id: string) {
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const e of this.document.entities)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          changed = true;
+        }
+    }
+    for (const key of ids) {
+      const b = this.behaviors.get(key);
+      this.behaviors.delete(key);
+      b?.dispose?.();
+      this.physics.remove(key);
+      this.objects.get(key)?.removeFromParent();
+      this.objects.delete(key);
+    }
+    this.document.entities = this.document.entities.filter((e) => !ids.has(e.id));
   }
   spawnBox() {
     if (!this.playing || this.document.entities.length >= 200) return;
@@ -640,6 +687,7 @@ export class Engine {
     });
   }
   private clear() {
+    this.behaviorBuilder = undefined;
     for (const b of this.behaviors.values()) b.dispose?.();
     this.behaviors.clear();
     this.physics.dispose();
