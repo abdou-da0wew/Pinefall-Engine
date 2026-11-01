@@ -8,8 +8,9 @@ const root = await mkdtemp(resolve("build/external-code-project-"));
 const unpacked = await mkdtemp(resolve("build/external-unpacked-project-"));
 const archive = resolve("build/external-code-backup.pif");
 const options = {
+  ...(process.env.PINEFALL_EXECUTABLE ? { executablePath: process.env.PINEFALL_EXECUTABLE } : {}),
   args: [
-    ".",
+    ...(process.env.PINEFALL_EXECUTABLE ? [] : ["."]),
     `--user-data-dir=${profile}`,
     "--no-sandbox",
     "--use-angle=swiftshader",
