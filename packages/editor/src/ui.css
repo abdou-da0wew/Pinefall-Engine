@@ -823,3 +823,36 @@
 .pf-dialog .pf-button {
   white-space: normal;
 }
+
+.pf-command-list {
+  max-height: 55vh;
+  overflow: auto;
+  margin-top: 12px;
+}
+.pf-command-list > div {
+  padding: 3px 0;
+}
+.pf-command-list .pf-button {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+  gap: 12px;
+}
+.pf-command-list kbd {
+  font-size: 11px;
+  color: var(--pf-muted);
+  white-space: nowrap;
+}
+.pf-command-list small {
+  display: block;
+  color: var(--pf-muted);
+  padding: 2px 12px 8px;
+}
+.pf-command-list .pf-button:focus-visible {
+  outline-offset: -3px;
+}
+
+.pf-command-search {
+  width: 100% !important;
+  min-width: 0;
+}

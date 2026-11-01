@@ -1,9 +1,23 @@
+import { copySceneSelection, pasteSceneSelection, type SceneClipboard } from "./clipboard";
 import { Button, Input, useConfirm } from "./ui";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useImperativeHandle } from "react";
 import type { SceneDocument } from "../../runtime/src/schema";
 import { Icon } from "./icons";
 import { parentOf, descendants, moveNodes, deleteNodes, duplicateNodes } from "./hierarchy-model";
+export interface HierarchyActions {
+  copy: () => void;
+  cut: () => void;
+  paste: () => void;
+  canPaste: boolean;
+  duplicate: () => void;
+  remove: () => Promise<void>;
+  group: () => void;
+  rename: () => void;
+  selectAll: () => void;
+  frame: () => void;
+}
 interface Props {
+  actions?: React.RefObject<HierarchyActions | null>;
   scene: SceneDocument;
   selected: string | null;
   onSelect: (id: string | null) => void;
@@ -22,8 +36,10 @@ export function Hierarchy({
   focus,
   add,
   notify,
+  actions,
 }: Props) {
   const confirm = useConfirm();
+  const [clipboard, setClipboard] = useState<SceneClipboard>();
   const storageKey = "pinefall.tree.v1:" + scene.name;
   function savedTree() {
     try {
@@ -153,6 +169,46 @@ export function Hierarchy({
     setSelection(ids);
     onSelect(ids.at(-1) || null);
   }
+  function copy() {
+    if (selectedIds.length) {
+      setClipboard(copySceneSelection(scene, selectedIds));
+      notify("Scene selection copied (project-local clipboard)");
+    }
+  }
+  function paste() {
+    if (!clipboard || disabled) return;
+    let ids: string[] = [];
+    commit((scene) => {
+      ids = pasteSceneSelection(scene, clipboard);
+    });
+    if (ids.length) {
+      setSelection(ids);
+      onSelect(ids.at(-1)!);
+    }
+  }
+  useImperativeHandle(actions, () => ({
+    copy,
+    cut: () => {
+      copy();
+      void remove();
+    },
+    paste,
+    canPaste: !!clipboard && clipboard.project === (scene.project?.id ?? scene.name),
+    duplicate,
+    remove,
+    group,
+    rename: () => {
+      if (selected) setRenaming(selected);
+    },
+    selectAll: () => {
+      const ids = rows.map((row) => row.id);
+      setSelection(ids);
+      onSelect(ids.at(-1) ?? null);
+    },
+    frame: () => {
+      if (selected) focus(selected);
+    },
+  }));
   function drop(event: React.DragEvent, target: string | null) {
     event.preventDefault();
     event.stopPropagation();
@@ -247,7 +303,12 @@ export function Hierarchy({
         aria-label="Scene objects"
         aria-multiselectable="true"
         onKeyDown={(event) => {
-          if (event.target instanceof HTMLInputElement) return;
+          if (
+            event.target instanceof HTMLInputElement ||
+            event.nativeEvent.isComposing ||
+            (event.repeat && !event.key.startsWith("Arrow"))
+          )
+            return;
           const i = rows.findIndex((r) => r.id === selected);
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();

@@ -37,12 +37,11 @@ export class AudioCatalog {
     private reservation: Reservation,
   ) {}
   static async prepare(input: AudioDefinition | undefined, signal: AbortSignal) {
-    const definition = input ? parseAudio(input) : emptyAudio(),
-      size = definition.assets.reduce(
-        (n, a) => n + (isBlobRef(a.data) ? blobs.byteLength(a.data) : (a.data.length - 22) * 0.75),
-        0,
-      ),
-      reservation = assetMemory.reserve(Math.ceil(size * 2), "audio-sources");
+    const definition = input ? parseAudio(input) : emptyAudio();
+    let size = 0;
+    for (const a of definition.assets)
+      size += isBlobRef(a.data) ? await blobs.sizeOf(a.data) : (a.data.length - 22) * 0.75;
+    const reservation = assetMemory.reserve(Math.ceil(size * 2), "audio-sources");
     if (size > 8_000_000) {
       reservation.release();
       throw Error("Audio source budget");
@@ -56,7 +55,7 @@ export class AudioCatalog {
         const info = inspectWave(bytes, asset.mode === "stream");
         if (asset.mode !== "stream") pcm += info.pcmBytes;
         if (pcm > 32 * 1024 * 1024) throw Error("PCM catalog budget");
-        catalog.waves.set(asset.id, bytes);
+        if (!blobs.persistent) catalog.waves.set(asset.id, bytes);
       }
       signal.throwIfAborted();
       reservation.resize([...catalog.waves.values()].reduce((n, a) => n + a.length, 0));
@@ -157,7 +156,7 @@ export class AudioService {
             : this.readyCatalog === this.catalog
               ? "ready"
               : "loading",
-      assets: this.catalog?.waves.size ?? 0,
+      assets: this.catalog?.definition.assets.length ?? 0,
       fault: this.fault,
     };
   }
@@ -198,7 +197,9 @@ export class AudioService {
       .catch(() => {})
       .then(async () => {
         signal.throwIfAborted();
-        for (const [id, bytes] of catalog.waves) {
+        for (const asset of catalog.definition.assets) {
+          const id = asset.id,
+            bytes = catalog.waves.get(id) ?? (await waveBytesAsync(asset.data, signal));
           signal.throwIfAborted();
           if (catalog.definition.assets.find((a) => a.id === id)?.mode === "stream") {
             if (!this.backend.loadStream) throw Error("Backend lacks streaming support");

@@ -1,5 +1,5 @@
 import { Button, Input, Select, Textarea, useConfirm } from "./ui";
-import { useState } from "react";
+import { useState, useImperativeHandle } from "react";
 import { Icon } from "./icons";
 import { ColorPicker } from "./color-picker";
 import { createUIElement, emptyUI } from "../../ui/src/schema";
@@ -7,13 +7,34 @@ import { sampleHUD, UI_DEMO_SCRIPT } from "../../ui/src/presets";
 import type { UIElement, UIKind, UIStyle } from "../../ui/src/schema";
 import type { SceneDocument } from "../../runtime/src/schema";
 import { entity } from "../../runtime/src/schema";
+export interface UIClipboard {
+  project: string;
+  elements: UIElement[];
+  root: string;
+}
+export interface UIEditorActions {
+  rename: () => void;
+  copy: () => void;
+  cut: () => void;
+  paste: () => void;
+  canPaste: boolean;
+  remove: () => void;
+  duplicate: () => void;
+  selected: boolean;
+}
 export function UIEditor({
   scene,
   selected,
   onSelect,
   commit,
   disabled,
+  actions,
+  sharedClipboard,
+  onCopy,
 }: {
+  actions?: React.RefObject<UIEditorActions | null>;
+  sharedClipboard?: UIClipboard;
+  onCopy?: (clipboard: UIClipboard) => void;
   scene: SceneDocument;
   selected: string;
   onSelect: (id: string) => void;
@@ -21,6 +42,9 @@ export function UIEditor({
   disabled: boolean;
 }) {
   const confirm = useConfirm();
+  const [localClipboard, setLocalClipboard] = useState<UIClipboard>();
+  const clipboard = sharedClipboard ?? localClipboard,
+    setClipboard = onCopy ?? setLocalClipboard;
   const [kind, setKind] = useState<UIKind>("text");
   const ui = scene.ui || emptyUI(),
     chosen = ui.elements.find((e) => e.id === selected);
@@ -58,6 +82,88 @@ export function UIEditor({
     });
     onSelect("");
   }
+  function duplicate() {
+    if (!chosen || disabled) return;
+    const ids = new Set([chosen.id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const e of ui.elements)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          added = true;
+        }
+    }
+    const remap = new Map([...ids].map((id) => [id, crypto.randomUUID()]));
+    commit((scene) => {
+      if (!scene.ui) return;
+      const copies = scene.ui.elements
+        .filter((e) => ids.has(e.id))
+        .map((e) => {
+          const copy = structuredClone(e);
+          copy.id = remap.get(e.id)!;
+          copy.name += " copy";
+          if (copy.parent && remap.has(copy.parent)) copy.parent = remap.get(copy.parent)!;
+          return copy;
+        });
+      scene.ui.elements.push(...copies);
+    });
+    onSelect(remap.get(chosen.id)!);
+  }
+  function copy() {
+    if (!chosen) return;
+    const ids = new Set([chosen.id]);
+    let more = true;
+    while (more) {
+      more = false;
+      for (const e of ui.elements)
+        if (e.parent && ids.has(e.parent) && !ids.has(e.id)) {
+          ids.add(e.id);
+          more = true;
+        }
+    }
+    setClipboard({
+      project: scene.project?.id ?? scene.name,
+      elements: structuredClone(ui.elements.filter((e) => ids.has(e.id))),
+      root: chosen.id,
+    });
+  }
+  function paste() {
+    if (!clipboard || disabled || (scene.project?.id ?? scene.name) !== clipboard.project) return;
+    const map = new Map(clipboard.elements.map((e) => [e.id, crypto.randomUUID()]));
+    commit((scene) => {
+      scene.ui ??= emptyUI();
+      for (const element of clipboard.elements) {
+        const copy = structuredClone(element);
+        copy.id = map.get(element.id)!;
+        copy.name += " copy";
+        if (copy.parent)
+          copy.parent =
+            map.get(copy.parent) ??
+            (scene.ui.elements.some((e) => e.id === copy.parent) ? copy.parent : undefined);
+        scene.ui.elements.push(copy);
+      }
+    });
+    onSelect(map.get(clipboard.root)!);
+  }
+  useImperativeHandle(actions, () => ({
+    rename: () => {
+      const input = document.querySelector<HTMLInputElement>('[aria-label="UI Name"]');
+      input?.focus();
+      input?.select();
+    },
+    remove,
+    duplicate,
+    selected: !!chosen,
+    copy,
+    cut: () => {
+      copy();
+      remove();
+    },
+    paste,
+    canPaste: !!clipboard && clipboard.project === (scene.project?.id ?? scene.name),
+  }));
+
   async function sample() {
     if (
       ui.elements.length &&
@@ -233,6 +339,17 @@ export function UIEditor({
                 Name
                 <Input
                   aria-label="UI Name"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      event.currentTarget.value = chosen.name;
+                      event.currentTarget.blur();
+                    }
+                  }}
                   key={chosen.id + chosen.name}
                   defaultValue={chosen.name}
                   disabled={disabled}

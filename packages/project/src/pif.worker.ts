@@ -9,11 +9,14 @@ self.onmessage = async (event: MessageEvent) => {
         ? await packProject(event.data.scene)
         : await unpackProject(event.data.bytes);
     if (!(result instanceof Uint8Array)) result = await referenceScene(result);
-    const inventory = result instanceof Uint8Array ? [] : blobs.entries(sceneReferences(result));
+    const inventory =
+      result instanceof Uint8Array || blobs.persistent
+        ? []
+        : await blobs.entriesAsync(sceneReferences(result));
     self.postMessage(
       {
         result,
-        ...(result instanceof Uint8Array ? {} : { blobs: inventory }),
+        ...(result instanceof Uint8Array || blobs.persistent ? {} : { blobs: inventory }),
       },
       result instanceof Uint8Array
         ? [result.buffer as ArrayBuffer]

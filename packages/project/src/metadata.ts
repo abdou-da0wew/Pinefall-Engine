@@ -1,3 +1,4 @@
+export const EDITOR_VERSION = "0.6.2";
 /** Portable metadata: no usernames, absolute paths, machine identifiers, or saved trust. */
 export interface ProjectMetadata {
   schemaVersion: 1;
@@ -29,7 +30,7 @@ export function newProjectMetadata(title: string): ProjectMetadata {
     modifiedAt: now,
     editor: {
       name: "Pinefall Engine",
-      version: "0.6.1",
+      version: EDITOR_VERSION,
       sceneSchema: 1,
       layout: "unspecified",
       activeTool: "translate",

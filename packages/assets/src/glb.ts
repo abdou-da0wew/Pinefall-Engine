@@ -429,3 +429,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       : [],
   };
 }
+
+export async function readAssetBytes(data: string) {
+  return isBlobRef(data) ? blobs.readAsync(data) : fromDataURI(data);
+}

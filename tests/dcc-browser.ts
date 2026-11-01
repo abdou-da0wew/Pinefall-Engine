@@ -39,11 +39,16 @@ try {
           .filter((s: { key: string }) => !s.key.startsWith("ambiguous:"))
           .map((s: { kind: string; key: string; id: string }) => [s.kind + ":" + s.key, s.id]),
       );
-      const changed = await prepareImport(reimportInputs(adopted.asset, []), signal, undefined, {
-        importer: "pinefall-three-185",
-        version: 2,
-        settings: { unitScale: 0.01, outputUp: "Y" },
-      });
+      const changed = await prepareImport(
+        await reimportInputs(adopted.asset, []),
+        signal,
+        undefined,
+        {
+          importer: "pinefall-three-185",
+          version: 2,
+          settings: { unitScale: 0.01, outputUp: "Y" },
+        },
+      );
       const next = adoptImport(scene, changed, {
         id: adopted.asset.id,
         data: adopted.asset.data,

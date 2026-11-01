@@ -1,4 +1,4 @@
-import { fromDataURI } from "./glb";
+import { readAssetBytes } from "./glb";
 import { defaultRecipe, parseRecipe, type ImportRecipe } from "./recipe";
 import { assetDatabase } from "./database";
 import { hashBytes } from "./blobs";
@@ -60,6 +60,8 @@ export async function prepareImport(
     { files: input, recipe },
     signal,
     onStage,
+    undefined,
+    input.map((file) => file.bytes.buffer),
   );
   result.metadata = parseImport(result.metadata);
   const working = await referenceScene(
@@ -133,7 +135,7 @@ export function adoptImport(
 
 /** Replace only selected source names; retain archived companions/model for partial reimport.
  * Changing the model filename replaces the old model, not unrelated texture companions. */
-export function reimportInputs(asset: Asset, selected: File[]): File[] {
+export async function reimportInputs(asset: Asset, selected: File[]): Promise<File[]> {
   const names = new Set(selected.map((f) => f.name.toLowerCase()));
   if (names.size !== selected.length) throw Error("Ambiguous reimport filenames");
   const replacesModel = selected.some((f) => /\.(glb|fbx)$/i.test(f.name));
@@ -142,6 +144,8 @@ export function reimportInputs(asset: Asset, selected: File[]): File[] {
   );
   return [
     ...selected,
-    ...retained.map((s) => new File([new Uint8Array(fromDataURI(s.data))], s.name)),
+    ...(await Promise.all(
+      retained.map(async (s) => new File([new Uint8Array(await readAssetBytes(s.data))], s.name)),
+    )),
   ];
 }

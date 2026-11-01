@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2 — Commands and disk-backed assets (local release candidate)
+
+- Searchable commands, focus-safe keyboard routing and project-local scene/UI clipboards.
+- Verified disk-backed encoded assets, reference workers/checkpoints and lazy library models.
+- Actual authored-project Player preview/return, canceled import intent cleanup and correct writer version.
+- 132 unit tests; browser and packaged Linux regressions pass. Windows execution and physical acceptance remain unverified.
+- See [release notes](docs/RELEASE-0.6.2.md). GitHub publication awaits authentication.
+
 ## 0.6.0 — Plan02 full software release
 
 - Promotes the locally validated animation/audio implementation and bounded streaming/persistent profile to the full release.

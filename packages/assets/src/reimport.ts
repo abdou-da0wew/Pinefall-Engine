@@ -33,7 +33,7 @@ async function prepareBatch(
     if (!asset?.import) throw Error("Reimport requires an asset with retained source provenance");
     const modelId = "model:" + asset.id;
     if (work.has(modelId)) throw Error("Duplicate reimport asset");
-    const files = reimportInputs(asset, request.files),
+    const files = await reimportInputs(asset, request.files),
       recipe = parseRecipe(request.recipe || asset.import.recipe);
     if (files.length > 33 || files.reduce((n, file) => n + file.size, 0) > 4_000_000)
       throw Error("Reimport source budget");

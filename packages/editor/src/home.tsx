@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+/* oxlint-disable react/refs -- Event handler ref keeps keyboard routing current without reattaching listeners. */
+import { CommandPalette } from "./command-palette";
+import { dispatchShortcut, type EditorCommand } from "./commands";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button, Input, Select, Switch, Dialog, Panel, EmptyState } from "./ui";
 import { Icon } from "./icons";
 import { readPreferences, savePreferences, applyPreferences } from "./preferences";
@@ -116,20 +119,71 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 export function Home({
   onOpen,
   recovery,
+  notice = "",
 }: {
   onOpen: (scene: SceneDocument) => void | Promise<void>;
   recovery?: SceneDocument;
+  notice?: string;
 }) {
   const [section, setSection] = useState("projects"),
     [rows, setRows] = useState<RecentProject[]>([]),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
+    [error, setError] = useState(notice),
     [query, setQuery] = useState(""),
     [settings, setSettings] = useState(false),
     [creating, setCreating] = useState<string>(),
     [name, setName] = useState("Untitled game"),
     [removing, setRemoving] = useState<RecentProject>();
   const file = useRef<HTMLInputElement>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const commands: EditorCommand[] = [
+    {
+      id: "new",
+      label: "New game",
+      keys: ["Mod+N"],
+      disabled: busy ? "Project operation in progress" : undefined,
+      run: () => setCreating("blank"),
+    },
+    {
+      id: "open",
+      label: "Open project",
+      keys: ["Mod+O"],
+      disabled: busy ? "Project operation in progress" : undefined,
+      run: () => file.current?.click(),
+    },
+    {
+      id: "save",
+      label: "Save PIF project",
+      keys: ["Mod+S"],
+      disabled: "Open a project before saving",
+      run: () => {},
+    },
+    { id: "settings", label: "Editor settings", keys: ["Mod+,"], run: () => setSettings(true) },
+    {
+      id: "commands",
+      allowTyping: true,
+      label: "Commands and shortcuts",
+      keys: ["Mod+Shift+P", "F1"],
+      run: () => setPaletteOpen(true),
+    },
+    { id: "templates", label: "Game templates", keys: [], run: () => setSection("templates") },
+    { id: "recents", label: "Recent projects", keys: [], run: () => setSection("projects") },
+    {
+      id: "marketplace",
+      label: "Plugins marketplace",
+      keys: [],
+      disabled: "TODO — not implemented",
+      run: () => {},
+    },
+  ];
+  const shortcutRef = useRef<(event: KeyboardEvent) => void>(() => {});
+  shortcutRef.current = (event) => dispatchShortcut(event, commands, setError);
+  useLayoutEffect(() => {
+    const listener = (event: KeyboardEvent) => shortcutRef.current(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
+
   const refresh = () =>
     listRecentProjects()
       .then(setRows)
@@ -154,6 +208,13 @@ export function Home({
   }
   return (
     <div className="pf-home">
+      {paletteOpen && (
+        <CommandPalette
+          commands={commands.filter((command) => command.id !== "commands")}
+          onClose={() => setPaletteOpen(false)}
+          onError={setError}
+        />
+      )}
       <aside className="pf-home-sidebar">
         <div className="pf-home-brand">
           <img src="./pinefall-logo.svg" width="34" height="34" alt="" />
@@ -182,6 +243,9 @@ export function Home({
           ))}
         </nav>
         <div className="pf-home-sidebar-bottom">
+          <Button variant="ghost" onClick={() => setPaletteOpen(true)}>
+            Commands · F1
+          </Button>
           <Button onClick={() => setSettings(true)}>
             <Icon name="settings" /> Editor settings
           </Button>

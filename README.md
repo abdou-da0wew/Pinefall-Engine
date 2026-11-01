@@ -1,10 +1,12 @@
-# Pinefall Engine 0.6.1
+# Pinefall Engine 0.6.2
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.6.1 UI update prepared locally:** Home, verified recent snapshots, five starters, shared editor controls/dialogs and persistent preferences. Marketplace remains TODO. [Release notes and screenshots](docs/RELEASE-0.6.1.md). Remote publication awaits renewed authorization; the stable published download below remains 0.6.0.
+**0.6.2 prepared locally:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). Publication is pending; local validation does not imply a published release.
+
+**0.6.1 is published:** Home, verified recent snapshots, five starters, shared controls/dialogs and preferences. Marketplace remains TODO. [Release notes](docs/RELEASE-0.6.1.md).
 
 **Plan02 implemented and released:** [0.6.0 downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.0) include authored animation/root motion, PIF6 audio, bounded streaming/persistent music and the original combined workshop. The owner has deferred hardware/listening acceptance to their own testing; these checks are **not claimed as passed**. See [the gate ledger](docs/PLAN02-ACCEPTANCE.md).
 
@@ -28,15 +30,15 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 Release assets include platform packages, source, the original workshop and SHA-256 checksums.
 
-[**0.6.0 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.0)
+[**0.6.1 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.1)
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.0/Pinefall-Engine-0.6.0-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.0/Pinefall-Engine-0.6.0-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.0/Pinefall-Engine-0.6.0-source.zip)
-- [Animation/audio workshop PIF6](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.0/Animation-Audio-Workshop-0.6.0.pif)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.0/SHA256SUMS-0.6.0.txt)
+- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-win-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-source.zip)
+- [Animation/audio workshop PIF6](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Animation-Audio-Workshop-0.6.1.pif)
+- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/SHA256SUMS-0.6.1.txt)
 
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.6.0-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.6.1-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
 
 ## Documentation
 

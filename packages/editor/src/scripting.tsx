@@ -128,9 +128,15 @@ export function ScriptPanel({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                if (
+                  (e.ctrlKey || e.metaKey) &&
+                  !e.shiftKey &&
+                  !e.altKey &&
+                  (e.key === "Enter" || e.key.toLowerCase() === "s")
+                ) {
                   e.preventDefault();
-                  save();
+                  e.stopPropagation();
+                  if (!e.repeat && !e.nativeEvent.isComposing) save();
                 }
               }}
             />
@@ -152,7 +158,7 @@ export function ScriptPanel({
         )}
         <div className="script-message" role="status">
           {message ||
-            "Ctrl/⌘ + Enter saves · edit while stopped · approve trusted scripts before Play"}
+            "Ctrl/⌘ + S or Enter saves · edit while stopped · approve trusted scripts before Play"}
         </div>
       </div>
     </div>

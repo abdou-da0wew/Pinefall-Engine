@@ -23,7 +23,10 @@ try {
     .fill(
       `import {Script} from '@pinefall/sdk';\nexport const defaults={speed:2};\nexport default class Test extends Script { start(){ this.ctx.log('script-browser-ok'); } update(dt:number){this.ctx.object.rotation.y+=Number(this.ctx.props.speed)*dt;} }`,
     );
-  await page.getByRole("button", { name: "Save script", exact: true }).click();
+  let downloads = 0;
+  page.on("download", () => downloads++);
+  await page.getByLabel("TypeScript source").press("Control+s");
+  expect(downloads).toBe(0);
   await page.locator(".entity-row").filter({ hasText: "Player" }).click();
   await page
     .getByLabel("Attach script", { exact: true })

@@ -242,31 +242,42 @@ export class Engine {
   private bindInput() {
     this.listen(window, "keydown", (event) => {
       const e = event as KeyboardEvent;
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey) return;
+      if (e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || !this.playing) return;
+      if (document.querySelector('dialog[open],[role="dialog"],[role="menu"]')) return;
+      if (e.code === "Escape" && !(e.target instanceof HTMLSelectElement)) {
+        e.preventDefault();
+        if (!e.repeat) {
+          this.paused = !this.paused;
+          this.input.clear();
+          this.jump = false;
+          this.events.emit("gameplay", this.paused ? "Paused" : "Resumed");
+        }
+        return;
+      }
       if (
         e.target instanceof Element &&
-        e.target.closest("[data-pinefall-ui]") &&
-        e.code !== "Escape"
-      )
-        return;
-      if (
-        !this.playing ||
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
+        e.target.closest(
+          '[data-pinefall-ui],input,textarea,select,[contenteditable]:not([contenteditable="false"])',
+        )
       )
         return;
       if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code))
         e.preventDefault();
-      if (e.code === "Escape" && !e.repeat) {
-        this.paused = !this.paused;
-        this.input.clear();
-        this.events.emit("gameplay", this.paused ? "Paused" : "Resumed");
-      }
       if (e.code === "KeyR") this.respawn();
       if (e.code === "Space" && !e.repeat) this.jump = true;
       this.input.add(e.code);
       if (e.shiftKey) this.input.add("Shift");
+    });
+    this.listen(window, "focusin", (event) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          'dialog,[role="dialog"],[role="menu"],input,textarea,select,[contenteditable],[data-pinefall-ui]',
+        )
+      ) {
+        this.input.clear();
+        this.jump = false;
+      }
     });
     this.listen(window, "keyup", (event) => {
       const e = event as KeyboardEvent;
@@ -468,6 +479,7 @@ export class Engine {
         world = undefined;
       } else worldReservation?.release();
       for (const lease of staged.values()) lease.release();
+      this.assetCache.pruneUnused();
       if (generation === this.generation) this.loading = false;
       if (controller.signal.aborted) return;
       this.events.emit("error", "Asset preparation failed; previous world retained", {
@@ -483,6 +495,7 @@ export class Engine {
           world = undefined;
         }
         for (const lease of staged.values()) lease.release();
+        this.assetCache.pruneUnused();
       }
     }
     if (!world) return;
@@ -518,6 +531,7 @@ export class Engine {
     this.won = false;
     this.speed = 0;
     for (const lease of staged.values()) lease.release();
+    this.assetCache.pruneUnused();
     if (generation !== this.generation) return;
     this.orbit.enabled = true;
     this.orbit.target.set(0, 1, -4);

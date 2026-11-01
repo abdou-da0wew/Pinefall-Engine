@@ -1,3 +1,6 @@
+import { openLocalSnapshot } from "../../project/src/local-snapshot";
+import { CommandPalette } from "./command-palette";
+import { dispatchShortcut, type EditorCommand } from "./commands";
 import { Home, SettingsDialog } from "./home";
 import { rememberProject } from "./recent-projects";
 import { readPreferences, applyPreferences, panelDefinitions } from "./preferences";
@@ -22,10 +25,10 @@ import { blobs } from "../../assets/src/blobs";
 import { prepareImport, adoptImport, reimportInputs } from "../../assets/src/import";
 import { newProjectMetadata } from "../../project/src/metadata";
 import { projectJob } from "../../project/src/pif-client";
-import { UIEditor } from "./ui-editor";
+import { UIEditor, type UIEditorActions, type UIClipboard } from "./ui-editor";
 import { ColorPicker } from "./color-picker";
 import { descendants } from "./hierarchy-model";
-import { Hierarchy } from "./hierarchy";
+import { Hierarchy, type HierarchyActions } from "./hierarchy";
 import { Icon } from "./icons";
 import { useWorkspaceLayout } from "./layout";
 import { ScriptPanel, ScriptAttachments } from "./scripting";
@@ -47,7 +50,7 @@ import {
   entity,
   cloneScene,
   parseScene,
-  serializeScene,
+  serializeSceneAsync,
 } from "../../runtime/src";
 import type { Entity, SceneDocument, RenderSettings, Template, Stats } from "../../runtime/src";
 import type { EngineEvent } from "../../runtime/src/events";
@@ -63,6 +66,7 @@ let bootScene: SceneDocument | undefined;
 let bootNotice = "";
 let recoveryBlocked = false;
 let hasRecovery = false;
+let startInEditor = false;
 function initialScene() {
   if (bootScene) return bootScene;
   try {
@@ -97,6 +101,11 @@ function App({
   ) => Promise<void>;
 }) {
   const confirm = useConfirm();
+  const [paletteOpen, setPaletteOpen] = useState(false),
+    [selectionDomain, setSelectionDomain] = useState<"scene" | "ui">("scene");
+  const [uiClipboard, setUIClipboard] = useState<UIClipboard>();
+  const hierarchyActions = useRef<HierarchyActions | null>(null),
+    uiActions = useRef<UIEditorActions | null>(null);
   const [newGameError, setNewGameError] = useState("");
   const [homeError, setHomeError] = useState("");
   const [assetActionsOpen, setAssetActionsOpen] = useState(false);
@@ -122,6 +131,7 @@ function App({
   >([]);
   const pendingRepair = useRef<string | null>(null);
   const [loadedScene, setLoadedScene] = useState<SceneDocument | null>(null);
+  const [failedScene, setFailedScene] = useState<SceneDocument | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [importBusy, setImportBusy] = useState(false);
   const [importOnly, setImportOnly] = useState(false);
@@ -184,24 +194,21 @@ function App({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => projectCommands.current(e);
     window.addEventListener("keydown", handler);
+    const importInput = glb.current;
+    const cancelImportChoice = () => {
+      pendingRepair.current = null;
+      reimportTarget.current = undefined;
+      setStatus("Import selection cancelled");
+    };
+    importInput?.addEventListener("cancel", cancelImportChoice);
     return () => {
       window.removeEventListener("keydown", handler);
+      importInput?.removeEventListener("cancel", cancelImportChoice);
       projectAbort.current?.abort();
       importAbort.current?.abort();
     };
   }, []);
-  projectCommands.current = (e) => {
-    if (document.querySelector("dialog[open]")) return;
-    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-    if (e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      if (!projectBusy && !homeBusy) void saveProject();
-    }
-    if (e.key.toLowerCase() === "o") {
-      e.preventDefault();
-      if (!projectBusy && !homeBusy && !playing) file.current?.click();
-    }
-  };
+  projectCommands.current = (event) => dispatchShortcut(event, getCommands(), setStatus);
   async function saveProject() {
     if (projectAbort.current) return;
     const controller = new AbortController();
@@ -250,6 +257,28 @@ function App({
     }
   }
 
+  async function launchPlayer() {
+    if (projectAbort.current || playing || homeBusy || importBusy || loadBusy) return;
+    const controller = new AbortController(),
+      before = current.current;
+    projectAbort.current = controller;
+    setProjectBusy(true);
+    setStatus("Saving verified snapshot for standalone preview…");
+    try {
+      await rememberProject(before, undefined, controller.signal);
+      controller.signal.throwIfAborted();
+      if (current.current !== before)
+        throw Error("Project changed while preparing preview; retry after finishing edits.");
+      const url = new URL("./game.html", location.href);
+      url.searchParams.set("recent", before.project!.id);
+      location.assign(url.href);
+    } catch (error) {
+      setStatus(String(error) + ". Editor kept open.");
+    } finally {
+      if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
+    }
+  }
   async function createNewGame() {
     if (projectAbort.current || playing) return;
     const controller = new AbortController(),
@@ -319,6 +348,7 @@ function App({
         }),
       onUISelect: (id) => {
         setUISelected(id);
+        setSelectionDomain("ui");
         setTab("ui");
       },
       onSelect: (id) => {
@@ -375,11 +405,15 @@ function App({
       void engine.current
         .load(scene, { preserveView: engine.current.document?.name === scene.name })
         .then(() => {
-          if (active) setLoadedScene(scene);
+          if (active) {
+            setLoadedScene(scene);
+            setFailedScene(null);
+          }
         })
         .catch((e) => {
           if (active) {
             setLoadedScene(null);
+            setFailedScene(scene);
             setStatus(
               "Scene load failed; previous world retained. Retry after freeing resources: " +
                 String(e),
@@ -566,7 +600,7 @@ function App({
       const previousAsset = target
         ? current.current.assets.find((a) => a.id === target.id)
         : undefined;
-      const inputs = previousAsset ? reimportInputs(previousAsset, files) : files;
+      const inputs = previousAsset ? await reimportInputs(previousAsset, files) : files;
       const selectedRecipe =
         recovery?.recipe ||
         (target && !overrideRecipe ? previousAsset?.import?.recipe || recipe : recipe);
@@ -584,10 +618,14 @@ function App({
             )
           ).prepared.get(previousAsset.id)!
         : await prepareImport(inputs, controller.signal, progress, selectedRecipe);
-      // Validate and stage actual renderer resources before committing the authored document.
-      await engine.current?.assetCache.prepare(result.data, controller.signal, (u) =>
-        setStatus(`Preparing model: ${u.stage}`),
-      );
+      // Library-only imports stay on disk. Decode only when placing or replacing a live instance.
+      if (
+        (!target && !importOnly) ||
+        (target && current.current.entities.some((entity) => entity.mesh?.asset === target.id))
+      )
+        await engine.current?.assetCache.prepare(result.data, controller.signal, (u) =>
+          setStatus(`Preparing model: ${u.stage}`),
+        );
       controller.signal.throwIfAborted();
       if (current.current.project?.id !== projectId || engine.current?.playing)
         throw Error("Project/Play changed during import; no changes applied");
@@ -612,7 +650,10 @@ function App({
             finish,
           });
         });
-        if (!mapping) return;
+        if (!mapping) {
+          engine.current?.assetCache.pruneUnused();
+          return;
+        }
       }
       controller.signal.throwIfAborted();
       if (current.current.project?.id !== projectId || engine.current?.playing)
@@ -707,7 +748,7 @@ function App({
     for (const item of items) if (item.id === e.id) delete item.parent;
     await download(
       e.name + ".prefab.json",
-      serializeScene({ ...scene, name: e.name, entities: items }),
+      await serializeSceneAsync({ ...scene, name: e.name, entities: items }),
     );
   }
   async function importPrefab(event: React.ChangeEvent<HTMLInputElement>) {
@@ -753,6 +794,340 @@ function App({
   }
   const selectedCollection = scene.collections?.find((c) => c.id === selected);
   const chosen = scene.entities.find((e) => e.id === selected);
+
+  function changeTool(mode: "translate" | "rotate" | "scale") {
+    setTool(mode);
+    engine.current?.transformMode(mode);
+  }
+  function togglePause() {
+    if (engine.current && playing) {
+      engine.current.paused = !engine.current.paused;
+      setPaused(engine.current.paused);
+    }
+  }
+  function returnHome() {
+    setHomeBusy(true);
+    const before = current.current;
+    return onHome(
+      before,
+      false,
+      () => current.current === before && !engine.current?.playing,
+    ).catch((error) => {
+      setHomeError(String(error));
+      setStatus(String(error) + ". Project kept open; export a PIF backup.");
+      setHomeBusy(false);
+    });
+  }
+  function placeAsset(id: string) {
+    const asset = current.current.assets.find((asset) => asset.id === id);
+    if (!asset) throw Error("Model no longer exists");
+    const object = entity(asset.name, "asset");
+    object.mesh!.asset = asset.id;
+    commit((scene) => scene.entities.push(object));
+    setSelected(object.id);
+  }
+  function chooseModelImport() {
+    pendingRepair.current = null;
+    reimportTarget.current = undefined;
+    const input = glb.current;
+    if (input?.showPicker) input.showPicker();
+    else input?.click();
+  }
+  function reimportAsset(id: string) {
+    const asset = current.current.assets.find((asset) => asset.id === id);
+    if (!asset) throw Error("Model no longer exists");
+    pendingRepair.current = null;
+    reimportTarget.current = {
+      id: asset.id,
+      data: asset.data,
+      revision: asset.import?.revision || 0,
+    };
+    const input = glb.current;
+    if (input?.showPicker) input.showPicker();
+    else input?.click();
+  }
+  function getCommands(): EditorCommand[] {
+    const busy = projectBusy || homeBusy || importBusy || loadBusy;
+    const editReason = playing
+      ? "Stop gameplay to edit"
+      : busy
+        ? "Wait for the current operation"
+        : undefined;
+    const hasSelection = selectionDomain === "ui" ? !!uiActions.current?.selected : !!selected;
+    const selectionReason = editReason ?? (!hasSelection ? "Select an item first" : undefined);
+    const addCommand = (
+      id: string,
+      label: string,
+      keys: string[],
+      run: () => unknown,
+      disabled?: string,
+      extra: Partial<EditorCommand> = {},
+    ): EditorCommand => ({ id, label, keys, run, disabled, ...extra });
+    return [
+      addCommand("commands", "Commands and shortcuts", ["Mod+Shift+P", "F1"], () =>
+        setPaletteOpen(true),
+      ),
+      addCommand(
+        "project.new",
+        "New game",
+        ["Mod+N"],
+        () => {
+          setNewGameError("");
+          setNewGameOpen(true);
+        },
+        editReason,
+      ),
+      addCommand(
+        "project.open",
+        "Open project",
+        ["Mod+O"],
+        () => {
+          const input = file.current;
+          if (input?.showPicker) input.showPicker();
+          else input?.click();
+        },
+        editReason,
+      ),
+      addCommand(
+        "project.save",
+        "Save PIF project",
+        ["Mod+S", "Mod+Shift+S"],
+        saveProject,
+        projectBusy || homeBusy ? "Project operation in progress" : undefined,
+        { allowTyping: true },
+      ),
+      addCommand(
+        "project.home",
+        "Save snapshot and return Home",
+        ["Mod+Shift+H"],
+        returnHome,
+        editReason,
+      ),
+      addCommand(
+        "asset.import",
+        "Import models and textures",
+        ["Mod+I"],
+        chooseModelImport,
+        editReason,
+      ),
+      addCommand(
+        "asset.actions",
+        "Asset actions and repair",
+        [],
+        () => setAssetActionsOpen(true),
+        editReason,
+      ),
+      addCommand(
+        "asset.settings",
+        "Import settings",
+        [],
+        () => setImportSettingsOpen(true),
+        editReason,
+      ),
+      addCommand(
+        "edit.undo",
+        "Undo",
+        ["Mod+Z"],
+        () => undo(),
+        editReason ?? (!history.current.canUndo ? "Nothing to undo" : undefined),
+      ),
+      addCommand(
+        "edit.redo",
+        "Redo",
+        ["Mod+Shift+Z", "Mod+Y"],
+        () => undo(true),
+        editReason ?? (!history.current.canRedo ? "Nothing to redo" : undefined),
+      ),
+      addCommand(
+        "selection.copy",
+        "Copy selection",
+        ["Mod+C"],
+        () =>
+          selectionDomain === "ui" ? uiActions.current?.copy() : hierarchyActions.current?.copy(),
+        selectionReason,
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.cut",
+        "Cut selection",
+        ["Mod+X"],
+        () =>
+          selectionDomain === "ui" ? uiActions.current?.cut() : hierarchyActions.current?.cut(),
+        selectionReason,
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.paste",
+        "Paste selection",
+        ["Mod+V"],
+        () =>
+          selectionDomain === "ui" ? uiActions.current?.paste() : hierarchyActions.current?.paste(),
+        editReason ??
+          (!(selectionDomain === "ui"
+            ? uiActions.current?.canPaste
+            : hierarchyActions.current?.canPaste)
+            ? "Copy items from this project first"
+            : undefined),
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.duplicate",
+        "Duplicate selection",
+        ["Mod+D"],
+        () =>
+          selectionDomain === "ui"
+            ? uiActions.current?.duplicate()
+            : hierarchyActions.current?.duplicate(),
+        selectionReason,
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.delete",
+        "Delete selection",
+        ["Delete", "Backspace"],
+        () =>
+          selectionDomain === "ui"
+            ? uiActions.current?.remove()
+            : hierarchyActions.current?.remove(),
+        selectionReason,
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.group",
+        "Group scene selection",
+        ["Mod+G"],
+        () => hierarchyActions.current?.group(),
+        editReason ??
+          (!selected || selectionDomain !== "scene" ? "Select scene objects first" : undefined),
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.rename",
+        "Rename selection",
+        ["F2"],
+        () =>
+          selectionDomain === "ui"
+            ? uiActions.current?.rename()
+            : hierarchyActions.current?.rename(),
+        selectionReason,
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.all",
+        "Select all visible scene objects",
+        ["Mod+A"],
+        () => hierarchyActions.current?.selectAll(),
+        editReason ?? (selectionDomain !== "scene" ? "Focus the scene hierarchy first" : undefined),
+        { sceneOnly: true },
+      ),
+      addCommand(
+        "selection.frame",
+        "Frame scene selection",
+        ["F"],
+        () => hierarchyActions.current?.frame(),
+        !selected || playing ? "Select a scene object while stopped" : undefined,
+        { sceneOnly: true },
+      ),
+      ...(["translate", "rotate", "scale"] as const).map((mode, i) =>
+        addCommand(
+          "tool." + mode,
+          mode[0].toUpperCase() + mode.slice(1) + " tool",
+          [["W", "E", "R"][i]],
+          () => changeTool(mode),
+          editReason,
+          { sceneOnly: true },
+        ),
+      ),
+      addCommand(
+        "play.preview",
+        "Preview current project in standalone player",
+        ["Mod+F5"],
+        launchPlayer,
+        editReason,
+      ),
+      addCommand(
+        "play.toggle",
+        playing ? "Stop scene" : "Play scene",
+        ["F5"],
+        run,
+        busy || !ready || loadedScene !== scene ? "Wait for a ready scene" : undefined,
+      ),
+      addCommand(
+        "play.stop",
+        "Stop scene",
+        ["Shift+F5"],
+        run,
+        !playing ? "Scene is already stopped" : busy ? "Operation in progress" : undefined,
+      ),
+      addCommand(
+        "play.pause",
+        paused ? "Resume simulation" : "Pause simulation",
+        ["F6"],
+        togglePause,
+        !playing ? "Start gameplay first" : undefined,
+      ),
+      addCommand(
+        "view.focus",
+        "Maximize / restore viewport",
+        ["Shift+Space"],
+        workspace.toggleFocus,
+      ),
+      addCommand("settings", "Editor settings", ["Mod+,"], () => setPreferencesOpen(true)),
+      addCommand(
+        "audio",
+        "Audio studio",
+        ["Mod+Shift+A"],
+        () => setAudioOpen(true),
+        editReason ?? (!engine.current ? "Renderer unavailable" : undefined),
+      ),
+      ...(["assets", "console", "ui", "scripts", "guide"] as const).map((panel, i) =>
+        addCommand(
+          "panel." + panel,
+          "Show " +
+            {
+              assets: "asset library",
+              console: "console",
+              ui: "UI designer",
+              scripts: "script editor",
+              guide: "quick start",
+            }[panel],
+          ["Mod+" + (i + 1)],
+          () => setTab(panel),
+        ),
+      ),
+      ...scene.assets.flatMap((asset) => [
+        addCommand(
+          "asset.place." + asset.id,
+          "Place model: " + asset.name,
+          [],
+          () => placeAsset(asset.id),
+          editReason,
+        ),
+        addCommand(
+          "asset.reimport." + asset.id,
+          "Reimport model: " + asset.name,
+          [],
+          () => reimportAsset(asset.id),
+          editReason,
+        ),
+      ]),
+      ...(["box", "sphere", "capsule", "cylinder", "cone"] as const).map((primitive) =>
+        addCommand("add." + primitive, "Add " + primitive, [], () => add(primitive), editReason),
+      ),
+    ].map((command) => ({
+      ...command,
+      keys:
+        playing && command.sceneOnly
+          ? command.keys.filter((key) => key.startsWith("Mod+"))
+          : command.keys,
+      allowTyping:
+        command.allowTyping ||
+        command.id === "commands" ||
+        command.id === "play.pause" ||
+        command.id === "play.stop" ||
+        (command.id === "play.toggle" && playing),
+    }));
+  }
 
   function num(
     label: string,
@@ -810,9 +1185,30 @@ function App({
   }
   return (
     <div
+      onFocusCapture={(event) => {
+        const target = event.target;
+        if (target instanceof Element) {
+          if (target.closest(".ui-editor,[data-pinefall-ui]")) setSelectionDomain("ui");
+          else if (target.closest(".hierarchy,.inspector,.viewport")) setSelectionDomain("scene");
+        }
+      }}
+      onPointerDownCapture={(event) => {
+        const target = event.target;
+        if (target instanceof Element) {
+          if (target.closest(".ui-editor,[data-pinefall-ui]")) setSelectionDomain("ui");
+          else if (target.closest(".hierarchy,.inspector,.viewport")) setSelectionDomain("scene");
+        }
+      }}
       style={workspace.style}
       className={"workbench " + workspace.className + (tab === "scripts" ? " scripting-open" : "")}
     >
+      {paletteOpen && (
+        <CommandPalette
+          commands={getCommands().filter((command) => command.id !== "commands")}
+          onClose={() => setPaletteOpen(false)}
+          onError={setStatus}
+        />
+      )}
       {homeError && (
         <Dialog
           title="Project stayed open"
@@ -1090,19 +1486,7 @@ function App({
           <Button
             aria-label="Back to home"
             disabled={playing || projectBusy || loadBusy || importBusy || homeBusy}
-            onClick={() => {
-              setHomeBusy(true);
-              const before = current.current;
-              void onHome(
-                before,
-                false,
-                () => current.current === before && !engine.current?.playing,
-              ).catch((e) => {
-                setHomeError(String(e));
-                setStatus(String(e) + ". Project kept open; export a PIF backup.");
-                setHomeBusy(false);
-              });
-            }}
+            onClick={() => void returnHome()}
           >
             <Icon name="home" />
             {homeBusy ? "Saving…" : "Home"}
@@ -1125,11 +1509,16 @@ function App({
               Open project…
             </MenuItem>
             <MenuItem
-              onSelect={() => void download(scene.name + ".scene.json", serializeScene(scene))}
+              onSelect={() =>
+                void serializeSceneAsync(scene)
+                  .then((text) => download(scene.name + ".scene.json", text))
+                  .catch((error) => setStatus(String(error)))
+              }
             >
               Export scene JSON
             </MenuItem>
             <MenuItem onSelect={() => setPreferencesOpen(true)}>Editor settings</MenuItem>
+            <MenuItem onSelect={() => setPaletteOpen(true)}>Commands and shortcuts</MenuItem>
           </ActionMenu>
           <Button
             disabled={projectBusy}
@@ -1142,9 +1531,14 @@ function App({
           {projectBusy && (
             <Button onClick={() => projectAbort.current?.abort()}>Cancel project operation</Button>
           )}
-          <a href={`./game.html?template=${scene.template}`} target="_blank" rel="noreferrer">
+          <Button
+            variant="ghost"
+            disabled={playing || projectBusy || loadBusy || importBusy || homeBusy}
+            title="Preview current project · Ctrl/⌘+F5"
+            onClick={() => void launchPlayer()}
+          >
             <Icon name="external" /> Player
-          </a>
+          </Button>
         </div>
       </header>
       <div className="commandbar">
@@ -1185,19 +1579,14 @@ function App({
               </>
             )}
           </Button>
-          {ready && loadedScene !== scene && !loadBusy ? (
+          {ready && failedScene === scene && !loadBusy ? (
             <Button onClick={() => setLoadAttempt((n) => n + 1)}>Retry scene load</Button>
           ) : null}
           <Button
             aria-label="Pause simulation"
             disabled={!playing}
             className={paused ? "active" : ""}
-            onClick={() => {
-              if (engine.current) {
-                engine.current.paused = !engine.current.paused;
-                setPaused(engine.current.paused);
-              }
-            }}
+            onClick={togglePause}
           >
             <Icon name="pause" />
           </Button>
@@ -1213,6 +1602,7 @@ function App({
         </div>
       </div>
       <Hierarchy
+        actions={hierarchyActions}
         key={scene.name}
         scene={scene}
         selected={selected}
@@ -1244,11 +1634,10 @@ function App({
               <Button
                 key={t}
                 disabled={playing}
-                title={t}
+                title={t + " (" + ["W", "E", "R"][i] + ")"}
                 className={tool === t ? "active" : ""}
                 onClick={() => {
-                  setTool(t);
-                  engine.current?.transformMode(t);
+                  changeTool(t);
                 }}
               >
                 <Icon name={(["move", "rotate", "scale"] as const)[i]} />
@@ -1270,6 +1659,8 @@ function App({
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
+            pendingRepair.current = null;
+            reimportTarget.current = undefined;
             void importFiles(Array.from(e.dataTransfer.files));
           }}
         >
@@ -1913,9 +2304,7 @@ function App({
                 <MenuItem
                   disabled={playing || importBusy}
                   onSelect={() => {
-                    pendingRepair.current = null;
-                    reimportTarget.current = undefined;
-                    glb.current?.click();
+                    chooseModelImport();
                   }}
                 >
                   Import model…
@@ -1946,9 +2335,15 @@ function App({
         </div>
         {tab === "ui" ? (
           <UIEditor
+            actions={uiActions}
+            sharedClipboard={uiClipboard}
+            onCopy={setUIClipboard}
             scene={scene}
             selected={uiSelected}
-            onSelect={setUISelected}
+            onSelect={(id) => {
+              setSelectionDomain("ui");
+              setUISelected(id);
+            }}
             commit={commit}
             disabled={playing}
           />
@@ -1970,7 +2365,7 @@ function App({
               </span>
               <span>　Primitives</span>
               <span>　Game templates</span>
-              <span>　Embedded assets ({scene.assets.length})</span>
+              <span>　Project assets ({scene.assets.length})</span>
               <small>
                 GLB · experimental FBX + PNG/JPEG
                 <br />2 MB cooked model · 2048px textures
@@ -2011,12 +2406,7 @@ function App({
                     className="asset-card"
                     disabled={playing}
                     key={a.id}
-                    onClick={() => {
-                      const e = entity(a.name, "asset");
-                      e.mesh!.asset = a.id;
-                      commit((d) => d.entities.push(e));
-                      setSelected(e.id);
-                    }}
+                    onClick={() => placeAsset(a.id)}
                   >
                     <span className="asset-icon">
                       <Icon name="cube" size={32} />
@@ -2030,15 +2420,7 @@ function App({
                   <Button
                     disabled={playing || importBusy}
                     aria-label={`Reimport ${a.name}`}
-                    onClick={() => {
-                      pendingRepair.current = null;
-                      reimportTarget.current = {
-                        id: a.id,
-                        data: a.data,
-                        revision: a.import?.revision || 0,
-                      };
-                      glb.current?.click();
-                    }}
+                    onClick={() => reimportAsset(a.id)}
                   >
                     Reimport…
                   </Button>
@@ -2122,7 +2504,13 @@ function App({
             </Select>
           </label>
           <span>Rapier · fixed 60 Hz</span>
-          <span>WebGL 2</span>
+          <span title="Encoded source bytes are disk-backed. Active rendering still uses RAM/VRAM.">
+            Sources: {blobs.persistent ? "disk" : "memory"} · resident{" "}
+            {(blobs.bytes / 1048576).toFixed(1)} MiB
+          </span>
+          <span title="Accounted asset working allocations, not total process RAM or VRAM">
+            Working {((stats?.assetAccountedBytes ?? 0) / 1048576).toFixed(1)} MiB
+          </span>
         </div>
       </footer>
       <Input
@@ -2152,7 +2540,9 @@ function App({
   );
 }
 function ApplicationShell() {
-  const [editing, setEditing] = useState(() => new URLSearchParams(location.search).has("editor"));
+  const [editing, setEditing] = useState(
+    () => startInEditor || new URLSearchParams(location.search).has("editor"),
+  );
   const [recovery, setRecovery] = useState(() => (hasRecovery ? bootScene : undefined));
   useEffect(() => applyPreferences(readPreferences()), []);
   return editing ? (
@@ -2170,6 +2560,7 @@ function ApplicationShell() {
     />
   ) : (
     <Home
+      notice={bootNotice}
       recovery={recovery}
       onOpen={async (scene) => {
         scene.project ??= newProjectMetadata(scene.name);
@@ -2189,8 +2580,12 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Missing editor root");
 async function boot() {
   root!.textContent = "Opening asset database…";
+  const requested = new URLSearchParams(location.search).get("recent");
   try {
-    const restored = await assetDatabase.restoreCheckpoint();
+    const restored = requested
+      ? { scene: await openLocalSnapshot(requested), recovered: false, revision: 0 }
+      : await assetDatabase.restoreCheckpoint();
+    startInEditor = !!requested;
     hasRecovery = !!restored;
     bootScene = restored?.scene || (await referenceScene(initialScene()));
     if (restored?.recovered)
@@ -2207,6 +2602,11 @@ async function boot() {
     } catch {
       bootScene = createTemplate("adventure");
     }
+  }
+  if (requested) {
+    const url = new URL(location.href);
+    url.searchParams.delete("recent");
+    history.replaceState(null, "", url.href);
   }
   createRoot(root!).render(
     <ConfirmationProvider>

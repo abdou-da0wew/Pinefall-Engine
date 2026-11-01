@@ -1,6 +1,6 @@
 import { cloneModel } from "./clone";
 import { assetMemory, type Reservation } from "./budget";
-import { fromDataURI } from "./glb";
+import { readAssetBytes } from "./glb";
 import * as T from "three";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { workerJob, type JobUpdate } from "./jobs";
@@ -35,16 +35,19 @@ export class ModelCache {
     const reservation = this.budget.reserve(160 * 1024 * 1024, "model-decode");
     let retained = false;
     try {
+      const bytes = await readAssetBytes(data);
+      signal.throwIfAborted();
       const result = await workerJob<{
         wire: ModelWire;
         report: ModelInspection;
         workerMs: number;
       }>(
         () => new Worker(new URL("./model.worker.ts", import.meta.url), { type: "module" }),
-        { bytes: fromDataURI(data) },
+        { bytes },
         signal,
         onStage,
         0, // the preparation reservation spans both worker and host decode
+        [bytes.buffer as ArrayBuffer],
       );
       if (signal.aborted || this.dead) {
         closeWire(result.wire);
@@ -170,6 +173,24 @@ export class ModelCache {
         this.entries.delete(key);
         this.metrics.bytes -= e.bytes;
       }
+    }
+  }
+  /** Small idle working cache avoids decode thrash; never retain the entire asset library. */
+  pruneUnused(maxIdleBytes = 8 * 1024 * 1024) {
+    let retained = 0,
+      count = 0;
+    for (const [key, entry] of [...this.entries].sort((a, b) => b[1].touched - a[1].touched)) {
+      if (entry.owners.size) continue;
+      const cost = entry.bytes * 2 + entry.instanceBytes;
+      if (count < 4 && retained + cost <= maxIdleBytes) {
+        retained += cost;
+        count++;
+        continue;
+      }
+      disposeModel(entry.root);
+      entry.reservation.release();
+      this.entries.delete(key);
+      this.metrics.bytes -= entry.bytes;
     }
   }
   dispose() {

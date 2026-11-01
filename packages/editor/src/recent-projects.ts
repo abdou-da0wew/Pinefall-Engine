@@ -139,25 +139,7 @@ export async function rememberProject(
     db.close();
   }
 }
-export async function openRecentProject(id: string) {
-  const db = await open();
-  let bytes: Uint8Array;
-  try {
-    const tx = db.transaction("archives", "readonly"),
-      finished = done(tx),
-      r = tx.objectStore("archives").get(id);
-    bytes = await new Promise<Uint8Array>((resolve, reject) => {
-      r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
-    });
-    await finished;
-  } finally {
-    db.close();
-  }
-  if (!(bytes instanceof Uint8Array) || bytes.length > 16 * 1024 * 1024)
-    throw Error("Recent snapshot is missing or invalid; open your PIF backup.");
-  return projectJob("unpack", bytes);
-}
+export { openLocalSnapshot as openRecentProject } from "../../project/src/local-snapshot";
 export async function removeRecentProject(id: string) {
   const db = await open();
   try {

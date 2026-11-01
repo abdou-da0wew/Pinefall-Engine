@@ -1,6 +1,11 @@
 import { expect, type Page } from "@playwright/test";
+const chooserPages = new WeakSet<Page>();
 /** Exercise the real home-to-editor route, rather than bypassing the new home shell. */
 export async function enterEditor(page: Page) {
+  if (!chooserPages.has(page)) {
+    page.on("filechooser", () => {});
+    chooserPages.add(page);
+  }
   await page.locator(".pf-home,.workbench").waitFor();
   if (await page.locator(".pf-home").isVisible())
     await page.getByRole("button", { name: /Open demo editor|Continue last workspace/ }).click();

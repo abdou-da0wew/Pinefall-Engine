@@ -184,7 +184,7 @@ export function defaultCue(id: string, asset: string): AudioCue {
 
 export async function waveBytesAsync(data: string, signal: AbortSignal) {
   signal.throwIfAborted();
-  if (isBlobRef(data)) return blobs.read(data);
+  if (isBlobRef(data)) return blobs.readAsync(data);
   if (!data.startsWith("data:audio/wav;base64,") || data.length > 5_333_400)
     throw Error("Invalid WAV source");
   const text = data.slice(22),

@@ -37,7 +37,7 @@ export async function referenceScene(
     const intern = async (data: string, hash?: string) => {
       if (isBlobRef(data)) {
         if (hash && data !== BLOB_PREFIX + hash) throw Error("Asset reference/hash mismatch");
-        total += blobs.byteLength(data);
+        total += await blobs.sizeOf(data);
         return data;
       }
       const bytes = fromDataURI(data);
@@ -55,7 +55,7 @@ export async function referenceScene(
   let audioTotal = 0;
   for (const a of scene.audio?.assets ?? []) {
     signal?.throwIfAborted();
-    if (isBlobRef(a.data)) audioTotal += blobs.byteLength(a.data);
+    if (isBlobRef(a.data)) audioTotal += await blobs.sizeOf(a.data);
     else {
       const reservation = assetMemory.reserve(12_000_000, "audio-source-intern");
       try {
@@ -72,5 +72,31 @@ export async function referenceScene(
   }
   signal?.throwIfAborted();
   scene.version = input.version === 3 ? 3 : 2;
+  return scene;
+}
+
+export async function materializeSceneAsync(input: SceneDocument) {
+  const scene = structuredClone(input);
+  scene.version = input.version === 3 ? 3 : 1;
+  let total = 0,
+    audioTotal = 0;
+  const model = async (ref: string, mime?: string) => {
+    const bytes = await blobs.readAsync(ref);
+    total += bytes.length;
+    if (total > 8_000_000) throw Error("Project decoded source/artifact budget exceeds 8 MB");
+    return toDataURI(bytes, mime);
+  };
+  for (const a of scene.assets) {
+    if (isBlobRef(a.data)) a.data = await model(a.data);
+    for (const s of a.import?.sources ?? [])
+      if (isBlobRef(s.data)) s.data = await model(s.data, "application/octet-stream");
+  }
+  for (const a of scene.audio?.assets ?? [])
+    if (isBlobRef(a.data)) {
+      const bytes = await blobs.readAsync(a.data);
+      audioTotal += bytes.length;
+      if (audioTotal > 8_000_000) throw Error("Audio source budget");
+      a.data = toDataURI(bytes, "audio/wav");
+    }
   return scene;
 }

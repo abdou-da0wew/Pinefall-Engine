@@ -72,3 +72,12 @@ test("fixed output budget rejects compressed expansion bombs", async () => {
   const bomb = await xzAsync(new Uint8Array(41 * 1024 * 1024), { preset: 1 });
   await expect(unpackProject(bomb)).rejects.toThrow("budget");
 });
+
+import { EDITOR_VERSION } from "../packages/project/src/metadata";
+import { version as packageVersion } from "../package.json";
+test("new PIF metadata identifies the actual writing editor", () => {
+  expect(EDITOR_VERSION).toBe(packageVersion);
+  const files = projectFiles(createGame("Version proof"));
+  const manifest = JSON.parse(new TextDecoder().decode(files.get("project.json")));
+  expect(manifest.project.editor.version).toBe(packageVersion);
+});

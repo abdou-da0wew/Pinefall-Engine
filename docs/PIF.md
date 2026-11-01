@@ -1,6 +1,6 @@
-# PIF project container — v1/v2/v3/v4 compatibility (0.6.0)
+# PIF project container — v1–v6 compatibility (0.6.2)
 
-**0.6.0 writes v4 for recipe-v2/expanded-identity provenance, v3 for legacy provenance and v2 otherwise. It reads v1/v2/v3/v4. Older engines cannot read v4. Keep backups.**
+**Current writers select v6 for authored audio, v5 for animator/root-motion data, v4 for recipe-v2/expanded provenance, v3 for legacy provenance and v2 otherwise. Readers support v1–v6. Older releases cannot necessarily open newer formats; keep backups.**
 
 **The published 0.5.1 release writes PIF v1. 0.5.2 writes PIF v2 and still reads v1. PIF v2 requires 0.5.2 or newer; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
 
@@ -145,3 +145,7 @@ Recipe version 2 contains validated unit multiplier/output-axis settings. Proven
 ## PIF6 authored audio extension
 
 Audio-bearing scene3 projects write PIF6 (minimum reader6); non-audio animator projects remain PIF5. The audio definition and marker→cue bindings are validated with the scene. Each PCM16 WAV is a separate `audio/<index>.wav` member covered by the integrity inventory, not an ad hoc unverified payload. Downgrading an audio project to an older manifest rejects. Session SHA-256 blob references are materialized for transport and re-interned on opening; audio is included in recovery/worker blob inventories. See [AUTHORED-AUDIO.md](AUTHORED-AUDIO.md) for admission limits and codec restrictions. PIF integrity does not authenticate the project author or make trusted scripts safe to execute.
+
+## Disk-backed sessions in 0.6.2
+
+Portable export materializes and verifies disk references in the worker; machine-local references are not written into portable archives. Writer metadata follows the application version. See [disk storage and capacity limits](DISK-ASSETS.md).

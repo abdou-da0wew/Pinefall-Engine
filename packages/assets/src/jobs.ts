@@ -64,6 +64,7 @@ export function workerJob<T>(
   signal?: AbortSignal,
   onStage?: (update: JobUpdate) => void,
   reservationBytes = 128 * 1024 * 1024,
+  transfer: Transferable[] = [],
 ): Promise<T> {
   const id = crypto.randomUUID(),
     start = performance.now();
@@ -113,7 +114,7 @@ export function workerJob<T>(
         worker.onerror = (e) => finish(Error(e.message || "Import worker failed"));
         worker.onmessageerror = () => finish(Error("Import worker message could not be decoded"));
         try {
-          worker.postMessage(payload);
+          worker.postMessage(payload, transfer);
         } catch (e) {
           finish(e);
         }

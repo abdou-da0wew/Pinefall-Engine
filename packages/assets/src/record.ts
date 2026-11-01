@@ -1,7 +1,7 @@
 import { parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
 import { parseIdentities, type SubassetKind } from "./identities";
 import { isBlobRef, BLOB_PREFIX } from "./blobs";
-import { inspectGlb, fromDataURI, toDataURI, type ModelInspection } from "./glb";
+import { inspectGlb, readAssetBytes, toDataURI, type ModelInspection } from "./glb";
 export interface SourceFile {
   name: string;
   data: string;
@@ -186,12 +186,12 @@ export function reconcileSubassets(
   return result;
 }
 export async function verifyImport(data: string, metadata: AssetImport) {
-  if ((await digest(fromDataURI(data))) !== metadata.artifactHash)
+  if ((await digest(await readAssetBytes(data))) !== metadata.artifactHash)
     throw Error("Artifact hash mismatch");
   for (const source of metadata.sources)
-    if ((await digest(fromDataURI(source.data))) !== source.sha256)
+    if ((await digest(await readAssetBytes(source.data))) !== source.sha256)
       throw Error("Source hash mismatch");
-  inspectGlb(fromDataURI(data));
+  inspectGlb(await readAssetBytes(data));
 }
 
 export async function prepareGlbRecord(

@@ -35,27 +35,59 @@ export function Button({
   type = "button",
   ...props
 }: ComponentPropsWithRef<"button"> & VariantProps<typeof button>) {
-  return <button type={type} className={cn(button({ variant, size }), className)} {...props} />;
+  return (
+    <button
+      data-autofocus={props.autoFocus || undefined}
+      type={type}
+      className={cn(button({ variant, size }), className)}
+      {...props}
+    />
+  );
 }
 export function Switch({
   className,
   role = "switch",
   ...props
 }: Omit<ComponentPropsWithRef<"input">, "type">) {
-  return <input type="checkbox" role={role} className={cn("pf-switch", className)} {...props} />;
+  return (
+    <input
+      data-autofocus={props.autoFocus || undefined}
+      type="checkbox"
+      role={role}
+      className={cn("pf-switch", className)}
+      {...props}
+    />
+  );
 }
 export function Input({ className, type, ...props }: ComponentPropsWithRef<"input">) {
   return type === "checkbox" ? (
     <Switch role={props.role ?? "checkbox"} className={className} {...props} />
   ) : (
-    <input type={type} className={cn("pf-input", className)} {...props} />
+    <input
+      data-autofocus={props.autoFocus || undefined}
+      type={type}
+      className={cn("pf-input", className)}
+      {...props}
+    />
   );
 }
 export function Select({ className, ...props }: ComponentPropsWithRef<"select">) {
-  return <select className={cn("pf-select", className)} {...props} />;
+  return (
+    <select
+      data-autofocus={props.autoFocus || undefined}
+      className={cn("pf-select", className)}
+      {...props}
+    />
+  );
 }
 export function Textarea({ className, ...props }: ComponentPropsWithRef<"textarea">) {
-  return <textarea className={cn("pf-textarea", className)} {...props} />;
+  return (
+    <textarea
+      data-autofocus={props.autoFocus || undefined}
+      className={cn("pf-textarea", className)}
+      {...props}
+    />
+  );
 }
 export function Panel({
   as: Tag = "section",
@@ -105,6 +137,7 @@ export function Dialog({
     const previous = document.activeElement;
     const modal = ref.current!;
     modal.showModal();
+    modal.querySelector<HTMLElement>('[data-autofocus="true"],[autofocus]')?.focus();
     return () => {
       modal.close();
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();

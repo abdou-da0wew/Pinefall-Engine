@@ -67,22 +67,29 @@ export function projectJob(
       cleanup();
       reject(new Error(event.message));
     };
-    try {
-      const inventory =
-        operation === "pack" ? blobs.entries(sceneReferences(value as SceneDocument)) : [];
-      worker.postMessage(
-        operation === "pack"
-          ? {
-              operation,
-              scene: value,
-              blobs: inventory,
-            }
-          : { operation, bytes: value },
-        value instanceof Uint8Array ? [value.buffer] : inventory.map((entry) => entry.bytes.buffer),
-      );
-    } catch (error) {
-      cleanup();
-      reject(error);
-    }
+    void (async () => {
+      try {
+        const inventory =
+          operation === "pack" && !blobs.persistent
+            ? await blobs.entriesAsync(sceneReferences(value as SceneDocument))
+            : [];
+        signal?.throwIfAborted();
+        worker.postMessage(
+          operation === "pack"
+            ? {
+                operation,
+                scene: value,
+                blobs: inventory,
+              }
+            : { operation, bytes: value },
+          value instanceof Uint8Array
+            ? [value.buffer]
+            : inventory.map((entry) => entry.bytes.buffer),
+        );
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    })();
   });
 }

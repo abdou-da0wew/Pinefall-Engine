@@ -1,5 +1,5 @@
 import { validatePending, type PendingImport } from "./pending";
-import { blobs, type BlobEntry, isBlobRef } from "./blobs";
+import { blobs, isBlobRef } from "./blobs";
 import { sceneReferences, referenceScene } from "./documents";
 import { parseScene, type SceneDocument } from "../../runtime/src/schema";
 export interface StoredArtifact {
@@ -85,23 +85,30 @@ export class AssetDatabase {
   private async hydrate(refs: string[]) {
     if (!Array.isArray(refs) || refs.length > 100 || refs.some((r) => !isBlobRef(r)))
       throw Error("Invalid database references");
-    const entries: BlobEntry[] = [];
+
     let total = 0;
     // Hash verification occurs after readonly transactions finish, never across an active write transaction.
     for (const ref of refs) {
-      const bytes = await this.read<Uint8Array>("blobs", ref);
+      const legacy = await this.read<Uint8Array>("blobs", ref);
+      const bytes =
+        legacy ??
+        (this.name === "pinefall-assets-v1" && blobs.persistent
+          ? await blobs.readAsync(ref)
+          : undefined);
       if (!(bytes instanceof Uint8Array)) throw Error("Missing stored blob: " + ref);
       total += bytes.length;
       if (total > 8_000_000) throw Error("Stored blob inventory exceeds project budget");
-      entries.push({ ref, bytes });
+      if (legacy) await blobs.admit([{ ref, bytes }]);
     }
-    await blobs.admit(entries);
   }
   saveCheckpoint(scene: SceneDocument, revision: number) {
     return this.serial(async () => {
       const normalized = await referenceScene(parseScene(scene)),
         refs = [...sceneReferences(normalized)],
-        entries = blobs.entries(refs),
+        entries =
+          this.name === "pinefall-assets-v1" && blobs.persistent
+            ? []
+            : await blobs.entriesAsync(refs),
         db = await this.open();
       const tx = db.transaction(["blobs", "checkpoints"], "readwrite", { durability: "strict" }),
         done = this.done(tx),
@@ -165,8 +172,13 @@ export class AssetDatabase {
   }
   putArtifact(key: string, value: unknown, refs: Iterable<string>) {
     return this.serial(async () => {
-      const entries = blobs.entries(refs),
-        bytes = entries.reduce((n, e) => n + e.bytes.length, 0);
+      const references = [...new Set(refs)];
+      const entries =
+        this.name === "pinefall-assets-v1" && blobs.persistent
+          ? []
+          : await blobs.entriesAsync(references);
+      let bytes = 0;
+      for (const ref of references) bytes += await blobs.sizeOf(ref);
       if (bytes > 8_000_000) throw Error("Artifact cache entry exceeds budget");
       const db = await this.open(),
         tx = db.transaction(["blobs", "artifacts"], "readwrite"),
@@ -178,7 +190,7 @@ export class AssetDatabase {
           {
             key,
             value,
-            refs: entries.map((e) => e.ref),
+            refs: references,
             created: Date.now(),
             bytes,
           } satisfies StoredArtifact,
@@ -199,6 +211,7 @@ export class AssetDatabase {
     const artifacts = tx.objectStore("artifacts").getAll(),
       checkpoints = tx.objectStore("checkpoints").getAll();
     let a: StoredArtifact[] | undefined, c: Checkpoint[] | undefined;
+    const diskKeep = new Set<string>();
     const process = () => {
       if (!a || !c) return;
       const keep = new Set(c.flatMap((x) => x.refs));
@@ -212,6 +225,7 @@ export class AssetDatabase {
           for (const ref of item.refs) keep.add(ref);
         }
       }
+      for (const ref of keep) diskKeep.add(ref);
       const cursor = tx.objectStore("blobs").openCursor();
       cursor.onsuccess = () => {
         const row = cursor.result;
@@ -229,6 +243,7 @@ export class AssetDatabase {
       process();
     };
     await done;
+    await blobs.prune(diskKeep);
   }
   async pendingSummaries(projectId: string) {
     const db = await this.open(),

@@ -1,7 +1,7 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import * as T from "three";
-import { inspectGlb, fromDataURI } from "../../assets/src/glb";
+import { inspectGlb, readAssetBytes } from "../../assets/src/glb";
 import { encodeModel, disposeModel } from "../../assets/src/wire";
 import { assetMemory, type Reservation } from "../../assets/src/budget";
 /** Keep the exact glTF node/skin/morph/animation mathematical path, omitting presentation-only textures.
@@ -41,7 +41,7 @@ export class HeadlessModels {
     const reservation = assetMemory.reserve(160 * 1024 * 1024, "headless-model");
     let root: T.Object3D | undefined;
     try {
-      const gltf = await new GLTFLoader().parseAsync(poseGlb(fromDataURI(data)), "");
+      const gltf = await new GLTFLoader().parseAsync(poseGlb(await readAssetBytes(data)), "");
       root = gltf.scene;
       root.animations = gltf.animations;
       const wire = encodeModel(root);

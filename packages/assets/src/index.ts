@@ -1,5 +1,5 @@
 /** Reusable asset-pipeline surface. Browser-only conversion is explicit; records/recipes/graphs are DOM-free. */
-export { BlobStore, blobs, hashBytes, isBlobRef } from "./blobs";
+export { BlobStore, DiskBlobStore, blobs, hashBytes, isBlobRef } from "./blobs";
 export { MemoryBudget, assetMemory } from "./budget";
 export { DependencyGraph, sceneDependencyGraph, conversionKey } from "./dependencies";
 export type { Dependency, DependencyNode } from "./dependencies";
@@ -9,7 +9,7 @@ export { prepareImport, adoptImport, reimportInputs } from "./import";
 export type { PreparedImport } from "./import";
 export { prepareGlbRecord, parseImport, reconcileSubassets, verifyImport } from "./record";
 export type { AssetImport, SourceFile } from "./record";
-export { referenceScene, materializeScene } from "./documents";
+export { referenceScene, materializeScene, materializeSceneAsync } from "./documents";
 export { ModelCache } from "./cache";
 export { AssetDatabase } from "./database";
 
@@ -18,3 +18,5 @@ export type { ReimportRequest } from "./reimport";
 
 export { rememberMissing, repairFiles, validatePending, missingCompanion } from "./pending";
 export type { PendingImport } from "./pending";
+
+export { readAssetBytes } from "./glb";

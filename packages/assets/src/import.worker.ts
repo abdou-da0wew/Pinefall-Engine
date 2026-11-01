@@ -1,3 +1,4 @@
+import { blobs } from "./blobs";
 import { defaultRecipe, parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
 import { inspectFbx } from "./fbx";
 import * as T from "three";
@@ -177,10 +178,13 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
       report.warnings.push(
         "Unnamed/duplicate subassets cannot be matched safely on reimport; their IDs will be regenerated.",
       );
+    self.postMessage({ stage: "persist-sources" });
     const sources = await Promise.all(
       files.map(async (f) => ({
         name: f.name,
-        data: toDataURI(f.bytes, "application/octet-stream"),
+        data: blobs.persistent
+          ? await blobs.put(f.bytes)
+          : toDataURI(f.bytes, "application/octet-stream"),
         sha256: await digest(f.bytes),
       })),
     );
@@ -194,7 +198,11 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
       report,
       subassets: [],
     };
-    self.postMessage({ name: source.name, data: toDataURI(bytes), metadata });
+    self.postMessage({
+      name: source.name,
+      data: blobs.persistent ? await blobs.put(bytes) : toDataURI(bytes),
+      metadata,
+    });
   } catch (error) {
     self.postMessage({ error: String(error) });
   } finally {

@@ -1,7 +1,7 @@
 import { parseAudio, audioId, type AudioDefinition } from "../../audio/src/definition";
 import { parseAnimator, type AnimatorDefinition } from "../../animation/src/definition";
 import { isBlobRef } from "../../assets/src/blobs";
-import { materializeScene } from "../../assets/src/documents";
+import { materializeScene, materializeSceneAsync } from "../../assets/src/documents";
 import { parseImport, type AssetImport } from "../../assets/src/record";
 import { parseProjectMetadata, type ProjectMetadata } from "../../project/src/metadata";
 import { parseUI } from "../../ui/src/schema";
@@ -416,4 +416,8 @@ function validateScriptValue(value: unknown, depth: number): void {
     return;
   }
   fail("script properties must be JSON values");
+}
+
+export async function serializeSceneAsync(scene: SceneDocument) {
+  return JSON.stringify(parseScene(await materializeSceneAsync(scene)), null, 2);
 }

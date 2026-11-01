@@ -2,14 +2,14 @@ import { Panel } from "./ui";
 import { Button, Input, Select, Textarea } from "./ui";
 import { blobs } from "../../assets/src/blobs";
 import { assetMemory } from "../../assets/src/budget";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   audioBuses,
   defaultCue,
   emptyAudio,
   parseAudio,
-  waveBytes,
+  waveBytesAsync,
   type AudioDefinition,
 } from "../../audio/src/definition";
 import { inspectWave } from "../../audio/src/wav";
@@ -140,12 +140,26 @@ export function AudioDialog({
   const [emitter, setEmitter] = useState(scene.entities.find((e) => e.animator)?.id ?? "");
   const actor = scene.entities.find((e) => e.id === emitter && e.animator),
     source = audio.assets.find((a) => a.id === selected);
-  const info = useMemo(() => {
-    try {
-      return source ? inspectWave(waveBytes(source.data), source.mode === "stream") : undefined;
-    } catch {
-      return undefined;
-    }
+  const [inspection, setInspection] = useState<{
+    source: string;
+    info: ReturnType<typeof inspectWave>;
+  }>();
+  const info = inspection?.source === source?.data ? inspection?.info : undefined;
+  useEffect(() => {
+    const controller = new AbortController();
+    if (source)
+      void waveBytesAsync(source.data, controller.signal)
+        .then((bytes) => {
+          if (!controller.signal.aborted)
+            setInspection({
+              source: source.data,
+              info: inspectWave(bytes, source.mode === "stream"),
+            });
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) setStatus(String(error));
+        });
+    return () => controller.abort();
   }, [source]);
   useEffect(() => {
     const dialog = modal.current!,

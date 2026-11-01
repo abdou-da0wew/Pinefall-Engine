@@ -1,9 +1,9 @@
 import { waveBytes, waveURI } from "../../audio/src/definition";
 import { inspectWave } from "../../audio/src/wav";
-import { materializeScene } from "../../assets/src/documents";
+import { materializeScene, materializeSceneAsync } from "../../assets/src/documents";
 import { parseImport, verifyImport } from "../../assets/src/record";
 import { fromDataURI } from "../../assets/src/glb";
-import { newProjectMetadata, parseProjectMetadata } from "./metadata";
+import { newProjectMetadata, parseProjectMetadata, EDITOR_VERSION } from "./metadata";
 import { ensureInlineInit, xzAsync } from "./xz";
 import { parseScene } from "../../runtime/src/schema";
 import type { SceneDocument } from "../../runtime/src/schema";
@@ -102,7 +102,7 @@ export function projectFiles(scene: SceneDocument) {
   metadata.modifiedAt = new Date(
     Math.max(Date.now(), Date.parse(metadata.createdAt)),
   ).toISOString();
-  metadata.editor.version = "0.6.0";
+  metadata.editor.version = EDITOR_VERSION;
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
       bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
@@ -395,7 +395,7 @@ export async function sceneFromFiles(
 export async function packProject(scene: SceneDocument): Promise<Uint8Array> {
   scene = parseScene(scene);
   for (const asset of scene.assets) if (asset.import) await verifyImport(asset.data, asset.import);
-  const tar = writeTar(await sealProjectFiles(projectFiles(scene)));
+  const tar = writeTar(await sealProjectFiles(projectFiles(await materializeSceneAsync(scene))));
   await ensureInlineInit();
   const bytes = await xzAsync(tar, { preset: 6 });
   if (bytes.length > PIF_COMPRESSED_LIMIT) throw Error("Compressed project too large");
