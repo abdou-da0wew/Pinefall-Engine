@@ -32,7 +32,7 @@ export class ModelCache {
       return;
     }
     // Covers bounded worker output + host reconstruction while old prototypes remain leased.
-    const reservation = this.budget.reserve(160 * 1024 * 1024, "model-decode");
+    const reservation = this.budget.reserve(800 * 1024 * 1024, "model-decode");
     let retained = false;
     try {
       const bytes = await readAssetBytes(data);
@@ -66,9 +66,9 @@ export class ModelCache {
         return;
       }
       this.trim(result.wire.bytes);
-      if (this.metrics.bytes + result.wire.bytes > 128 * 1024 * 1024) {
+      if (this.metrics.bytes + result.wire.bytes > 256 * 1024 * 1024) {
         disposeModel(root);
-        throw Error("Live model cache exceeds 128 MiB; unload unused assets first");
+        throw Error("Live model cache exceeds 256 MiB; unload unused assets first");
       }
       let instanceBytes = 0;
       root.traverse((o) => {
@@ -166,7 +166,7 @@ export class ModelCache {
   }
   private trim(incoming: number) {
     for (const [key, e] of [...this.entries].sort((a, b) => a[1].touched - b[1].touched)) {
-      if (this.metrics.bytes + incoming <= 128 * 1024 * 1024 && this.entries.size < 16) break;
+      if (this.metrics.bytes + incoming <= 256 * 1024 * 1024 && this.entries.size < 16) break;
       if (!e.owners.size) {
         disposeModel(e.root);
         e.reservation.release();

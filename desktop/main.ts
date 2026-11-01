@@ -1,13 +1,25 @@
+import { defaultGraphics, parseGraphics, graphicsSwitches } from "../packages/editor/src/graphics";
+import { ARCHIVE_BYTES } from "../packages/assets/src/limits";
 import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import { atomicWrite } from "../packages/project/src/atomic-file";
 import { join } from "node:path";
-import { appendFileSync, existsSync, renameSync, statSync } from "node:fs";
-if (process.argv.includes("--legacy-gl")) {
-  app.commandLine.appendSwitch("use-gl", "angle");
-  app.commandLine.appendSwitch("use-angle", "gl");
-  app.commandLine.appendSwitch("disable-features", "Vulkan");
-  if (process.platform === "linux") app.commandLine.appendSwitch("ozone-platform", "x11");
+import { appendFileSync, existsSync, renameSync, statSync, readFileSync, mkdirSync } from "node:fs";
+const graphicsPath = join(app.getPath("userData"), "graphics.json");
+let savedGraphics = { ...defaultGraphics };
+try {
+  savedGraphics = parseGraphics(JSON.parse(readFileSync(graphicsPath, "utf8")));
+} catch {
+  /* safe defaults on missing/corrupt settings */
 }
+const activeGraphics = { ...savedGraphics };
+if (process.argv.includes("--legacy-gl")) activeGraphics.renderer = "legacy-gl";
+if (process.argv.includes("--software-rendering")) {
+  activeGraphics.renderer = "software";
+  activeGraphics.compositor = "software";
+}
+if (process.argv.includes("--graphics-defaults")) Object.assign(activeGraphics, defaultGraphics);
+for (const [key, value] of graphicsSwitches(activeGraphics, process.platform))
+  app.commandLine.appendSwitch(key, value);
 function log(type: string, message: string) {
   try {
     const path = join(app.getPath("userData"), "engine.jsonl");
@@ -43,12 +55,25 @@ void app.whenReady().then(() => {
   );
   win.webContents.on("render-process-gone", (_e, details) => log("crash", JSON.stringify(details)));
   win.webContents.on("console-message", (_event, _level, message) => log("renderer", message));
+  ipcMain.handle("graphics:get", (event) => {
+    if (event.sender !== win.webContents) throw Error("Invalid sender");
+    return { active: activeGraphics, saved: savedGraphics, features: app.getGPUFeatureStatus() };
+  });
+  ipcMain.handle("graphics:save", async (event, value: unknown) => {
+    if (event.sender !== win.webContents) throw Error("Invalid sender");
+    const next = parseGraphics(value);
+    mkdirSync(app.getPath("userData"), { recursive: true });
+    await atomicWrite(graphicsPath, JSON.stringify(next));
+    savedGraphics = next;
+    log("graphics.preference", JSON.stringify(next));
+    return { active: activeGraphics, saved: savedGraphics, features: app.getGPUFeatureStatus() };
+  });
   ipcMain.handle("save", async (event, name: unknown, text: unknown) => {
     if (
       event.sender !== win.webContents ||
       typeof name !== "string" ||
       !(typeof text === "string" || text instanceof Uint8Array) ||
-      text.length > (typeof text === "string" ? 9000000 : 16 * 1024 * 1024)
+      text.length > (typeof text === "string" ? 9000000 : ARCHIVE_BYTES)
     )
       throw Error("Invalid save");
     const result = await dialog.showSaveDialog(win, {

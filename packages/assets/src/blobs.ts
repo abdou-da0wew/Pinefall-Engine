@@ -1,10 +1,20 @@
+import { MODEL_BYTES, PROJECT_MODEL_BYTES } from "./limits";
 import { assetMemory } from "./budget";
 /** Immutable, content-addressed session blobs. Disk transport must verify hashes before admission. */
 export const BLOB_PREFIX = "asset:sha256:";
 export const isBlobRef = (value: unknown): value is `asset:sha256:${string}` =>
   typeof value === "string" && /^asset:sha256:[a-f0-9]{64}$/.test(value);
 export async function hashBytes(bytes: Uint8Array) {
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
+  return [
+    ...new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        bytes.buffer instanceof ArrayBuffer
+          ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+          : new Uint8Array(bytes),
+      ),
+    ),
+  ]
     .map((x) => x.toString(16).padStart(2, "0"))
     .join("");
 }
@@ -16,7 +26,7 @@ export class BlobStore {
   readonly persistent: boolean = false;
   private data = new Map<string, Uint8Array>();
   private size = 0;
-  constructor(readonly limit = 64 * 1024 * 1024) {}
+  constructor(readonly limit = PROJECT_MODEL_BYTES) {}
   get bytes() {
     return this.size;
   }
@@ -27,7 +37,7 @@ export class BlobStore {
     return this.data.has(ref);
   }
   async put(input: Uint8Array, expected?: string) {
-    if (input.byteLength > 8_000_000) throw Error("Blob exceeds 8 MB admission limit");
+    if (input.byteLength > MODEL_BYTES) throw Error("Blob exceeds 200 MB admission limit");
     const bytes = new Uint8Array(input),
       hash = await hashBytes(bytes);
     if (expected !== undefined && expected !== hash) throw Error("Blob hash mismatch");
@@ -65,7 +75,7 @@ export class BlobStore {
         !entry ||
         !isBlobRef(entry.ref) ||
         !(entry.bytes instanceof Uint8Array) ||
-        entry.bytes.length > 8_000_000
+        entry.bytes.length > MODEL_BYTES
       )
         throw Error("Invalid blob inventory");
       stagedBytes += entry.bytes.length;
@@ -217,8 +227,10 @@ export class DiskBlobStore extends BlobStore {
     return (await Promise.all([result, done]))[0];
   }
   override async readAsync(ref: string) {
-    const bytes = await this.get<Uint8Array>("bytes", ref);
-    if (!(bytes instanceof Uint8Array) || bytes.length > 8_000_000)
+    const stored = await this.get<Uint8Array | Blob>("bytes", ref);
+    if (stored instanceof Blob && stored.size > MODEL_BYTES) throw Error("Oversized disk asset");
+    const bytes = stored instanceof Blob ? new Uint8Array(await stored.arrayBuffer()) : stored;
+    if (!(bytes instanceof Uint8Array) || bytes.length > MODEL_BYTES)
       throw Error("Missing or invalid disk asset. Reopen your PIF backup: " + ref);
     if (BLOB_PREFIX + (await hashBytes(bytes)) !== ref)
       throw Error("Disk asset hash mismatch: " + ref);
@@ -227,13 +239,13 @@ export class DiskBlobStore extends BlobStore {
   }
   override async sizeOf(ref: string) {
     const row = await this.get<{ bytes: number }>("metadata", ref);
-    if (!row || !Number.isSafeInteger(row.bytes) || row.bytes < 0 || row.bytes > 8_000_000)
+    if (!row || !Number.isSafeInteger(row.bytes) || row.bytes < 0 || row.bytes > MODEL_BYTES)
       throw Error("Missing or invalid disk asset metadata: " + ref);
     this.known.set(ref, row.bytes);
     return row.bytes;
   }
   override async put(input: Uint8Array, expected?: string) {
-    if (input.byteLength > 8_000_000) throw Error("Blob exceeds 8 MB admission limit");
+    if (input.byteLength > MODEL_BYTES) throw Error("Blob exceeds 200 MB admission limit");
     const bytes = new Uint8Array(input),
       hash = await hashBytes(bytes);
     if (expected !== undefined && expected !== hash) throw Error("Blob hash mismatch");
@@ -257,7 +269,7 @@ export class DiskBlobStore extends BlobStore {
               !isBlobRef(row.ref) ||
               !Number.isSafeInteger(row.bytes) ||
               row.bytes < 0 ||
-              row.bytes > 8_000_000,
+              row.bytes > MODEL_BYTES,
           ) ||
           existing.size !== rows.length
         )
@@ -270,7 +282,16 @@ export class DiskBlobStore extends BlobStore {
         if (!Number.isSafeInteger(total) || total > this.diskLimit)
           throw Error("Asset disk budget exhausted; export a backup and clean unused assets");
         for (const e of entries) {
-          tx.objectStore("bytes").put(e.bytes, e.ref);
+          // Blob payloads are stored out-of-line by Chromium. Large Uint8Array
+          // records hit its ~127 MiB structured-clone value limit.
+          tx.objectStore("bytes").put(
+            new Blob([
+              e.bytes.buffer instanceof ArrayBuffer
+                ? new Uint8Array(e.bytes.buffer, e.bytes.byteOffset, e.bytes.byteLength)
+                : new Uint8Array(e.bytes),
+            ]),
+            e.ref,
+          );
           tx.objectStore("metadata").put(
             { ref: e.ref, bytes: e.bytes.length, touched: Date.now() },
             e.ref,
@@ -298,13 +319,13 @@ export class DiskBlobStore extends BlobStore {
         !e ||
         !isBlobRef(e.ref) ||
         !(e.bytes instanceof Uint8Array) ||
-        e.bytes.length > 8_000_000 ||
+        e.bytes.length > MODEL_BYTES ||
         seen.has(e.ref)
       )
         throw Error("Invalid blob inventory");
       const bytes = new Uint8Array(e.bytes);
       total += bytes.length;
-      if (total > 64 * 1024 * 1024) throw Error("Blob inventory exceeds transfer budget");
+      if (total > PROJECT_MODEL_BYTES) throw Error("Blob inventory exceeds transfer budget");
       if (BLOB_PREFIX + (await hashBytes(bytes)) !== e.ref) throw Error("Blob hash mismatch");
       seen.add(e.ref);
       staged.push({ ref: e.ref, bytes });
@@ -317,7 +338,7 @@ export class DiskBlobStore extends BlobStore {
     for (const ref of new Set(refs)) {
       const bytes = await this.readAsync(ref);
       total += bytes.length;
-      if (total > 64 * 1024 * 1024) throw Error("Blob inventory exceeds transfer budget");
+      if (total > PROJECT_MODEL_BYTES) throw Error("Blob inventory exceeds transfer budget");
       result.push({ ref, bytes });
     }
     return result;

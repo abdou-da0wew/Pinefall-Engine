@@ -48,7 +48,7 @@ export function normalizeGlb(bytes: Uint8Array, recipe: ImportRecipe) {
     checked.version === 1 ||
     (checked.settings!.unitScale === 1 && checked.settings!.outputUp === "Y")
   )
-    return new Uint8Array(bytes);
+    return bytes; // Identity normalization is read-only; avoid duplicating large sources.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
     length = view.getUint32(12, true);
   const doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)));

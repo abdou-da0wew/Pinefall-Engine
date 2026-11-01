@@ -1,3 +1,4 @@
+import { ARCHIVE_BYTES } from "../packages/assets/src/limits";
 import { openLocalSnapshot } from "../packages/project/src/local-snapshot";
 import { projectJob } from "../packages/project/src/pif-client";
 import { hasSceneScripts } from "../packages/scripting/src/runtime";
@@ -96,7 +97,7 @@ async function main() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const pif = file.name.toLowerCase().endsWith(".pif");
-      if (file.size > (pif ? 16 * 1024 * 1024 : 9_000_000)) throw Error("Project too large");
+      if (file.size > (pif ? ARCHIVE_BYTES : 9_000_000)) throw Error("Project too large");
       authored = pif
         ? await projectJob("unpack", new Uint8Array(await file.arrayBuffer()))
         : parseScene(JSON.parse(await file.text()));

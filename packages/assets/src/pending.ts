@@ -1,3 +1,5 @@
+import { BASE64_MODEL_CHARS } from "./limits";
+import { IMPORT_BYTES } from "./limits";
 import { assetDatabase, type AssetDatabase } from "./database";
 import { hashBytes } from "./blobs";
 import { safeName } from "./record";
@@ -39,7 +41,7 @@ export async function validatePending(value: PendingImport): Promise<PendingImpo
     value.target &&
     (typeof value.target.id !== "string" ||
       typeof value.target.data !== "string" ||
-      value.target.data.length > 3_000_000 ||
+      value.target.data.length > BASE64_MODEL_CHARS ||
       !Number.isSafeInteger(value.target.revision) ||
       value.target.revision < 0)
   )
@@ -50,7 +52,7 @@ export async function validatePending(value: PendingImport): Promise<PendingImpo
     safeName(file.name);
     if (!(file.bytes instanceof Uint8Array)) throw Error("Invalid pending source bytes");
     total += file.bytes.length;
-    if (total > 4_000_000) throw Error("Pending source budget");
+    if (total > IMPORT_BYTES) throw Error("Pending source budget");
     if (names.has(file.name.toLowerCase())) throw Error("Ambiguous pending sources");
     names.add(file.name.toLowerCase());
     if ((await hashBytes(file.bytes)) !== file.sha256) throw Error("Pending source hash mismatch");
@@ -64,9 +66,12 @@ export async function rememberMissing(
   db: AssetDatabase = assetDatabase,
 ) {
   signal.throwIfAborted();
-  if (files.length > 33 || files.reduce((n, f) => n + f.size, 0) > 4_000_000)
+  if (files.length > 33 || files.reduce((n, f) => n + f.size, 0) > IMPORT_BYTES)
     throw Error("Pending source budget");
-  const reservation = assetMemory.reserve(16 * 1024 * 1024, "pending-import");
+  const reservation = assetMemory.reserve(
+    Math.max(16 * 1024 * 1024, files.reduce((n, f) => n + f.size, 0) * 3),
+    "pending-import",
+  );
   try {
     const saved: PendingImport = {
       ...context,
@@ -105,7 +110,7 @@ export async function repairFiles(
       .filter((f) => !names.has(f.name.toLowerCase()))
       .map((f) => new File([new Uint8Array(f.bytes)], f.name)),
   ];
-  if (files.length > 33 || files.reduce((n, f) => n + f.size, 0) > 4_000_000)
+  if (files.length > 33 || files.reduce((n, f) => n + f.size, 0) > IMPORT_BYTES)
     throw Error("Repair source budget");
   return files;
 }

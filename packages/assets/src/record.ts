@@ -1,3 +1,4 @@
+import { BASE64_MODEL_CHARS, DECODED_MODEL_BYTES } from "./limits";
 import { parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
 import { parseIdentities, type SubassetKind } from "./identities";
 import { isBlobRef, BLOB_PREFIX } from "./blobs";
@@ -18,7 +19,16 @@ export interface AssetImport {
   subassets: { id: string; key: string; kind: SubassetKind }[];
 }
 export async function digest(bytes: Uint8Array) {
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
+  return [
+    ...new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        bytes.buffer instanceof ArrayBuffer
+          ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+          : new Uint8Array(bytes),
+      ),
+    ),
+  ]
     .map((x) => x.toString(16).padStart(2, "0"))
     .join("");
 }
@@ -71,7 +81,7 @@ export function parseImport(value: unknown): AssetImport {
     if (names.has(key)) throw Error("Ambiguous source filenames");
     names.add(key);
     size += s.data.length;
-    if (size > 6_000_000) throw Error("Original-source budget exceeded");
+    if (size > BASE64_MODEL_CHARS + 4096) throw Error("Original-source budget exceeded");
     if (
       !isBlobRef(s.data) &&
       (!/^data:application\/octet-stream;base64,[A-Za-z0-9+/]*={0,2}$/.test(s.data) ||
@@ -86,7 +96,7 @@ export function parseImport(value: unknown): AssetImport {
   if (
     !r ||
     ![r.nodes, r.meshes, r.vertices, r.decodedBytes].every(
-      (n) => Number.isSafeInteger(n) && n >= 0 && n <= 128 * 1024 * 1024,
+      (n) => Number.isSafeInteger(n) && n >= 0 && n <= DECODED_MODEL_BYTES,
     )
   )
     throw Error("Invalid import report");

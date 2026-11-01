@@ -1,3 +1,4 @@
+import { IMPORT_BYTES } from "./limits";
 import { blobs } from "./blobs";
 import { defaultRecipe, parseRecipe, normalizeGlb, type ImportRecipe } from "./recipe";
 import { inspectFbx } from "./fbx";
@@ -36,7 +37,7 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
       names.add(key);
       total += file.bytes.length;
     }
-    if (total > 4_000_000) throw Error("Source + companion input limit is 4 MB");
+    if (total > IMPORT_BYTES) throw Error("Source + companion input limit is 200 MB");
     const models = files.filter((f) => /\.(glb|fbx)$/i.test(f.name));
     if (models.length !== 1)
       throw Error("Import one GLB or FBX at a time, with its companion PNG/JPEG files");
@@ -165,7 +166,7 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
       bytes = new Uint8Array(output);
     }
     bytes = normalizeGlb(bytes, recipe);
-    if (bytes.length > MODEL_LIMIT) throw Error("Converted GLB exceeds 2 MB artifact limit");
+    if (bytes.length > MODEL_LIMIT) throw Error("Converted GLB exceeds 200 MB artifact limit");
     self.postMessage({ stage: "validate" });
     const report = inspectGlb(bytes);
     if (recipe.version === 1) delete report.identities;
@@ -179,20 +180,32 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
         "Unnamed/duplicate subassets cannot be matched safely on reimport; their IDs will be regenerated.",
       );
     self.postMessage({ stage: "persist-sources" });
-    const sources = await Promise.all(
-      files.map(async (f) => ({
+    const sources = [];
+    for (const f of files) {
+      const data = blobs.persistent
+        ? await blobs.put(f.bytes)
+        : toDataURI(f.bytes, "application/octet-stream");
+      sources.push({
         name: f.name,
-        data: blobs.persistent
-          ? await blobs.put(f.bytes)
-          : toDataURI(f.bytes, "application/octet-stream"),
-        sha256: await digest(f.bytes),
-      })),
-    );
+        data,
+        sha256: blobs.persistent ? data.slice("asset:sha256:".length) : await digest(f.bytes),
+      });
+    }
+    const unchanged = bytes === source.bytes;
+    const artifactData = unchanged
+      ? sources[0].data
+      : blobs.persistent
+        ? await blobs.put(bytes)
+        : toDataURI(bytes);
     const metadata: AssetImport = {
       version: recipe.version,
       revision: 1,
       format,
-      artifactHash: await digest(bytes),
+      artifactHash: unchanged
+        ? sources[0].sha256
+        : blobs.persistent
+          ? artifactData.slice("asset:sha256:".length)
+          : await digest(bytes),
       recipe,
       sources,
       report,
@@ -200,7 +213,7 @@ self.onmessage = async (event: MessageEvent<{ files: InputFile[]; recipe?: Impor
     };
     self.postMessage({
       name: source.name,
-      data: blobs.persistent ? await blobs.put(bytes) : toDataURI(bytes),
+      data: blobs.persistent ? artifactData : toDataURI(bytes),
       metadata,
     });
   } catch (error) {

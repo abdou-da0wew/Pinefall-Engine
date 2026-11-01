@@ -1,6 +1,8 @@
+import { DECODED_MODEL_BYTES } from "./limits";
+import { IMPORT_BYTES } from "./limits";
 /** Defensive FBX admission before Three's synchronous parser/decompressor allocates arrays. */
 export async function inspectFbx(bytes: Uint8Array) {
-  if (bytes.length < 32 || bytes.length > 4_000_000) throw Error("FBX source size limit");
+  if (bytes.length < 32 || bytes.length > IMPORT_BYTES) throw Error("FBX source size limit");
   const text = new TextDecoder().decode(bytes.subarray(0, 23));
   if (!text.startsWith("Kaydara FBX Binary")) {
     const ascii = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -8,10 +10,10 @@ export async function inspectFbx(bytes: Uint8Array) {
     let elements = 0;
     for (const match of ascii.matchAll(/:\s*\*(\d+)\s*\{/g)) {
       const n = Number(match[1]);
-      if (!Number.isSafeInteger(n) || n > 1_500_000) throw Error("FBX array count limit");
+      if (!Number.isSafeInteger(n) || n > 15_000_000) throw Error("FBX array count limit");
       elements += n;
     }
-    if (elements * 8 > 64 * 1024 * 1024) throw Error("FBX decoded array budget");
+    if (elements * 8 > DECODED_MODEL_BYTES) throw Error("FBX decoded array budget");
     for (const line of ascii.split("\n"))
       if ((line.match(/^\t*/)?.[0].length || 0) > 128) throw Error("FBX hierarchy too deep");
     return;
@@ -43,7 +45,7 @@ export async function inspectFbx(bytes: Uint8Array) {
     }
     let at = start + header + nameLength;
     const propertiesEnd = at + propertyBytes;
-    if (end <= start || end > limit || propertiesEnd > end || count > 1_500_000)
+    if (end <= start || end > limit || propertiesEnd > end || count > 15_000_000)
       throw Error("Invalid FBX node bounds");
     for (let i = 0; i < count; i++) {
       if (at >= propertiesEnd) throw Error("Truncated FBX property");
@@ -65,8 +67,8 @@ export async function inspectFbx(bytes: Uint8Array) {
         const expected = n * size;
         total += expected;
         if (
-          n > 1_500_000 ||
-          total > 64 * 1024 * 1024 ||
+          n > 15_000_000 ||
+          total > DECODED_MODEL_BYTES ||
           at + length > propertiesEnd ||
           encoding > 1
         )

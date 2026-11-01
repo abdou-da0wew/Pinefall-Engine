@@ -1,13 +1,14 @@
+import { MODEL_BYTES, DECODED_MODEL_BYTES, BASE64_MODEL_CHARS } from "./limits";
 import { inspectIdentities, type SourceIdentity } from "./identities";
 import { blobs, isBlobRef } from "./blobs";
 /** Allocation admission for self-contained glTF 2.0. No browser/Three dependencies. */
-export const MODEL_LIMIT = 2_000_000;
+export const MODEL_LIMIT = MODEL_BYTES;
 export const LIMITS = {
   nodes: 2048,
   meshes: 512,
   accessors: 4096,
-  vertices: 500_000,
-  decoded: 64 * 1024 * 1024,
+  vertices: 5_000_000,
+  decoded: DECODED_MODEL_BYTES,
   imageDimension: 2048,
   images: 32,
 } as const;
@@ -48,7 +49,8 @@ export function fromDataURI(uri: string): Uint8Array {
     /^data:(?:model\/gltf-binary|application\/octet-stream|application\/gltf-buffer|image\/png|image\/jpeg);base64,([A-Za-z0-9+/]*={0,2})$/.exec(
       uri,
     );
-  if (!m || m[1].length % 4 || m[1].length > 12_000_000) throw Error("Invalid embedded resource");
+  if (!m || m[1].length % 4 || m[1].length > BASE64_MODEL_CHARS)
+    throw Error("Invalid embedded resource");
   return Uint8Array.from(atob(m[1]), (c) => c.charCodeAt(0));
 }
 export function toDataURI(bytes: Uint8Array, mime = "model/gltf-binary") {
@@ -96,7 +98,7 @@ export interface ModelInspection {
 }
 export function inspectGlb(bytes: Uint8Array): ModelInspection {
   if (bytes.length < 20 || bytes.length > MODEL_LIMIT)
-    throw Error("GLB truncated or exceeds 2 MB source limit");
+    throw Error("GLB truncated or exceeds 200 MB source limit");
   const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (
     v.getUint32(0, true) !== 0x46546c67 ||
@@ -111,7 +113,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
     JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(20, 20 + length))),
   );
   if (object(doc.asset).version !== "2.0") throw Error("Missing glTF 2.0 asset metadata");
-  let bin = new Uint8Array(0),
+  let bin: Uint8Array = new Uint8Array(0),
     seenBin = false;
   for (let at = 20 + length; at < bytes.length;) {
     if (at + 8 > bytes.length) throw Error("Truncated GLB chunk");
@@ -120,7 +122,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
     if (n % 4 || at + 8 + n > bytes.length || type !== 0x004e4942 || seenBin)
       throw Error("Invalid/unsupported GLB chunk");
     seenBin = true;
-    bin = bytes.slice(at + 8, at + 8 + n);
+    bin = bytes.subarray(at + 8, at + 8 + n);
     at += 8 + n;
   }
   if (

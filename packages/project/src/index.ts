@@ -1,3 +1,4 @@
+import { MODEL_BYTES } from "../../assets/src/limits";
 import { entity, parseScene, cloneScene } from "../../runtime/src/schema";
 import type { SceneDocument, Asset } from "../../runtime/src/schema";
 export function createGame(name: string): SceneDocument {
@@ -47,7 +48,7 @@ export function importModel(
   name: string,
   bytes: Uint8Array,
 ): { scene: SceneDocument; asset: Asset } {
-  if (bytes.length > 2_000_000) throw Error("Maximum model size is 2 MB");
+  if (bytes.length > MODEL_BYTES) throw Error("Maximum model size is 200 MB");
   validateGlb(bytes);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 8192)

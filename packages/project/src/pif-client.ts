@@ -22,7 +22,7 @@ export function projectJob(
       reject(new Error("Project operation cancelled"));
       return;
     }
-    const reservation = assetMemory.reserve(160 * 1024 * 1024, "project-worker");
+    const reservation = assetMemory.reserve(1024 * 1024 * 1024, "project-worker");
     let worker: Worker;
     try {
       worker = new Worker(new URL("./pif.worker.ts", import.meta.url), { type: "module" });
@@ -44,7 +44,7 @@ export function projectJob(
     const timeout = setTimeout(() => {
       cleanup();
       reject(new Error("Project operation timed out"));
-    }, 120000);
+    }, 600000);
     signal?.addEventListener("abort", abort, { once: true });
     worker.onmessage = async (event) => {
       worker.terminate();

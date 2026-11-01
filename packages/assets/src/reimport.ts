@@ -1,3 +1,4 @@
+import { IMPORT_BYTES } from "./limits";
 import { assetMemory } from "./budget";
 import { sceneDependencyGraph, DependencyGraph, conversionKey } from "./dependencies";
 import { hashBytes } from "./blobs";
@@ -27,6 +28,7 @@ async function prepareBatch(
   const changes = new Map<string, { sourceHash: string; artifactHash: string }>(),
     prepared = new Map<string, PreparedImport>();
   const work = new Map<string, { files: File[]; recipe: ImportRecipe }>();
+  let retainedBytes = 0;
   for (const request of requests) {
     signal.throwIfAborted();
     const asset = scene.assets.find((a) => a.id === request.assetId);
@@ -35,8 +37,11 @@ async function prepareBatch(
     if (work.has(modelId)) throw Error("Duplicate reimport asset");
     const files = await reimportInputs(asset, request.files),
       recipe = parseRecipe(request.recipe || asset.import.recipe);
-    if (files.length > 33 || files.reduce((n, file) => n + file.size, 0) > 4_000_000)
+    if (files.length > 33 || files.reduce((n, file) => n + file.size, 0) > IMPORT_BYTES)
       throw Error("Reimport source budget");
+    retainedBytes += files.reduce((n, f) => n + f.size, 0);
+    if (retainedBytes > IMPORT_BYTES)
+      throw Error("Reimport batch retained inputs exceed 200 MB; split the batch");
     work.set(modelId, { files, recipe });
     prepared.set(asset.id, {
       name: asset.name,
@@ -94,7 +99,7 @@ async function prepareBatch(
   return { prepared, rebuilt };
 }
 
-/** Up to eight 4 MB source sets; reserve retained inputs, hashing and transaction metadata. */
+/** Up to eight source sets within a combined 200 MB retained-input budget. */
 export async function prepareReimports(
   scene: SceneDocument,
   requests: ReimportRequest[],
@@ -103,7 +108,7 @@ export async function prepareReimports(
 ) {
   signal.throwIfAborted();
   if (!requests.length || requests.length > 8) throw Error("Reimport batch budget");
-  const reservation = assetMemory.reserve(64 * 1024 * 1024, "reimport-batch");
+  const reservation = assetMemory.reserve(IMPORT_BYTES * 2, "reimport-batch");
   try {
     return await prepareBatch(scene, [...requests], signal, onStage);
   } finally {

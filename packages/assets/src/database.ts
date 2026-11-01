@@ -1,3 +1,5 @@
+import { IMPORT_BYTES } from "./limits";
+import { PROJECT_MODEL_BYTES } from "./limits";
 import { validatePending, type PendingImport } from "./pending";
 import { blobs, isBlobRef } from "./blobs";
 import { sceneReferences, referenceScene } from "./documents";
@@ -15,6 +17,24 @@ interface Checkpoint {
   revision: number;
 }
 /** One origin-local database. Portable PIF remains the backup, not this evictable browser store. */
+type PendingDisk = Omit<PendingImport, "files"> & {
+  files: Array<{ name: string; sha256: string; bytes: Uint8Array | Blob }>;
+};
+async function hydratePending(row: PendingDisk): Promise<PendingImport> {
+  if (!Array.isArray(row.files)) throw Error("Invalid pending inventory");
+  let total = 0;
+  const files: PendingImport["files"] = [];
+  for (const file of row.files) {
+    total += file.bytes instanceof Blob ? file.bytes.size : file.bytes.byteLength;
+    if (total > IMPORT_BYTES) throw Error("Pending source budget");
+    files.push({
+      ...file,
+      bytes:
+        file.bytes instanceof Blob ? new Uint8Array(await file.bytes.arrayBuffer()) : file.bytes,
+    });
+  }
+  return { ...row, files };
+}
 export class AssetDatabase {
   private recoveredPrevious = false;
   private opening?: Promise<IDBDatabase>;
@@ -97,7 +117,7 @@ export class AssetDatabase {
           : undefined);
       if (!(bytes instanceof Uint8Array)) throw Error("Missing stored blob: " + ref);
       total += bytes.length;
-      if (total > 8_000_000) throw Error("Stored blob inventory exceeds project budget");
+      if (total > PROJECT_MODEL_BYTES) throw Error("Stored blob inventory exceeds project budget");
       if (legacy) await blobs.admit([{ ref, bytes }]);
     }
   }
@@ -179,7 +199,7 @@ export class AssetDatabase {
           : await blobs.entriesAsync(references);
       let bytes = 0;
       for (const ref of references) bytes += await blobs.sizeOf(ref);
-      if (bytes > 8_000_000) throw Error("Artifact cache entry exceeds budget");
+      if (bytes > PROJECT_MODEL_BYTES) throw Error("Artifact cache entry exceeds budget");
       const db = await this.open(),
         tx = db.transaction(["blobs", "artifacts"], "readwrite"),
         done = this.done(tx),
@@ -218,7 +238,7 @@ export class AssetDatabase {
       let total = 0,
         count = 0;
       for (const item of a.sort((x, y) => y.created - x.created)) {
-        if (++count > 32 || total + item.bytes > 64 * 1024 * 1024)
+        if (++count > 32 || total + item.bytes > PROJECT_MODEL_BYTES)
           tx.objectStore("artifacts").delete(item.key);
         else {
           total += item.bytes;
@@ -268,20 +288,26 @@ export class AssetDatabase {
     await done;
     return rows;
   }
-  getPending(id: string) {
-    return this.read<PendingImport>("pending", id);
+  async getPending(id: string) {
+    const row = await this.read<PendingDisk>("pending", id);
+    return row ? hydratePending(row) : undefined;
   }
   async pendingImports(projectId: string) {
     const db = await this.open(),
       tx = db.transaction("pending", "readonly"),
       done = this.done(tx),
       request = tx.objectStore("pending").getAll();
-    const result = new Promise<PendingImport[]>((resolve, reject) => {
+    const result = new Promise<PendingDisk[]>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
     const [rows] = await Promise.all([result, done]);
-    return rows.filter((row) => row.projectId === projectId).sort((a, b) => b.updated - a.updated);
+    const resultRows: PendingImport[] = [];
+    for (const row of rows
+      .filter((row) => row.projectId === projectId)
+      .sort((a, b) => b.updated - a.updated))
+      resultRows.push(await hydratePending(row));
+    return resultRows;
   }
   putPending(value: PendingImport, signal?: AbortSignal) {
     return this.serial(async () => {
@@ -302,9 +328,12 @@ export class AssetDatabase {
       };
       signal?.addEventListener("abort", abort, { once: true });
       let failure: unknown;
-      const request = store.getAllKeys();
+      const request = store.getAll();
       request.onsuccess = () => {
-        if (request.result.length >= 8 && !request.result.includes(copy.id)) {
+        if (
+          request.result.length >= 8 &&
+          !request.result.some((row: PendingDisk) => row.id === copy.id)
+        ) {
           failure = Error(
             "Pending import storage full (8 attempts); discard an attempt before retrying",
           );
@@ -312,7 +341,27 @@ export class AssetDatabase {
           return;
         }
         try {
-          store.put(copy, copy.id);
+          const pendingBytes =
+            (request.result as PendingDisk[])
+              .filter((row) => row.id !== copy.id)
+              .reduce(
+                (n, row) =>
+                  n +
+                  row.files.reduce(
+                    (m, f) => m + (f.bytes instanceof Blob ? f.bytes.size : f.bytes.byteLength),
+                    0,
+                  ),
+                0,
+              ) + copy.files.reduce((n, f) => n + f.bytes.byteLength, 0);
+          if (pendingBytes > IMPORT_BYTES)
+            throw Error("Pending recovery storage exceeds 200 MB; discard an old attempt");
+          store.put(
+            {
+              ...copy,
+              files: copy.files.map((f) => ({ ...f, bytes: new Blob([new Uint8Array(f.bytes)]) })),
+            },
+            copy.id,
+          );
         } catch (error) {
           failure = error;
           tx.abort();

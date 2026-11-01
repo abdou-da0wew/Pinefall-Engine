@@ -1,3 +1,4 @@
+import { ARCHIVE_BYTES } from "../../assets/src/limits";
 import { openLocalSnapshot } from "../../project/src/local-snapshot";
 import { CommandPalette } from "./command-palette";
 import { dispatchShortcut, type EditorCommand } from "./commands";
@@ -543,7 +544,7 @@ function App({
     const before = current.current;
     try {
       const isPif = f.name.toLowerCase().endsWith(".pif");
-      if (f.size > (isPif ? 16 * 1024 * 1024 : 9_000_000))
+      if (f.size > (isPif ? ARCHIVE_BYTES : 9_000_000))
         throw Error("Project exceeds file size limit");
       const controller = new AbortController();
       projectAbort.current = controller;
@@ -2368,7 +2369,8 @@ function App({
               <span>　Project assets ({scene.assets.length})</span>
               <small>
                 GLB · experimental FBX + PNG/JPEG
-                <br />2 MB cooked model · 2048px textures
+                <br />
+                200 MB model + companion input · 2048px textures
               </small>
             </div>
             <div className="asset-grid">

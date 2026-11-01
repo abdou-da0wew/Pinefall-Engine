@@ -70,7 +70,9 @@ test("XZ corruption, concatenated streams and non-XZ input fail before scene ado
 test("fixed output budget rejects compressed expansion bombs", async () => {
   await ensureInlineInit();
   const bomb = await xzAsync(new Uint8Array(41 * 1024 * 1024), { preset: 1 });
-  await expect(unpackProject(bomb)).rejects.toThrow("budget");
+  await expect(unpackProject(bomb, { maxExpandedBytes: 40 * 1024 * 1024 })).rejects.toThrow(
+    "budget",
+  );
 });
 
 import { EDITOR_VERSION } from "../packages/project/src/metadata";

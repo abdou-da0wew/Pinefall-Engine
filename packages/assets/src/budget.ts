@@ -4,7 +4,7 @@ export class MemoryBudget {
   private peakBytes = 0;
   private owners = new Map<number, { kind: string; bytes: number }>();
   private next = 0;
-  constructor(readonly limit = 384 * 1024 * 1024) {}
+  constructor(readonly limit = 1536 * 1024 * 1024) {}
   get snapshot() {
     return {
       used: this.usedBytes,

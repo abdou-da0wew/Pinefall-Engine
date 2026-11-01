@@ -1,3 +1,4 @@
+import { ARCHIVE_BYTES } from "../../assets/src/limits";
 import type { SceneDocument } from "../../runtime/src/schema";
 import { projectJob } from "../../project/src/pif-client";
 export interface RecentProject {
@@ -25,7 +26,7 @@ export function validateRecentRows(input: unknown): RecentProject[] {
       row.updated < 0 ||
       !Number.isInteger(row.bytes) ||
       row.bytes < 1 ||
-      row.bytes > 16 * 1024 * 1024
+      row.bytes > ARCHIVE_BYTES
     )
       throw Error("Invalid recent project metadata; use your PIF backup");
     ids.add(row.id);
@@ -117,21 +118,21 @@ export async function rememberProject(
       }
       if (
         other.length >= 12 ||
-        other.reduce((n, e) => n + e.bytes, archive.length) > 64 * 1024 * 1024
+        other.reduce((n, e) => n + e.bytes, archive.length) > ARCHIVE_BYTES * 2
       ) {
         budget = true;
         tx.abort();
         return;
       }
       store.put(entry);
-      tx.objectStore("archives").put(archive, entry.id);
+      tx.objectStore("archives").put(new Blob([new Uint8Array(archive)]), entry.id);
     };
     try {
       await finished;
     } catch (error) {
       if (budget)
         throw Error(
-          "Recent-project storage full (12 projects / 64 MiB). Remove a saved snapshot or export a PIF backup.",
+          "Recent-project storage full (12 projects / 1 GiB). Remove a saved snapshot or export a PIF backup.",
         );
       throw error;
     }

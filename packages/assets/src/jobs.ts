@@ -97,8 +97,8 @@ export function workerJob<T>(
         };
         const abort = () => finish(new DOMException("Import cancelled", "AbortError"));
         const timer = setTimeout(
-          () => finish(Error("Import worker timed out after 120 seconds")),
-          120_000,
+          () => finish(Error("Import worker timed out after 600 seconds")),
+          600_000,
         );
         signal?.addEventListener("abort", abort, { once: true });
         worker.onmessage = (e) => {

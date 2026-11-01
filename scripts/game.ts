@@ -1,3 +1,4 @@
+import { MODEL_BYTES } from "../packages/assets/src/limits";
 import { atomicWrite } from "../packages/project/src/atomic-file";
 import { defaultRecipe, parseRecipe } from "../packages/assets/src/recipe";
 import { convertModel } from "./convert-model";
@@ -96,8 +97,8 @@ async function main() {
         if (!args[i + 1]) throw Error("Missing companion path");
         companions.push(args[++i]);
       }
-    if (/\.glb$/i.test(filename) && (Bun.file(filename).size > 2_000_000 || companions.length))
-      throw Error("GLB must be embedded and at most 2 MB");
+    if (/\.glb$/i.test(filename) && (Bun.file(filename).size > MODEL_BYTES || companions.length))
+      throw Error("GLB must be embedded and at most 200 MB");
     const prepared = /\.fbx$/i.test(filename)
       ? await convertModel(
           [filename, ...companions],

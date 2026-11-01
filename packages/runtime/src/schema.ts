@@ -1,3 +1,4 @@
+import { BASE64_MODEL_CHARS, BASE64_PROJECT_CHARS } from "../../assets/src/limits";
 import { parseAudio, audioId, type AudioDefinition } from "../../audio/src/definition";
 import { parseAnimator, type AnimatorDefinition } from "../../animation/src/definition";
 import { isBlobRef } from "../../assets/src/blobs";
@@ -174,7 +175,7 @@ export function parseScene(value: unknown): SceneDocument {
     fail("root/version/limits");
   const assets: Asset[] = value.assets.map((a) => {
     if (!record(a)) fail("asset");
-    const data = text(a.data, "asset data", 3_000_000);
+    const data = text(a.data, "asset data", BASE64_MODEL_CHARS);
     if (
       !/^data:model\/gltf-binary;base64,[A-Za-z0-9+/=]+$/.test(data) &&
       !(value.version !== 1 && isBlobRef(data))
@@ -196,7 +197,7 @@ export function parseScene(value: unknown): SceneDocument {
     assets.reduce(
       (s, a) => s + a.data.length + (a.import?.sources.reduce((n, f) => n + f.data.length, 0) || 0),
       0,
-    ) > 8_000_000
+    ) > BASE64_PROJECT_CHARS
   )
     fail("asset budget");
   let scripts: ScriptAsset[] | undefined;

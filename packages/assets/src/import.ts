@@ -1,7 +1,10 @@
+import { assetMemory } from "./budget";
+import { JobQueue } from "./jobs";
+import { IMPORT_BYTES, PROJECT_MODEL_BYTES } from "./limits";
 import { readAssetBytes } from "./glb";
 import { defaultRecipe, parseRecipe, type ImportRecipe } from "./recipe";
 import { assetDatabase } from "./database";
-import { hashBytes } from "./blobs";
+import { hashBytes, blobs, isBlobRef } from "./blobs";
 import { conversionKey } from "./dependencies";
 import { referenceScene, sceneReferences } from "./documents";
 import { verifyImport } from "./record";
@@ -13,15 +16,36 @@ export interface PreparedImport {
   data: string;
   metadata: AssetImport;
 }
-export async function prepareImport(
+const inputQueue = new JobQueue();
+export function prepareImport(
+  files: File[],
+  signal: AbortSignal,
+  onStage?: (u: JobUpdate) => void,
+  inputRecipe: ImportRecipe = defaultRecipe(),
+): Promise<PreparedImport> {
+  if (!files.length || files.length > 33 || files.reduce((n, f) => n + f.size, 0) > IMPORT_BYTES)
+    return Promise.reject(Error("Input files exceed 200 MB / 33-file budget"));
+  return inputQueue.run(async () => {
+    const reservation = assetMemory.reserve(
+      Math.max(16 * 1024 * 1024, files.reduce((n, f) => n + f.size, 0) * 2),
+      "import-input",
+    );
+    try {
+      return await prepareAdmittedImport(files, signal, onStage, inputRecipe);
+    } finally {
+      reservation.release();
+    }
+  }, signal);
+}
+async function prepareAdmittedImport(
   files: File[],
   signal: AbortSignal,
   onStage?: (u: JobUpdate) => void,
   inputRecipe: ImportRecipe = defaultRecipe(),
 ): Promise<PreparedImport> {
   const recipe = parseRecipe(inputRecipe);
-  if (files.reduce((n, f) => n + f.size, 0) > 4_000_000)
-    throw Error("Input files exceed 4 MB budget");
+  if (files.reduce((n, f) => n + f.size, 0) > IMPORT_BYTES)
+    throw Error("Input files exceed 200 MB budget");
   const input = [];
   for (const file of files) {
     signal.throwIfAborted();
@@ -60,7 +84,7 @@ export async function prepareImport(
     { files: input, recipe },
     signal,
     onStage,
-    undefined,
+    Math.max(128 * 1024 * 1024, files.reduce((n, f) => n + f.size, 0) * 4),
     input.map((file) => file.bytes.buffer),
   );
   result.metadata = parseImport(result.metadata);
@@ -130,6 +154,17 @@ export function adoptImport(
   if (same) return { scene: next, asset: same };
   if (old) next.assets[next.assets.indexOf(old)] = asset;
   else next.assets.push(asset);
+  let encoded = 0;
+  for (const model of next.assets)
+    for (const data of [model.data, ...(model.import?.sources.map((s) => s.data) ?? [])]) {
+      encoded += isBlobRef(data)
+        ? blobs.byteLength(data)
+        : Math.floor(((data.length - data.indexOf(",") - 1) * 3) / 4);
+      if (encoded > PROJECT_MODEL_BYTES)
+        throw Error(
+          "Project source/artifact budget exceeds 480 MB; remove an unused model or split the project",
+        );
+    }
   return { scene: parseScene(next), asset };
 }
 

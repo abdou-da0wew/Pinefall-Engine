@@ -1,3 +1,4 @@
+import { PROJECT_MODEL_BYTES } from "./limits";
 import { waveBytesAsync } from "../../audio/src/definition";
 import { inspectWave } from "../../audio/src/wav";
 import { assetMemory } from "./budget";
@@ -42,7 +43,8 @@ export async function referenceScene(
       }
       const bytes = fromDataURI(data);
       total += bytes.length;
-      if (total > 8_000_000) throw Error("Project decoded source/artifact budget exceeds 8 MB");
+      if (total > PROJECT_MODEL_BYTES)
+        throw Error("Project encoded source/artifact budget exceeds 480 MB");
       return blobs.put(bytes, hash);
     };
     a.data = await intern(a.data, a.import?.artifactHash);
@@ -50,7 +52,8 @@ export async function referenceScene(
       signal?.throwIfAborted();
       s.data = await intern(s.data, s.sha256);
     }
-    if (total > 8_000_000) throw Error("Project decoded source/artifact budget exceeds 8 MB");
+    if (total > PROJECT_MODEL_BYTES)
+      throw Error("Project encoded source/artifact budget exceeds 480 MB");
   }
   let audioTotal = 0;
   for (const a of scene.audio?.assets ?? []) {
@@ -83,7 +86,8 @@ export async function materializeSceneAsync(input: SceneDocument) {
   const model = async (ref: string, mime?: string) => {
     const bytes = await blobs.readAsync(ref);
     total += bytes.length;
-    if (total > 8_000_000) throw Error("Project decoded source/artifact budget exceeds 8 MB");
+    if (total > PROJECT_MODEL_BYTES)
+      throw Error("Project encoded source/artifact budget exceeds 480 MB");
     return toDataURI(bytes, mime);
   };
   for (const a of scene.assets) {

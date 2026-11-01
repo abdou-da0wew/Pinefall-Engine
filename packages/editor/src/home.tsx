@@ -1,3 +1,5 @@
+import type { GraphicsPreferences, GraphicsState } from "./graphics";
+import { ARCHIVE_BYTES } from "../../assets/src/limits";
 /* oxlint-disable react/refs -- Event handler ref keeps keyboard routing current without reattaching listeners. */
 import { CommandPalette } from "./command-palette";
 import { dispatchShortcut, type EditorCommand } from "./commands";
@@ -54,6 +56,26 @@ export const starters = [
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [value, setValue] = useState(readPreferences),
     [error, setError] = useState("");
+  const [graphics, setGraphics] = useState<GraphicsState>();
+  const [draft, setDraft] = useState<GraphicsPreferences>();
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void window.engineDesktop
+      ?.getGraphics()
+      .then((state) => {
+        if (alive) {
+          setGraphics(state);
+          setDraft(state.saved);
+        }
+      })
+      .catch(() => {
+        if (alive) setError("Desktop graphics settings could not be read.");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   return (
     <Dialog
       title="Editor settings"
@@ -61,13 +83,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       onClose={onClose}
     >
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          setSaving(true);
           try {
+            if (draft && window.engineDesktop) await window.engineDesktop.saveGraphics(draft);
             savePreferences(value);
             onClose();
           } catch {
-            setError("Preferences could not be saved. Your previous settings are unchanged.");
+            setError(
+              "Preferences could not be saved completely. Reopen Settings to verify saved values.",
+            );
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -105,10 +133,72 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setValue({ ...value, reducedMotion: e.target.checked })}
           />
         </label>
+        <fieldset disabled={saving || !draft}>
+          <legend>Desktop rendering — applies next launch</legend>
+          <label>
+            Browser / UI compositing
+            <Select
+              aria-label="Browser / UI compositing"
+              value={draft?.compositor ?? "default"}
+              onChange={(e) =>
+                draft &&
+                setDraft({
+                  ...draft,
+                  compositor: e.target.value as GraphicsPreferences["compositor"],
+                })
+              }
+            >
+              <option value="default">Chromium default (hardware acceleration allowed)</option>
+              <option value="software">Software compositing (keep 3D GPU available)</option>
+            </Select>
+          </label>
+          <label>
+            3D renderer
+            <Select
+              aria-label="3D renderer"
+              value={draft?.renderer ?? "auto"}
+              onChange={(e) =>
+                draft &&
+                setDraft({ ...draft, renderer: e.target.value as GraphicsPreferences["renderer"] })
+              }
+            >
+              <option value="auto">Three.js / WebGL — automatic GPU selection</option>
+              <option value="legacy-gl">Three.js / WebGL — legacy OpenGL (ANGLE)</option>
+              <option value="software">CPU 3D — SwiftShader WebGL (slow)</option>
+              <option value="vgpu" disabled>
+                Vercel vgpu / WebGPU — engine adapter not implemented
+              </option>
+            </Select>
+          </label>
+        </fieldset>
+        <small>
+          {window.engineDesktop
+            ? "Save your project, save these preferences, then close and reopen the app. CPU mode also requests software UI compositing; it retains real 3D and the existing UI. SwiftShader requires an explicit Chromium software-WebGL opt-in; Electron sandboxing remains enabled."
+            : "A web page cannot change browser hardware acceleration or force a CPU adapter. Use the desktop app for these controls, or your browser’s own settings."}
+        </small>
+        <p>
+          <small>
+            R3F is a React wrapper for Three.js, not a GPU backend. This engine uses Three.js
+            directly. The original game's vgpu renderer cannot yet render arbitrary engine scenes;
+            it is not offered as a working switch.
+          </small>
+        </p>
+        {graphics && (
+          <details>
+            <summary>Active graphics diagnostics</summary>
+            <p>
+              3D: {graphics.active.renderer} · UI: {graphics.active.compositor}
+            </p>
+            <p>
+              Requested preferences are not proof of hardware acceleration. Chromium feature status:
+            </p>
+            <pre>{JSON.stringify(graphics.features, null, 2)}</pre>
+          </details>
+        )}
         {error && <p role="alert">{error}</p>}
         <footer>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="primary" disabled={saving}>
             Save preferences
           </Button>
         </footer>
@@ -480,7 +570,7 @@ export function Home({
           e.target.value = "";
           if (f)
             void open(async () => {
-              if (f.size > 16 * 1024 * 1024) throw Error("Project exceeds 16 MiB limit");
+              if (f.size > ARCHIVE_BYTES) throw Error("Project exceeds 512 MiB limit");
               return f.name.toLowerCase().endsWith(".pif")
                 ? projectJob("unpack", new Uint8Array(await f.arrayBuffer()))
                 : referenceScene(parseScene(JSON.parse(await f.text())));

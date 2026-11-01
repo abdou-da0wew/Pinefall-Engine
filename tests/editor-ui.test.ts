@@ -18,7 +18,7 @@ test("recent project metadata rejects corrupted IDs, sizes and duplicate invento
   for (const patch of [
     { id: "bad" },
     { bytes: NaN },
-    { bytes: 64 * 1024 * 1024 },
+    { bytes: 512 * 1024 * 1024 + 1 },
     { name: "" },
     { template: "unknown" },
     { updated: -1 },

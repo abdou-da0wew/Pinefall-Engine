@@ -1,3 +1,4 @@
+import { IMPORT_BYTES } from "../packages/assets/src/limits";
 import { chromium } from "@playwright/test";
 import { parseImport, verifyImport, safeName } from "../packages/assets/src/record";
 import { parseRecipe, type ImportRecipe } from "../packages/assets/src/recipe";
@@ -16,7 +17,7 @@ export async function convertModel(
   for (const path of paths) {
     const file = Bun.file(path);
     total += file.size;
-    if (total > 4_000_000) throw Error("Source budget exceeds 4 MB");
+    if (total > IMPORT_BYTES) throw Error("Source budget exceeds 200 MB");
     files.push({ name: safeName(path.split(/[\\/]/).pop()!), bytes: await file.bytes() });
   }
   const compiled = await Bun.build({

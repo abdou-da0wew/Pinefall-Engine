@@ -1,6 +1,9 @@
+import { ARCHIVE_BYTES } from "../../assets/src/limits";
+import { blobs, isBlobRef } from "../../assets/src/blobs";
+import { readAssetBytes } from "../../assets/src/glb";
 import { waveBytes, waveURI } from "../../audio/src/definition";
 import { inspectWave } from "../../audio/src/wav";
-import { materializeScene, materializeSceneAsync } from "../../assets/src/documents";
+import { materializeScene, sceneReferences } from "../../assets/src/documents";
 import { parseImport, verifyImport } from "../../assets/src/record";
 import { fromDataURI } from "../../assets/src/glb";
 import { newProjectMetadata, parseProjectMetadata, EDITOR_VERSION } from "./metadata";
@@ -8,8 +11,8 @@ import { ensureInlineInit, xzAsync } from "./xz";
 import { parseScene } from "../../runtime/src/schema";
 import type { SceneDocument } from "../../runtime/src/schema";
 import { validateGlb } from "./index";
-export const PIF_COMPRESSED_LIMIT = 16 * 1024 * 1024;
-export const PIF_EXPANDED_LIMIT = 40 * 1024 * 1024;
+export const PIF_COMPRESSED_LIMIT = ARCHIVE_BYTES;
+export const PIF_EXPANDED_LIMIT = ARCHIVE_BYTES;
 const encoder = new TextEncoder(),
   decoder = new TextDecoder("utf-8", { fatal: true });
 const safePath = (s: string) =>
@@ -83,7 +86,7 @@ export function readTar(bytes: Uint8Array): Map<string, Uint8Array> {
       offset + 512 + size > bytes.length
     )
       throw Error("Truncated PIF entry");
-    files.set(path, bytes.slice(offset + 512, offset + 512 + size));
+    files.set(path, bytes.subarray(offset + 512, offset + 512 + size));
     offset += 512 + Math.ceil(size / 512) * 512;
   }
   throw Error("Missing TAR terminator");
@@ -94,8 +97,9 @@ function base64(bytes: Uint8Array) {
     s += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return btoa(s);
 }
-export function projectFiles(scene: SceneDocument) {
-  const checked = parseScene(materializeScene(scene)),
+export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8Array>) {
+  const read = (data: string) => resources?.get(data) ?? fromDataURI(data);
+  const checked = parseScene(resources ? scene : materializeScene(scene)),
     files = new Map<string, Uint8Array>();
   const metadata = parseProjectMetadata(checked.project || newProjectMetadata(checked.name));
   metadata.title = checked.name;
@@ -105,7 +109,7 @@ export function projectFiles(scene: SceneDocument) {
   metadata.editor.version = EDITOR_VERSION;
   const assets = checked.assets.map((asset, i) => {
     const path = `assets/${i}.glb`,
-      bytes = Uint8Array.from(atob(asset.data.split(",")[1]), (c) => c.charCodeAt(0));
+      bytes = read(asset.data);
     validateGlb(bytes);
     files.set(path, bytes);
     const provenance = asset.import
@@ -113,7 +117,7 @@ export function projectFiles(scene: SceneDocument) {
           ...asset.import,
           sources: asset.import.sources.map((source, j) => {
             const file = `sources/${i}-${j}.bin`;
-            files.set(file, fromDataURI(source.data));
+            files.set(file, read(source.data));
             return { name: source.name, sha256: source.sha256, file };
           }),
         }
@@ -130,7 +134,7 @@ export function projectFiles(scene: SceneDocument) {
         ...checked.audio,
         assets: checked.audio.assets.map((asset, i) => {
           const file = `audio/${i}.wav`,
-            bytes = waveBytes(asset.data);
+            bytes = resources?.get(asset.data) ?? waveBytes(asset.data);
           inspectWave(bytes, asset.mode === "stream");
           files.set(file, bytes);
           return {
@@ -193,7 +197,12 @@ export function projectFiles(scene: SceneDocument) {
   );
   return files;
 }
-function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
+async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocument> {
+  const refs = new Map<string, string>();
+  if (blobs.persistent)
+    for (const [path, bytes] of files)
+      if (path.startsWith("assets/") || path.startsWith("sources/"))
+        refs.set(path, await blobs.put(bytes));
   const used = new Set<string>();
   const get = (path: unknown) => {
     if (typeof path !== "string" || !safePath(path) || !files.has(path))
@@ -288,10 +297,13 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
             !source.file.startsWith("sources/")
           )
             throw Error("Unsafe source reference");
+          get(source.file);
           return {
             name: source.name,
             sha256: source.sha256,
-            data: "data:application/octet-stream;base64," + base64(get(source.file)),
+            data:
+              refs.get(String(source.file)) ??
+              "data:application/octet-stream;base64," + base64(get(source.file)),
           };
         }),
       });
@@ -299,7 +311,7 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
     return {
       id: a.id,
       name: a.name,
-      data: "data:model/gltf-binary;base64," + base64(bytes),
+      data: refs.get(String(a.file)) ?? "data:model/gltf-binary;base64," + base64(bytes),
       ...(provenance ? { import: provenance } : {}),
     };
   });
@@ -310,11 +322,21 @@ function decodeFiles(files: Map<string, Uint8Array>): SceneDocument {
       return { id: s.id, name: s.name, source: decoder.decode(get(s.file)) };
     });
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
+  if (refs.size && scene.version !== 3) scene.version = 2;
   return parseScene(scene);
 }
 export const PIF_VERSION = 6;
 export async function sha256(bytes: Uint8Array) {
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))]
+  return [
+    ...new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        bytes.buffer instanceof ArrayBuffer
+          ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+          : new Uint8Array(bytes),
+      ),
+    ),
+  ]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
@@ -334,6 +356,7 @@ export async function sealProjectFiles(files: Map<string, Uint8Array>) {
 export interface PIFReadOptions {
   expectedSha256?: string;
   requireIntegrity?: boolean;
+  maxExpandedBytes?: number;
 }
 export async function sceneFromFiles(
   files: Map<string, Uint8Array>,
@@ -388,20 +411,24 @@ export async function sceneFromFiles(
     throw Error("PIF root hash mismatch");
   const payload = new Map(files);
   payload.delete("integrity.json");
-  const scene = decodeFiles(payload);
+  const scene = await decodeFiles(payload);
   for (const asset of scene.assets) if (asset.import) await verifyImport(asset.data, asset.import);
   return scene;
 }
 export async function packProject(scene: SceneDocument): Promise<Uint8Array> {
   scene = parseScene(scene);
   for (const asset of scene.assets) if (asset.import) await verifyImport(asset.data, asset.import);
-  const tar = writeTar(await sealProjectFiles(projectFiles(await materializeSceneAsync(scene))));
+  const resources = new Map<string, Uint8Array>();
+  for (const ref of sceneReferences(scene))
+    if (isBlobRef(ref)) resources.set(ref, await readAssetBytes(ref));
+  const tar = writeTar(await sealProjectFiles(projectFiles(scene, resources)));
+  resources.clear();
   await ensureInlineInit();
   const bytes = await xzAsync(tar, { preset: 6 });
   if (bytes.length > PIF_COMPRESSED_LIMIT) throw Error("Compressed project too large");
   return bytes;
 }
-/** Fixed-size output allocation: malformed XZ cannot expand beyond the project budget. */
+/** Grow output only on LZMA_BUF_ERROR, with a hard archive ceiling. Small projects stay small. */
 export async function inspectProject(
   bytes: Uint8Array,
   options: PIFReadOptions = {},
@@ -423,33 +450,48 @@ export async function inspectProject(
       (await sha256(bytes)) !== options.expectedSha256.toLowerCase())
   )
     throw Error("PIF external SHA-256 mismatch");
+  const expandedLimit = options.maxExpandedBytes ?? PIF_EXPANDED_LIMIT;
+  if (
+    !Number.isSafeInteger(expandedLimit) ||
+    expandedLimit < 1024 ||
+    expandedLimit > PIF_EXPANDED_LIMIT
+  )
+    throw Error("Invalid PIF expansion budget");
   const m = await ensureInlineInit();
   let input = 0,
     output = 0,
     meta = 0;
   try {
     input = m._malloc(bytes.length);
-    output = m._malloc(PIF_EXPANDED_LIMIT);
     meta = m._malloc(16);
-    if (!input || !output || !meta) throw Error("PIF decoder allocation failed");
+    if (!input || !meta) throw Error("PIF decoder allocation failed");
     m.HEAPU8.set(bytes, input);
-    m.HEAPU8.fill(0, meta, meta + 16);
-    m.setValue(meta, BigInt(64 * 1024 * 1024), "i64");
-    const code = m._lzma_stream_buffer_decode(
-      meta,
-      0,
-      0,
-      input,
-      meta + 8,
-      bytes.length,
-      output,
-      meta + 12,
-      PIF_EXPANDED_LIMIT,
-    );
-    if (code !== 0 || m.getValue(meta + 8, "i32") !== bytes.length)
-      throw Error(
-        "Invalid XZ stream or project exceeds memory/expansion budget (code " + code + ")",
+    let capacity = Math.min(expandedLimit, 16 * 1024 * 1024);
+    for (;;) {
+      output = m._malloc(capacity);
+      if (!output) throw Error("PIF decoder allocation failed");
+      m.HEAPU8.fill(0, meta, meta + 16);
+      m.setValue(meta, BigInt(64 * 1024 * 1024), "i64");
+      const code = m._lzma_stream_buffer_decode(
+        meta,
+        0,
+        0,
+        input,
+        meta + 8,
+        bytes.length,
+        output,
+        meta + 12,
+        capacity,
       );
+      if (code === 0 && m.getValue(meta + 8, "i32") === bytes.length) break;
+      if (code !== 10 || capacity === expandedLimit)
+        throw Error(
+          "Invalid XZ stream or project exceeds memory/expansion budget (code " + code + ")",
+        );
+      m._free(output);
+      output = 0;
+      capacity = Math.min(capacity * 2, expandedLimit);
+    }
     const size = m.getValue(meta + 12, "i32");
     const files = readTar(m.HEAPU8.slice(output, output + size));
     const scene = await sceneFromFiles(files, options);

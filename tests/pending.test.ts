@@ -53,7 +53,7 @@ test("recovery budgets and cancellation release admission without persistence", 
   expect(assetMemory.snapshot.used).toBe(before);
   await expect(
     rememberMissing(
-      [new File([new Uint8Array(4_000_001)], "model.fbx")],
+      [Object.defineProperty(new File(["oversize"], "model.fbx"), "size", { value: 200_000_001 })],
       value,
       new AbortController().signal,
     ),

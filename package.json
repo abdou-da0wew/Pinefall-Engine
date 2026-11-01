@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.6.2",
+  "version": "0.6.3-dev.0",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -39,7 +39,9 @@
     "test:home-native": "TEST_NATIVE=1 xvfb-run -a bun tests/home-browser.ts",
     "test:commands": "bun tests/commands-browser.ts",
     "test:disk-assets": "bun tests/disk-assets-browser.ts && bun tests/lazy-library-browser.ts",
-    "test:player-handoff": "bun tests/player-handoff-browser.ts"
+    "test:player-handoff": "bun tests/player-handoff-browser.ts",
+    "test:graphics-native": "xvfb-run -a bun tests/graphics-native.ts",
+    "test:large-model": "bun tests/large-model-browser.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
