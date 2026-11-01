@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-01",
+  "version": "0.6.0",
+  "softwareProfilesImplemented": true,
+  "externalAcceptance": "deferred to owner, not passed",
+  "ownerDecision": "ignore them bro, i will test them myself",
+  "unit": {
+    "tests": 125,
+    "assertions": 644,
+    "files": 23
+  },
+  "check": {
+    "files": 160,
+    "errors": 0,
+    "warnings": 0
+  },
+  "signed": false,
+  "windowsExecuted": false,
+  "physicalTimingMeasured": false,
+  "cedarTested": false
+}

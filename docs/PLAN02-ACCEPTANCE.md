@@ -1,6 +1,8 @@
-# Plan02 acceptance ledger — 0.6.0-rc.1
+# Plan02 acceptance ledger — 0.6.0
 
-Date: 2026-10-31. **Full Plan02 acceptance: BLOCKED, not 100%.** This ledger distinguishes implemented software, executed tests, packaging and external acceptance. A release candidate is not a full-plan sign-off.
+Date: 2026-11-01. **Plan02 software implementation released as 0.6.0.** The owner explicitly instructed: “ignore them bro, i will test them myself.” Accordingly, the hardware/listening/timing/independent gates below are **deferred to the owner and no longer block publication**, not marked passed. Supported software profiles and local regressions are complete as documented. This is not a claim of universal device certification or full physical acceptance.
+
+The earlier 0.6.0-rc.1 was deliberately held as a prerelease pending this decision. The owner’s deferral authorizes the full release without falsifying any test result.
 
 ## Software matrix
 
@@ -27,7 +29,7 @@ The supported root profile excludes dynamic bodies and nonuniform/unsupported ro
 - Binaries unsigned. Windows executable resource editing was disabled for this cross-build. Checksums verify transport integrity, not publisher identity.
 - Sandbox tests use SwiftShader and test-only no-sandbox flags. Neither proves physical GPU compatibility; neither is shipping advice to disable the sandbox.
 
-## External gates — all remain OPEN
+## External gates — deferred to owner; unverified
 
 | Gate                           | Required evidence                                                                                                                                                   | Current result             |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -45,6 +47,6 @@ The supported root profile excludes dynamic bodies and nonuniform/unsupported ro
 4. Repeat Play/Stop 100 times; record live voice/stream/buffer counts, tracked reservations and separately actual process/GPU memory. Accounted stability is not a hard RSS claim.
 5. Check fades/loop seams and left/right emitter placement by listening. Exercise device interruption and explicit recovery; retain fault logs. Unsupported codecs must reject without replacing the valid world.
 6. Capture repeated footstep/attack visual-event alignment with a documented timing method and uncertainty. Preserve raw observations, not just an average. Report device/output latency separately; do not present scheduler lookahead as measured acoustic delay.
-7. Record pass/fail and attach evidence for each external gate. Resolve failures before changing this ledger to accepted or promoting the release candidate to a full Plan02 release.
+7. Record pass/fail and attach evidence for each external gate. Report failures for follow-up patches. Update only the affected gate when actual evidence is available; publication itself does not pass these checks.
 
-No unchecked gate is treated as passed merely because source, a checkbox, a package or a GitHub release exists. The broader shared-button/switch/panel layout refactor has not begun.
+No unchecked gate is treated as passed merely because source, a checkbox, a package or a GitHub release exists. The broader shared-button/switch/panel layout refactor has not begun and may proceed after this software release.

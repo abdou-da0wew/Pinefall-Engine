@@ -1,6 +1,6 @@
-# Plan02 integration checkpoint — not full-plan acceptance
+# Plan02 software integration — 0.6.0 released
 
-Date: 2026-10-31. Candidate remains 0.6.0; this is not a new public release.
+Date: 2026-11-01. Version0.6.0 is the full software release. The owner has explicitly deferred hardware/listening acceptance to their own testing. Earlier checkpoint sections below are historical; see PLAN02-ACCEPTANCE.md for current status.
 
 ## Streaming/persistent release-candidate continuation
 
@@ -48,6 +48,6 @@ Animation event data includes entity, state, clip, activation, loop, kind, fixed
 
 Browser evidence uses Chromium/SwiftShader in this environment. It is not CEDAR GPU validation, physical audio QA, native Windows execution or proof of a hard RSS/GPU memory cap. The memory checks concern the shared admission-accounting model.
 
-## Still required for the full requested Plan02
+## Owner-deferred acceptance
 
-The bounded software profiles and listed local regressions are implemented; **external acceptance remains open**: physical Linux/Windows listening and device recovery, measured audiovisual alignment, CEDAR hardware, native Windows execution and independent review. Earlier Plan01 physical gates remain open too. Use PLAN02-ACCEPTANCE.md as the current gate ledger. A release candidate is not 100% completion. Broader UI modularization remains after Plan02 acceptance.
+The supported software profiles and local regressions are implemented and released. The owner will handle native Windows/CEDAR, physical listening/timing/device recovery and independent acceptance; they explicitly elected not to block publication. These tests remain unverified, not passed. Prior Plan01 physical gates likewise receive no fabricated result. Broader UI modularization can follow this release.

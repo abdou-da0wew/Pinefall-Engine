@@ -51,15 +51,25 @@ interface AnimatorDefinition {
   skeletonAssetId: string;
   initialState: string;
   states: Record<string, { clipId: string; loop: boolean; speed: number }>;
-  transitions: { from: string; to: string; parameter: string;
-                 operator: 'eq' | 'gt' | 'lt'; value: number | boolean;
-                 fadeSeconds: number; priority: number }[];
-  rootMotion: 'disabled' | 'horizontal-kinematic';
+  transitions: {
+    from: string;
+    to: string;
+    parameter: string;
+    operator: "eq" | "gt" | "lt";
+    value: number | boolean;
+    fadeSeconds: number;
+    priority: number;
+  }[];
+  rootMotion: "disabled" | "horizontal-kinematic";
 }
 interface AudioCue {
-  assetId: string; busId: string;
-  spatial: boolean; gainDb: number; loop: boolean;
-  priority: number; pausePolicy: 'game' | 'ui' | 'persistent';
+  assetId: string;
+  busId: string;
+  spatial: boolean;
+  gainDb: number;
+  loop: boolean;
+  priority: number;
+  pausePolicy: "game" | "ui" | "persistent";
 }
 ```
 
@@ -167,7 +177,6 @@ Proposed modules: `packages/animation` and `packages/audio` own the subsystem lo
 
 Before AA3: agree the tick/event/queued-mutation order with Plan 04 and implement its trace fixture. Before AA5: agree persistent-world ownership and game/UI/persistent pause behavior. Before export: test unsupported codecs, blocked audio, listener swap, scene cancellation, 100 start/stop cycles, repeated seeks and voice overflow. Keep graphs/cues in the revised asset schema; do not add ad hoc data blobs outside PIF integrity coverage.
 
-
 ## R3 — Final integration check
 
 Subsystem packages own graph/audio policy; runtime modules are adapters, not a competing second implementation. Follow the final tick order in Plan 04 R2: physics events precede animation gameplay marker delivery, and structural callback mutations enter the next boundary. Ordinary animation state cycles are legal; only unbounded immediate transition evaluation is rejected. Start with two independent skinned instances and one buffered cue before adding graphs and streaming.
@@ -183,3 +192,9 @@ Subsystem packages own graph/audio policy; runtime modules are adapters, not a c
 ## Implementation start — AA0 foundation
 
 The owner authorized Plan02 after Plan01's software work. The implementation contract and exact first-slice results are in [PLAN02-EXECUTION](../PLAN02-EXECUTION.md), with runnable APIs and limitations in [ANIMATION-AUDIO-FOUNDATION](../ANIMATION-AUDIO-FOUNDATION.md). The first slice supplies independently tested pose clocks/mixers, real buffered PCM audio, null command traces and a character/audio lab. It does not certify AA1–AA6 or erase outstanding physical acceptance from Plan01.
+
+## Release status — 2026-11-01
+
+The documented software profiles are implemented and released in0.6.0: authored animation/graphs/root motion, PIF6 audio, buffered and bounded PCM16 WAV streaming, explicit persistent music, editor/SDK integration and the original headless/export/native workshop. Final local suite125tests644assertions; packaged Linux and exported-player regressions pass. See [the acceptance ledger](../PLAN02-ACCEPTANCE.md).
+
+The owner explicitly deferred hardware/listening/timing/independent acceptance to their own testing and authorized publication without those gates. This is a change in release-blocking policy, **not evidence that any unrun physical test passed**. Windows was packaged but not executed here. The supported codec/root profiles and unsigned-binary limitations remain documented. Broader shared-control/layout refactoring follows this release.

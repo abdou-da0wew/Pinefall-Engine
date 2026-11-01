@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — Plan02 full software release
+
+- Promotes the locally validated animation/audio implementation and bounded streaming/persistent profile to the full release.
+- The owner explicitly deferred native Windows/CEDAR and physical audio/timing acceptance to their own testing. These checks are unverified, not passed.
+- Rebuilt Linux AppImage, Windows ZIP, source and original workshop PIF; published SHA-256 checksums.
+
 ## 0.6.0-rc.1 — Plan02 software release candidate
 
 - Authored clips/graphs/markers, independent pose playback, collision-correct supported root motion and preview tooling.

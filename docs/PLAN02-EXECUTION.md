@@ -74,3 +74,7 @@ Implemented the bounded media-element PCM16 WAV profile, two-stream admission, e
 Current full suite: **125 tests / 644 assertions / 23 files**; check160files. Chromium and Linux Electron streaming tests pass real output, 100 seeks, persistent replacement, suspension/recovery, injected device rejection and 100 stable tracked-memory cycles. Foundation/animator/root/runtime/PIF/asset regressions pass. Production Linux AppImage and Windows ZIP packaging succeeded; packaged Linux editor and workshop execution pass. Windows was packaged, not executed. Candidate version0.6.0-rc.1 is explicitly a prerelease, not full-plan acceptance.
 
 The remaining blockers are recorded in PLAN02-ACCEPTANCE.md: reference Windows/CEDAR execution, physical listening/timing/device recovery and independent acceptance. Do not turn those into software-test passes or publish the candidate as a 100%-accepted full release. Shared UI refactoring still waits.
+
+## Owner decision and full software release (2026-11-01)
+
+After publication of0.6.0-rc.1 and disclosure of the remaining external gates, the owner explicitly said “ignore them bro, i will test them myself.” Record this as deferral of hardware/listening/timing/independent acceptance, not successful execution. Those gates no longer block release. Promote the implemented and locally validated supported profiles to full version0.6.0, rebuild both platform packages, test the final Linux payload and export, then publish/tag/push with verified checksums. No external result is invented. UI refactoring remains subsequent work.

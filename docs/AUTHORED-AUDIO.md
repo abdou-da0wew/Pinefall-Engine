@@ -1,6 +1,6 @@
 # Authored buffered audio and combined workshop
 
-Date: 2026-10-31. Candidate 0.6.0-rc.1, not full Plan02 acceptance. Current gate ledger: [PLAN02-ACCEPTANCE.md](PLAN02-ACCEPTANCE.md).
+Date: 2026-11-01. Released as 0.6.0; hardware/listening acceptance deferred to owner, not certified. Current gate ledger: [PLAN02-ACCEPTANCE.md](PLAN02-ACCEPTANCE.md).
 
 ## Implemented contract
 
@@ -72,6 +72,6 @@ The combined tutorial now includes original 31-second streamed ambience. Trust-a
 
 Additional tests: `bun test tests/streaming-audio.test.ts` (2 tests, 16 assertions); `bun run test:streaming-audio`; `TEST_NATIVE=1 xvfb-run -a bun run test:streaming-audio`. They cover portable long-track persistence, codec/profile rejection, idempotent persistent playback, two-stream overflow, ownership, 100 seeks, real output, suspension, world replacement, explicit Stop, injected media rejection and 100 cycles with stable tracked reservations. The native workflow also runs against the packaged Linux executable using `TEST_DESKTOP_EXECUTABLE`.
 
-## Still required
+## Owner-deferred acceptance
 
-Physical Linux/Windows listening, measured audiovisual alignment and device recovery, CEDAR execution, native Windows execution and independent acceptance. See the explicit gate ledger; no full Plan02 sign-off is claimed. Broader UI modularization has not started.
+Physical Linux/Windows listening, measured audiovisual alignment and device recovery, CEDAR execution, native Windows execution and independent acceptance. The owner will perform these tests and explicitly authorized publication without them. See the gate ledger; no hardware pass is claimed. Broader UI modularization has not started.
