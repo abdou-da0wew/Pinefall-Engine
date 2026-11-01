@@ -1,3 +1,5 @@
+import { ShaderFiles } from "./shader-files";
+import type { ShaderSource } from "../../runtime/src/shader-definition";
 import { useEffect, useRef, useState } from "react";
 import { Button, Dialog, Select, Input } from "./ui";
 import type { SceneDocument } from "../../runtime/src/schema";
@@ -23,7 +25,15 @@ export function ProjectFilesDialog({
   pending,
   onValidate,
   onPending,
+  browserShader,
 }: {
+  browserShader?: {
+    id: string;
+    initial?: ShaderSource;
+    trusted: boolean;
+    onApply: (source: ShaderSource, signal: AbortSignal) => Promise<void>;
+    onExport: (name: string, text: string) => Promise<void>;
+  };
   scene: SceneDocument;
   session: FolderSession | null;
   onSession: (session: FolderSession) => void;
@@ -165,11 +175,18 @@ export function ProjectFilesDialog({
       onClose={onClose}
     >
       {!api ? (
-        <p role="status">
-          Native folder watching and editor launching require the desktop application. Use exported
-          files and import them back in browser mode; this is not an externally editable disk
-          project.
-        </p>
+        <>
+          <p role="status">
+            Native folder watching and editor launching require the desktop application. Use
+            exported files and import them back in browser mode; this is not an externally editable
+            disk project.
+          </p>
+          {browserShader ? (
+            <ShaderFiles key={browserShader.id} {...browserShader} />
+          ) : (
+            <p>Select a mesh in the Inspector to import shader files.</p>
+          )}
+        </>
       ) : (
         <>
           <p>
@@ -444,18 +461,20 @@ export function ProjectFilesDialog({
       {message && <p role="status">{message}</p>}
       <footer>
         <Button onClick={onClose}>Close</Button>
-        <Button
-          variant="primary"
-          disabled={!pending || !!pending.diagnostics.length || busy}
-          onClick={() =>
-            void perform(async () => {
-              await onApply(pending!);
-              setMessage("Validated files applied. Scripts still require trust before Play.");
-            })
-          }
-        >
-          Apply validated changes
-        </Button>
+        {api && (
+          <Button
+            variant="primary"
+            disabled={!pending || !!pending.diagnostics.length || busy}
+            onClick={() =>
+              void perform(async () => {
+                await onApply(pending!);
+                setMessage("Validated files applied. Scripts still require trust before Play.");
+              })
+            }
+          >
+            Apply validated changes
+          </Button>
+        )}
       </footer>
     </Dialog>
   );

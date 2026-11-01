@@ -11,7 +11,7 @@ Write actual game logic, not a fixed list of behavior choices. Script assets tra
 5. Saved external edits trigger syntax and semantic diagnostics. Resolve errors, then explicitly **Apply validated changes**. This does not execute scripts. Apply verifies disk hashes and retains the prior runtime on failures.
 6. Review the source, approve trusted scripts, then Play. Stop restores authored state. Source changes/cold reopening revoke UI trust. Logs/errors remain in Console.
 
-Browser mode can import/update `.ts` files but has no native folder watcher or external-process launcher. Native Save project backs up raw PIF8 files, including unregistered and invalid drafts; legacy/browser exports remain PIF1–7. Unregistering a script detaches it but does not delete its disk file. Export .ts exports the currently adopted asset source; the working-folder file may contain newer unapplied edits. There is no silent code hot reload.
+Browser mode can import/update `.ts` files but has no native folder watcher or external-process launcher. GLSL fragment and uniform JSON file exchange is also available from a selected mesh’s Custom shader dialog; see [graphics SDK](GRAPHICS-SDK.md#browser-glsl-file-exchange). Native Save project backs up raw PIF8 files, including unregistered and invalid drafts; legacy/browser exports remain PIF1–7. Unregistering a script detaches it but does not delete its disk file. Export .ts exports the currently adopted asset source; the working-folder file may contain newer unapplied edits. There is no silent code hot reload.
 
 ## A simple script
 

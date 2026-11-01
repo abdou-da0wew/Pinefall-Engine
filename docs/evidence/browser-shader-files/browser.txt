@@ -1,0 +1,1 @@
+PASS browser shader files: untrusted import blocked, explicit GPU Apply, uniforms, compile failure retention, size rejection, export and cold reopen persistence; no embedded editor

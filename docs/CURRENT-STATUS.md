@@ -22,11 +22,17 @@ Reviewed 2026-11-01. This is the current-status entry point; dated release notes
 - Maintained guides refreshed; historical records labeled; local Markdown link audit found no missing file targets. Source-owned commit-msg hook installs locally and adds the requested DiveeAgent trailer.
 - Validation: typecheck/lint clean; 155 unit tests / 918 assertions; desktop build and native external-workflow/restart test passed, including Home folder opening without script execution. These additions are not in the published release.
 
+### Browser shader file exchange checkpoint
+
+Browser Custom shader now imports/exports GLSL fragments and uniform JSON without embedded editing. Import is inert; explicit Rendering trust and Compile and apply are required. Strict staged loading retains the prior world on compilation failure. Closing the dialog cancels its pending operation. Successful imports participate in authored project recovery/export; unapplied browser candidates are dialog-local, not disk-watched or automatically saved.
+
+Verification: 157 unit tests / 936 assertions; typecheck/lint (237 files); desktop build; browser file-exchange UI test (trust, Apply, failure, bounds, export, cold reopen); existing shader GPU test (20 replacement cycles, cancellation/revocation/context restoration); native external-workflow/restart regression. SwiftShader only, not hardware timing. [Evidence](evidence/browser-shader-files/README.md).
+
 ## Remaining work — not complete
 
 Texture-map authoring, UV inspection/transforms, channel-packing tools, per-slot material authoring and displacement coverage; external HDR images; broader graphics fixture/failure/timing coverage. Scattering currently does not terminate at transparent surfaces, sample light shadow maps, or retain temporal history; thin geometry has half-resolution limitations.
 
-Folder follow-ups: unified legacy/PIF8 opening, comprehensive new-source registration, browser GLSL import parity and further transition-race coverage. See [completion execution plan](COMPLETION-EXECUTION.md).
+Folder follow-ups: unified legacy/PIF8 opening, comprehensive new-source registration and further transition-race coverage. See [completion execution plan](COMPLETION-EXECUTION.md).
 
 ## Evidence and acceptance
 

@@ -61,4 +61,4 @@ Require automated tests plus built Linux Electron evidence for the disk workflow
 
 ### Still open — do not label Plan03 complete
 
-Texture-map resource/authoring support, UV transforms and inspection, channel packing, per-slot materials and displacement coverage; external HDR environment inputs; broader G1/G2/G4 fixture/failure matrices and scattering timing/quality gates. Folder workflow follow-ups include unified legacy/PIF8 opening, Home-level folder cards, comprehensive new-source registration, browser GLSL import parity and more transition-race tests.
+Texture-map resource/authoring support, UV transforms and inspection, channel packing, per-slot materials and displacement coverage; external HDR environment inputs; broader G1/G2/G4 fixture/failure matrices and scattering timing/quality gates. Folder workflow follow-ups include unified legacy/PIF8 opening, comprehensive new-source registration and more transition-race tests. Home-level folder cards and browser GLSL/uniform file exchange were added after the published checkpoint; see [current status](CURRENT-STATUS.md) for their separate verification.

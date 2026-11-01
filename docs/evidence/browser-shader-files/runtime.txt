@@ -1,0 +1,1 @@
+PASS shaders: {"blocked":true,"failed":true,"lineDiagnostic":true,"uniformStable":true,"vertexVariants":["skin+morph","morph","instanced-world-position"],"contextRestored":true,"cancelled":true,"revoked":true,"cycles":20,"programs":0}

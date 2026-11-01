@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Browser GLSL/uniform JSON import/export with bounded UTF-8 ingestion, explicit trust and staged Apply; failed compilation retains the previous authored/runtime shader. No embedded source editor.
+- Browser import/failure/export/reopen coverage and native workflow regression pass; current suite 157 tests / 936 assertions.
+
 - Refresh maintained documentation and distinguish historical evidence from current status.
 - Install a source-owned Bun commit-msg hook for the DiveeAgent co-author trailer.
 - Home working-folder cards with validated session handoff and cancellation-aware acceptance; native restart/no-execution coverage.

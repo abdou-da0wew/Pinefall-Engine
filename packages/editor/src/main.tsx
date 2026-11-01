@@ -1,6 +1,10 @@
 import { ProjectFilesDialog } from "./project-files-dialog";
 import { FolderSession, type FolderSnapshot } from "../../project/src/folder-session";
-import { DEFAULT_SHADER } from "../../runtime/src/shader-definition";
+import {
+  DEFAULT_SHADER,
+  parseShader,
+  type ShaderSource,
+} from "../../runtime/src/shader-definition";
 import { SCRIPT_TEMPLATE, uniqueScriptName } from "../../scripting/src/template";
 import { PreviewRendering, previewPost, SurfaceDialog } from "./render-controls";
 import { DEFAULT_SURFACE, emptyGraphics } from "../../runtime/src/graphics-definition";
@@ -392,6 +396,57 @@ function App({
         ? "External files have diagnostics; running code unchanged."
         : "Disk changes validated; open Project files to Apply explicitly.",
     );
+  }
+  async function applyBrowserShader(source: ShaderSource, signal: AbortSignal) {
+    if (
+      window.engineDesktop ||
+      !chosen?.mesh ||
+      playing ||
+      loadBusy ||
+      projectBusy ||
+      !engine.current
+    )
+      throw Error("Select a mesh, stop Play and wait for the renderer before importing shaders");
+    if (!engine.current.settings.allowCustomShaders)
+      throw Error("Enable trusted custom shader preview in Rendering first");
+    const before = current.current;
+    const next = cloneScene(before);
+    const target = next.entities.find((entity) => entity.id === chosen.id);
+    if (!target?.mesh) throw Error("Shader target changed");
+    next.graphics ??= emptyGraphics();
+    next.graphics.shaders ??= [];
+    const id = target.mesh.shader ?? crypto.randomUUID();
+    const previous = next.graphics.shaders.find((shader) => shader.id === id);
+    const replacement = { ...parseShader(source), id, name: previous?.name ?? "Imported shader" };
+    next.graphics.shaders = [
+      ...next.graphics.shaders.filter((shader) => shader.id !== id),
+      replacement,
+    ];
+    target.mesh.shader = id;
+    const checked = parseScene(next);
+    const controller = new AbortController();
+    folderApplyAbort.current = controller;
+    setProjectBusy(true);
+    try {
+      // Strict staged loading keeps the prior world/materials alive on any compile failure.
+      await engine.current.load(checked, {
+        preserveView: true,
+        strictShaders: true,
+        signal: AbortSignal.any([signal, controller.signal]),
+      });
+      signal.throwIfAborted();
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Project changed during shader application");
+      preloadedScene.current = checked;
+      history.current.commit(before);
+      current.current = checked;
+      setScene(checked);
+      setRevision((revision) => revision + 1);
+      setStatus("Imported shader applied; source is stored in the project, not watched on disk.");
+    } finally {
+      if (folderApplyAbort.current === controller) folderApplyAbort.current = null;
+      setProjectBusy(false);
+    }
   }
   async function applyFolder(snapshot: FolderSnapshot) {
     if (!folderSession || playing || loadBusy || !engine.current)
@@ -1596,6 +1651,19 @@ function App({
           onRepackShortcut={setRepackShortcut}
           onValidate={validateFolder}
           onApply={applyFolder}
+          browserShader={
+            chosen?.mesh
+              ? {
+                  id: chosen.id,
+                  initial: scene.graphics?.shaders?.find(
+                    (shader) => shader.id === chosen.mesh?.shader,
+                  ),
+                  trusted: !!settings.allowCustomShaders,
+                  onApply: applyBrowserShader,
+                  onExport: download,
+                }
+              : undefined
+          }
           preferredFile={
             shaderEditor && chosen?.mesh?.shader
               ? folderSession?.layout?.shaders[chosen.mesh.shader]?.source

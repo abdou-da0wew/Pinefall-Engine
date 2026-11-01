@@ -117,7 +117,14 @@ Context loss aborts pending compile/load work and suspends frame submission. Res
 
 `examples/projects/shader-reference.pif` contains procedural UV checkers, typed uniforms and a deliberately unfinished draft separate from the valid applied source. Generate using `bun run generate:shader-reference`.
 
-Shader evidence: `tests/shader.test.ts` covers schema bounds, archive separation/roundtrip/unsafe paths and headless rejection. `tests/shader-browser.ts` covers default denial, last-valid recovery, stable material identity, cancellation/revocation, context restoration, skinned/morph/instanced pixels and repeated replacement cleanup. The editor test covers compile/apply, invalid source diagnostics, both draft fields, Home checkpoint/cold reopen and consent reset in browser and built Linux Electron. `TEST_SHADERS=1 bun tests/plan03-export.ts` exercises the built standalone shader fixture. Software/SwiftShader evidence is not physical CEDAR or Windows acceptance.
+Shader evidence: `tests/shader.test.ts` covers schema bounds, archive separation/roundtrip/unsafe paths and headless rejection. `tests/shader-browser.ts` covers default denial, last-valid recovery, stable material identity, cancellation/revocation, context restoration, skinned/morph/instanced pixels and repeated replacement cleanup. `tests/shader-files-browser.ts` covers browser file import, explicit trust/Apply, rejected compilation, bounds, exports and cold reopen persistence. `tests/external-code-native.ts` covers native watched-source diagnostics, explicit Apply, failed-shader retention and restart. `TEST_SHADERS=1 bun tests/plan03-export.ts` is the standalone fixture command; it was not rerun for the browser file-exchange checkpoint. Software/SwiftShader evidence is not physical CEDAR or Windows acceptance.
+
+### Browser GLSL file exchange
+
+Select a mesh → **Custom shader…**. Import a `.glsl` fragment and optionally a uniform `.json` object. Export buttons provide external-editor starting files. Files must be UTF-8: fragment at most 16,384 characters / 65,536 bytes; uniform JSON at most 4,096 characters / 16,384 bytes, with at most 16 typed uniforms. The fragment defines `vec4 shade(vec2 uv, vec3 worldPosition)`, not a standalone `main()`.
+
+Import only reads and schema-checks files. Enable **Rendering → Trust and reload authored shaders**, then explicitly **Compile and apply imported shader**. All authored shader instances are staged before the world is replaced. A compilation failure retains the previous runtime and authored source; import a corrected file to retry. Updating a shared shader updates its users. No arbitrary file watcher or external-process launcher is available in browsers. Successful imports are stored in the project; unapplied candidates are discarded when the dialog closes. Exports from this dialog contain the candidate, so reopening after a failed Apply lets you export the last adopted shader.
+
 
 ## PMREM environments and depth-aware scattering
 
