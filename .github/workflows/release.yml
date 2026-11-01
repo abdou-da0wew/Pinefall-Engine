@@ -38,6 +38,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun tests/pending-native.ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun tests/graphics-authoring-native.ts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun scripts/hardware-acceptance.ts --executable "$env:TEST_DESKTOP_EXECUTABLE" --software-test --output build/windows-software-evidence.json
           exit $LASTEXITCODE
       - name: Packaged Linux worker and PIF tests
@@ -48,6 +50,7 @@ jobs:
           xvfb-run -a bun tests/assets-native.ts
           xvfb-run -a bun tests/pif-native.ts
           xvfb-run -a bun tests/pending-native.ts
+          xvfb-run -a bun tests/graphics-authoring-native.ts
           xvfb-run -a bun scripts/hardware-acceptance.ts --executable "$TEST_DESKTOP_EXECUTABLE" --software-test --output build/linux-software-evidence.json
       - uses: actions/upload-artifact@v4
         if: always()

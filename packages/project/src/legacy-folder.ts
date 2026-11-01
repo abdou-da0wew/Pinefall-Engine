@@ -1,3 +1,4 @@
+import { needsPIF9 } from "./graphics-format";
 import { unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -53,7 +54,7 @@ export async function migrateLegacyFolder(
     version = manifest.version;
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3, 4, 5, 6, 7].includes(Number(version)) ||
+    ![1, 2, 3, 4, 5, 6, 7, 9].includes(Number(version)) ||
     typeof version !== "number" ||
     manifest.scene !== "scene.json" ||
     Object.keys(manifest).some(
@@ -101,6 +102,7 @@ export async function migrateLegacyFolder(
   }
   const scene = await json("scene.json", 4 * 1024 * 1024);
   if (version >= 2 && scene.project !== undefined) throw Error("Duplicate legacy project metadata");
+  if (version !== 9 && needsPIF9(scene)) throw Error("Extended graphics require PIF9");
   const entities = list(scene.entities, 10000);
   if (version < 5 && (scene.version === 3 || entities.some((e) => e.animator !== undefined)))
     throw Error("Animator definitions require PIF v5");

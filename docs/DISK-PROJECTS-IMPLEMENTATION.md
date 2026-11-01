@@ -62,3 +62,7 @@ Require automated tests plus built Linux Electron evidence for the disk workflow
 ### Still open — do not label Plan03 complete
 
 Texture-map resource/authoring support, UV transforms and inspection, channel packing, per-slot materials and displacement coverage; external HDR environment inputs; broader G1/G2/G4 fixture/failure matrices and scattering timing/quality gates. Folder workflow follow-ups include more transition-race and large/adversarial tests. Unified native PIF1–8 opening and authored-source registration are now implemented; see current status for the exact scope and evidence. Home-level folder cards and browser GLSL/uniform file exchange were added after the published checkpoint; see [current status](CURRENT-STATUS.md) for their separate verification.
+
+## 0.7.0 source update
+
+Texture/UV/packing/per-slot authoring, external HDR and advanced scattering are now implemented. Native opening additionally supports portable PIF9; raw-folder backups remain PIF8. See [current status](CURRENT-STATUS.md) and [graphics authoring](GRAPHICS-AUTHORING.md) for the current contract and release state; older checkpoint descriptions above are historical.

@@ -1,11 +1,15 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { enterEditor, newEditorGame } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 import { triangle, binaryFbx } from "./asset-fixtures";
 import { unpackProject, inspectProject } from "../packages/project/src/pif";
+const profile = await mkdtemp(resolve("build/isolated-native-profile-"));
 const app = await _electron.launch({
   executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
   args: [
     ...(process.env.TEST_DESKTOP_EXECUTABLE ? [] : ["."]),
+    `--user-data-dir=${profile}`,
     "--no-sandbox",
     "--use-angle=swiftshader",
     "--enable-unsafe-swiftshader",
@@ -21,6 +25,12 @@ try {
   await newEditorGame(page);
   await page.getByLabel("Game name", { exact: true }).fill("Native assets");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "New game", exact: true })).not.toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled({
+    timeout: 30000,
+  });
   await page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]').setInputFiles({
     name: "native.glb",
     mimeType: "model/gltf-binary",
@@ -55,4 +65,5 @@ try {
   );
 } finally {
   await app.close();
+  await rm(profile, { recursive: true, force: true });
 }

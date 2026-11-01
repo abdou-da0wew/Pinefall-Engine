@@ -75,7 +75,10 @@ export function headlessGraphics(scene: () => SceneDocument): GraphicsAPI {
           ...DEFAULT_SURFACE,
           color: e.mesh.color,
         };
-      materials.set(id, parseSurface({ ...base, ...patch }));
+      const next = parseSurface({ ...base, ...patch });
+      if (JSON.stringify(next.maps) !== JSON.stringify(base.maps))
+        throw Error("Runtime texture bindings are immutable; stage authored changes with load()");
+      materials.set(id, next);
     },
     setLight(id, patch) {
       const e = scene().entities.find((e) => e.id === id);

@@ -1,0 +1,5 @@
+$ bun run typecheck && bun run lint
+$ bun node_modules/typescript/bin/tsc --noEmit
+$ oxlint --deny-warnings
+Found 0 warnings and 0 errors.
+Finished in 507ms on 266 files with 102 rules using 2 threads.

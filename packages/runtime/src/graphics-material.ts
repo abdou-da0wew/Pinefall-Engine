@@ -1,3 +1,5 @@
+import type { GraphicsImages } from "./graphics-images";
+import type { MapRole } from "./image-definition";
 import * as T from "three";
 import {
   parseSurface,
@@ -5,7 +7,10 @@ import {
   parseLight,
   type LightDefinition,
 } from "./graphics-definition";
-export function surfaceMaterial(input: Surface): T.MeshStandardMaterial | T.MeshBasicMaterial {
+export function surfaceMaterial(
+  input: Surface,
+  images?: GraphicsImages,
+): T.MeshStandardMaterial | T.MeshBasicMaterial {
   const s = parseSurface(input);
   const common = {
     color: s.color,
@@ -15,15 +20,45 @@ export function surfaceMaterial(input: Surface): T.MeshStandardMaterial | T.Mesh
     side: s.doubleSided ? T.DoubleSide : T.FrontSide,
     depthWrite: s.alphaMode !== "blend",
   };
-  return s.family === "unlit"
-    ? new T.MeshBasicMaterial(common)
-    : new T.MeshStandardMaterial({
-        ...common,
-        roughness: s.roughness,
-        metalness: s.metalness,
-        emissive: s.emissive,
-        emissiveIntensity: s.emissiveIntensity,
-      });
+  const material =
+    s.family === "unlit"
+      ? new T.MeshBasicMaterial(common)
+      : new T.MeshStandardMaterial({
+          ...common,
+          roughness: s.roughness,
+          metalness: s.metalness,
+          emissive: s.emissive,
+          emissiveIntensity: s.emissiveIntensity,
+        });
+  try {
+    if (s.maps) {
+      if (!images) throw Error("Texture resources must be staged before material creation");
+      const names = {
+        color: "map",
+        emissive: "emissiveMap",
+        normal: "normalMap",
+        roughness: "roughnessMap",
+        metalness: "metalnessMap",
+        ao: "aoMap",
+        alpha: "alphaMap",
+        displacement: "displacementMap",
+      } as const;
+      for (const [role, binding] of Object.entries(s.maps))
+        Object.assign(material, {
+          [names[role as MapRole]]: images.binding(role as MapRole, binding),
+        });
+    }
+    if (material instanceof T.MeshStandardMaterial) {
+      material.normalScale.fromArray(s.normalScale ?? [1, 1]);
+      material.displacementScale = s.displacementScale ?? 1;
+      material.displacementBias = s.displacementBias ?? 0;
+      material.aoMapIntensity = s.aoIntensity ?? 1;
+    }
+    return material;
+  } catch (error) {
+    material.dispose();
+    throw error;
+  }
 }
 export type SceneLight = T.PointLight | T.SpotLight | T.DirectionalLight;
 export function makeLight(input: LightDefinition): SceneLight {
@@ -85,6 +120,10 @@ export function updateSurface(
     material.metalness = s.metalness;
     material.emissive.set(s.emissive);
     material.emissiveIntensity = s.emissiveIntensity;
+    material.normalScale.fromArray(s.normalScale ?? [1, 1]);
+    material.displacementScale = s.displacementScale ?? 1;
+    material.displacementBias = s.displacementBias ?? 0;
+    material.aoMapIntensity = s.aoIntensity ?? 1;
   }
   if (variant) material.needsUpdate = true;
 }

@@ -1,4 +1,4 @@
-import { ScatteringPass } from "./scattering";
+import { ScatteringPass, scatteringBytes } from "./scattering";
 import * as T from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -24,12 +24,16 @@ export class Effects {
   private settings?: PostSettings;
   private allocation = assetMemory.reserve(0, "post-targets");
   readonly hdr: boolean;
+  private canvas: HTMLCanvasElement;
+  private resetHistory = () => this.scattering?.resetHistory();
   private targetBytes = 0;
   constructor(
     renderer: T.WebGLRenderer,
     scene: T.Scene,
     private camera: T.Camera,
   ) {
+    this.canvas = renderer.domElement;
+    this.canvas.addEventListener("webglcontextlost", this.resetHistory);
     this.hdr = renderer.extensions.has("EXT_color_buffer_float");
     this.composer = new EffectComposer(
       renderer,
@@ -74,9 +78,10 @@ export class Effects {
       passes: this.composer.passes.length,
       bloom: !!this.bloom,
       fxaa: !!this.fxaa,
+      scattering: this.scattering?.snapshot,
     };
   }
-  private estimate(w: number, h: number, bloom: boolean, scattering = !!this.scattering) {
+  private estimate(w: number, h: number, bloom: boolean, scattering = this.settings?.scattering) {
     const color = this.hdr ? 8 : 4;
     // Two composer targets including conservative depth allowance, plus bright/mip pairs.
     let bytes = w * h * 2 * (color + 4);
@@ -90,16 +95,16 @@ export class Effects {
         y = Math.max(1, Math.round(y / 2));
       }
     }
-    if (scattering) bytes += Math.max(1, Math.ceil(w / 2)) * Math.max(1, Math.ceil(h / 2)) * color;
+    bytes += scatteringBytes(w, h, this.hdr, scattering);
     return bytes;
   }
   configure(input: PostSettings) {
     const s = parsePost(input);
-    const bytes = this.estimate(this.width, this.height, s.bloom, !!s.scattering);
+    const bytes = this.estimate(this.width, this.height, s.bloom, s.scattering);
     if (bytes > 96 * 1024 * 1024) throw Error("Post-processing target budget exceeds 96 MiB");
     this.allocation.resize(bytes);
     if (s.scattering && !this.scattering) {
-      this.scattering = new ScatteringPass(this.camera, this.hdr);
+      this.scattering = new ScatteringPass(this.camera, this.hdr, this.render.scene as T.Scene);
       this.composer.insertPass(this.scattering, 1);
       this.scattering.setSize(this.width, this.height);
     }
@@ -168,6 +173,7 @@ export class Effects {
     this.composer.render(dt);
   }
   dispose() {
+    this.canvas.removeEventListener("webglcontextlost", this.resetHistory);
     this.scattering?.dispose();
     this.bloom?.dispose();
     this.fxaa?.dispose();

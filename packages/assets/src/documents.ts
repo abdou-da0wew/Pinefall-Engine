@@ -1,3 +1,5 @@
+import { IMAGE_CATALOG_BYTES } from "../../runtime/src/image-definition";
+import { graphicsImageBytes } from "./graphics-images";
 import { PROJECT_MODEL_BYTES } from "./limits";
 import { waveBytesAsync } from "../../audio/src/definition";
 import { inspectWave } from "../../audio/src/wav";
@@ -12,6 +14,7 @@ export function sceneReferences(scene: SceneDocument) {
     for (const s of a.import?.sources || []) if (isBlobRef(s.data)) refs.add(s.data);
   }
   for (const a of scene.audio?.assets ?? []) if (isBlobRef(a.data)) refs.add(a.data);
+  for (const image of scene.graphics?.images ?? []) if (isBlobRef(image.data)) refs.add(image.data);
   return refs;
 }
 /** Portable JSON is explicitly materialized. Internal working documents contain only references. */
@@ -25,6 +28,9 @@ export function materializeScene(input: SceneDocument): SceneDocument {
   }
   for (const a of scene.audio?.assets ?? [])
     if (isBlobRef(a.data)) a.data = toDataURI(blobs.read(a.data), "audio/wav");
+  for (const image of scene.graphics?.images ?? [])
+    if (isBlobRef(image.data))
+      image.data = toDataURI(blobs.read(image.data), "application/octet-stream");
   return scene;
 }
 export async function referenceScene(
@@ -73,6 +79,18 @@ export async function referenceScene(
     }
     if (audioTotal > 8_000_000) throw Error("Audio source budget");
   }
+  let imageTotal = 0;
+  for (const image of scene.graphics?.images ?? []) {
+    signal?.throwIfAborted();
+    if (isBlobRef(image.data)) {
+      imageTotal += await blobs.sizeOf(image.data);
+    } else {
+      const bytes = await graphicsImageBytes(image);
+      imageTotal += bytes.length;
+      image.data = await blobs.put(bytes);
+    }
+    if (imageTotal > IMAGE_CATALOG_BYTES) throw Error("Graphics image catalog exceeds 128 MiB");
+  }
   signal?.throwIfAborted();
   scene.version = input.version === 3 ? 3 : 2;
   return scene;
@@ -101,6 +119,14 @@ export async function materializeSceneAsync(input: SceneDocument) {
       audioTotal += bytes.length;
       if (audioTotal > 8_000_000) throw Error("Audio source budget");
       a.data = toDataURI(bytes, "audio/wav");
+    }
+  let imageTotal = 0;
+  for (const image of scene.graphics?.images ?? [])
+    if (isBlobRef(image.data)) {
+      const bytes = await blobs.readAsync(image.data);
+      imageTotal += bytes.length;
+      if (imageTotal > IMAGE_CATALOG_BYTES) throw Error("Graphics image catalog exceeds 128 MiB");
+      image.data = toDataURI(bytes, "application/octet-stream");
     }
   return scene;
 }

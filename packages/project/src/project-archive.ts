@@ -83,7 +83,7 @@ export async function openProjectArchive(
           break;
         }
         if (
-          !/^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|shaders\/[A-Za-z0-9_-]+\.(glsl|json)|audio\/[A-Za-z0-9_-]+\.wav)$/.test(
+          !/^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|shaders\/[A-Za-z0-9_-]+\.(glsl|json)|audio\/[A-Za-z0-9_-]+\.wav|images\/[A-Za-z0-9_-]+\.(png|jpeg|hdr))$/.test(
             path,
           )
         )

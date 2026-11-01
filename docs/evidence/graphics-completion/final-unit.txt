@@ -1,0 +1,251 @@
+bun test v1.4.4 (38afee6c8)
+
+tests/docs.test.ts:
+(pass) current docs identify the release and do not resurrect removed editor/old budget claims [6.01ms]
+
+tests/pif.test.ts:
+(pass) PIF is a genuine XZ TAR with separate script sources, not embedded JSON [45.09ms]
+(pass) PIF extracts binary GLB resources and restores their IDs, names and bytes [16.79ms]
+(pass) PIF manifest versions, missing and unreferenced resources are rejected [2.36ms]
+(pass) strict archive rejects traversal, duplicates, links, checksum corruption and truncation [0.56ms]
+(pass) XZ corruption, concatenated streams and non-XZ input fail before scene adoption [8.69ms]
+(pass) fixed output budget rejects compressed expansion bombs [625.80ms]
+(pass) new PIF metadata identifies the actual writing editor [0.57ms]
+
+tests/core.test.ts:
+(pass) four templates roundtrip and contain valid bodies [5.84ms]
+(pass) validation rejects cycles, duplicates and nonfinite transforms [0.30ms]
+(pass) undo redo isolated snapshots [2.23ms]
+(pass) events bounded with unsubscribe [0.59ms]
+(pass) diagnostic subscribers cannot interrupt ownership transitions [0.08ms]
+
+tests/folder-format.test.ts:
+(pass) folder format separates editable scene, material, TypeScript, GLSL and uniform files [3.97ms]
+(pass) folder references reject traversal and embedded source shortcuts [0.53ms]
+(pass) external source path bindings survive adoption and subsequent authoring [0.85ms]
+
+tests/scripting.test.ts:
+(pass) script schema roundtrips and rejects dangling references and unsafe properties [0.48ms]
+using deprecated parameters for the initialization function; pass a single object instead
+(pass) import and syntax checks never execute scripts; Play refuses without explicit trust [42.87ms]
+(pass) typed class with defaults and per-object overrides executes alongside controller [27.47ms]
+(pass) multiple scripts isolate closure state per object and share named helper modules [4.07ms]
+(pass) failing script does not disable its sibling or built-in behavior [2.72ms]
+(pass) syntax failure is logged and other scripts continue [3.20ms]
+(pass) event listeners are automatically removed on dispose [1.69ms]
+(pass) trusted scripts spawn real physics entities and destroy them [4.67ms]
+(pass) disabled attachments are not evaluated [0.96ms]
+(pass) async script factories are rejected before execution [1.63ms]
+(pass) disposing a script scope aborts its pending shader compilation [1.95ms]
+
+tests/graphics-images.test.ts:
+(pass) raw channel PNG preserves hidden RGB and alpha exactly, rejects CRC and expansion [6.91ms]
+(pass) image/map schema validates roles, UV channels, resource references and slot identities [1.10ms]
+(pass) image resources and map/slot bindings roundtrip through PIF9, lazy blobs, folder files and portable JSON [4.02ms]
+(pass) bounded UV layout inspection and PIF9 headless intent [15.46ms]
+(pass) extended scattering alone selects PIF9 and rejects forged downgrade [1.29ms]
+(pass) prefab graphics remap images and material-slot bindings without mutating sources [1.70ms]
+
+tests/animator.test.ts:
+(pass) graph references, immediate cycles, deterministic priority and single event ownership [2.99ms]
+(pass) 1D blend phase and cadence use bounded normalized clip samples [0.33ms]
+(pass) real skinned graph trim, frozen-source interruption and disposal preserve source data [15.26ms]
+(pass) authored animator PIF v5 and portable scene v3 roundtrip; downgrade fails before adoption [22.32ms]
+(pass) headless uses real skeletal poses, scoped script controls and single gameplay markers [13.32ms]
+(pass) failed animator sampling releases its reservation and queued spawn rolls back completely [6.80ms]
+(pass) extreme valid blend durations preserve normalized cadence without exceeding the wall-delta guard [0.34ms]
+
+tests/shadow-fit.test.ts:
+(pass) independent manual shadow policies survive light edits while explicit invalidation remains possible [1.50ms]
+(pass) fitted directional frustum contains the scene bounds without moving the authored light [2.87ms]
+
+tests/fixed.test.ts:
+(pass) structural commands admit once at the next boundary; pending destroy suppresses fixed callbacks [1.69ms]
+(pass) terminal marker destruction suppresses same-dispatch listeners and later markers before disposal [6.41ms]
+(pass) single physics step synchronizes transforms before contact callbacks and markers [4.50ms]
+(pass) failed headless construction disposes the partially allocated physics world [0.78ms]
+
+tests/behavior-safety.test.ts:
+(pass) a throwing script disables once without interrupting others; cleanup still runs [0.13ms]
+(pass) factory and cleanup errors are contained [1.31ms]
+
+tests/model-wire.test.ts:
+(pass) typed animation wire preserves glTF cubic tangent interpolation and normalized quaternions [7.59ms]
+(pass) large hierarchy reconstruction can be cancelled between host slices [14.46ms]
+(pass) incremental instance clone remaps bones without duplicating geometry or materials [1.78ms]
+(pass) large instance cloning yields to cancellation before publication [8.49ms]
+
+tests/streaming-audio.test.ts:
+(pass) long streams reject effects decoding and survive PIF with explicit persistence [155.38ms]
+(pass) persistent music survives adoption and entity disposal but explicit reset releases it [59.34ms]
+
+tests/authored-audio.test.ts:
+(pass) strict authored cues and WAV resources survive PIF6; downgrade and unsafe data reject [26.35ms]
+(pass) marker cues emit one explicit null command; pause leaves UI voices responsive [14.29ms]
+(pass) scoped script disposal releases its looping voices and cannot stop another owner [7.92ms]
+(pass) preview cleanup is separate from game voice ownership and failed catalog staging preserves live audio [4.93ms]
+(pass) audio epoch bounds lookahead, drops late cues and resets across discontinuity [0.08ms]
+(pass) owned workshop combines independent rigs, a wall, one attack hit, turning and UI audio [175.71ms]
+(pass) audio working documents use verified blobs while PIF and portable JSON materialize bytes [67.88ms]
+(pass) script callback faults immediately release scope-owned audio [10.74ms]
+(pass) pending audio decode retains sources until cancellation settles on replacement and disposal [6.60ms]
+
+tests/disk-workspace.test.ts:
+(pass) disk paths reject traversal, platform tricks, hidden control files and absolute paths [0.18ms]
+(pass) source writes are serialized, hash-checked and retain external edits on conflict [11.92ms]
+(pass) asset reads are chunked and source files are not copied into metadata inventories [1.99ms]
+(pass) symlinks cannot read or overwrite files outside the granted project [0.52ms]
+(pass) watcher notices external atomic rename and releases its session on close [203.89ms]
+(pass) streamed asset writes enforce order, content hashes, bounded sessions and complete-file commit [11.28ms]
+
+tests/assets.test.ts:
+(pass) bounded GLB inspection validates geometry and rejects mandatory unknown extensions [0.72ms]
+(pass) PNG dimensions are inspected without decoding and oversized textures are rejected [0.14ms]
+(pass) stable reimport preserves entity transforms and subasset identity; stale generations fail [2.47ms]
+(pass) PIF v3 stores original sources separately, verifies them and preserves v2 without provenance [15.07ms]
+(pass) source paths and ambiguous companions are rejected [0.70ms]
+(pass) history interns unchanged blobs and releases pins on reset; unicode uses bytes [2.81ms]
+(pass) queue serializes heavy tasks and cancels queued work without invoking it [0.38ms]
+(pass) FBX binary header, array expansion declarations and ASCII count limits are rejected before parser allocation [1.54ms]
+(pass) non-finite binary accessor values cannot reach Three or the GPU [0.14ms]
+
+tests/root-motion.test.ts:
+(pass) planar motion composition handles turn loops and inverse cycles [0.08ms]
+(pass) original tracks yield loop-aware yaw/translation, preserve vertical bob and compensate visual travel [2.64ms]
+(pass) actual imported root motion is collision corrected, gravity owned, seek-safe and serialized [34.70ms]
+(pass) nonloop completion and resets do not reapply the whole root displacement [11.23ms]
+(pass) unsupported root physics and ambiguous/animated ancestor bindings fail explicitly [1.76ms]
+(pass) a newly loaded nearby wall blocks the very first root-motion proposal without a warm-up step [4.19ms]
+(pass) root trims preserve cubic tangents rather than resampling a linear endpoint chord [1.84ms]
+(pass) a wall spawned during Play blocks movement on its admission tick [4.49ms]
+(pass) blended root velocities and interrupted fades stay bounded without source-pose teleports [2.04ms]
+
+tests/commit-coauthor.test.ts:
+(pass) commit-msg adds exactly one requested co-author and preserves other trailers [16.97ms]
+
+tests/plan03.test.ts:
+(pass) graphics schemas bound scalar values and preserve legacy scene defaults [0.70ms]
+(pass) PIF7 persists authored materials, independent lights and post; old archives still load [12.22ms]
+(pass) headless graphics SDK validates intent without mutating authoring or allocating a GPU [0.84ms]
+
+tests/pif-integrity.test.ts:
+(pass) v2 validates portable project/editor metadata and persists stable project identity [18.91ms]
+(pass) all payload files including metadata are covered, and mutations are rejected before adoption [1.28ms]
+(pass) metadata types, version compatibility and timestamps are validated even after resealing [1.22ms]
+(pass) trusted external digest detects fully resealed replacements; embedded hashes alone are not signatures [17.95ms]
+(pass) legacy v1 remains readable but strict-integrity mode rejects it [8.68ms]
+(pass) script and asset bytes are checked individually [2.32ms]
+
+tests/normalization.test.ts:
+(pass) normalization changes world coordinates without rewriting skin/animation source data [4.67ms]
+(pass) PIF v4 preserves explicit recipe and wider identities; downgrade and legacy recipe injection fail [23.83ms]
+(pass) source IDs survive node rename/reorder; duplicate names demand explicit kind-safe mapping [0.71ms]
+(pass) GLB skin/animation validation rejects missing joints and nonmonotonic times before Three [8.92ms]
+(pass) scene roots and primitive instancing expansion are bounded before loader allocation [0.82ms]
+(pass) optional GPU instancing cannot bypass expanded-object admission [0.07ms]
+(pass) shared accessors cannot hide aggregate skeleton matrix expansion [2.44ms]
+
+tests/folder-archive.test.ts:
+(pass) PIF8 streams raw unregistered files and invalid drafts, verifies integrity and preserves prior backups on abort [142.82ms]
+
+tests/source-registration.test.ts:
+(pass) source registration preserves files and registers TS, GLSL, metadata and materials without executing or attaching code [72.12ms]
+
+tests/color.test.ts:
+(pass) hex normalization and validation [0.14ms]
+(pass) RGB and HSV roundtrip saturated, neutral and dark colors [0.43ms]
+(pass) picker stays inside narrow, short and bottom/right edge viewports [0.10ms]
+
+tests/shader.test.ts:
+(pass) shader schemas bound source, typed uniform shapes, references and inventory [0.73ms]
+(pass) PIF keeps applied shader and uncompiled draft in independent authenticated entries [13.57ms]
+(pass) headless custom shader calls reject explicitly without mutating authored sources [1.32ms]
+
+tests/atomic-file.test.ts:
+(pass) atomic project replacement keeps previous data on cancellation and cleans failed staging files [4.83ms]
+
+tests/graphics.test.ts:
+(pass) desktop graphics preferences reject arbitrary switches and unsupported renderers [0.13ms]
+(pass) software compositor keeps WebGL available; CPU mode explicitly selects SwiftShader [0.10ms]
+
+tests/asset-storage.test.ts:
+(pass) immutable deduplicated blobs and atomic hash/budget admission [0.68ms]
+(pass) reference documents are compact, portable at export, reject mixed schema and wrong hashes [1.40ms]
+(pass) dependency source and cooked-output changes invalidate only appropriate direct consumers [0.38ms]
+(pass) cache identity canonicalizes recipe ordering and invalidates companion bytes/settings [0.95ms]
+(pass) explicit rename mapping retains identity and rejects duplicates/foreign IDs [0.75ms]
+(pass) shared admission rejects pressure before allocation and releases idempotently [0.10ms]
+
+tests/headless.test.ts:
+(pass) headless runs all templates without browser globals [81.46ms]
+(pass) headless shared character moves and authored document remains unchanged [7.01ms]
+(pass) headless real sensor collision collects a signal [3.93ms]
+(pass) headless custom scripts execute and errors are isolated [1.40ms]
+(pass) model import deduplicates, places instances, rejects malformed and external GLBs [0.73ms]
+(pass) Beacon Run imported-model quest can collect all signals and finish [5.12ms]
+
+tests/animation-audio.test.ts:
+(pass) marker intervals, zero boundaries and authored tie ordering are deterministic [0.29ms]
+(pass) seek and reverse sampling invent no markers; once ends at final pose [0.18ms]
+(pass) marker overflow pauses transactionally without allocating millions of deliveries [0.07ms]
+(pass) per-instance mixers share immutable clips but not poses or owned bindings [0.73ms]
+(pass) PCM preflight rejects malformed, empty, truncated and unsupported input before decoder allocation [0.60ms]
+(pass) null audio reports not-rendered; role/priority admission and generations are deterministic [0.56ms]
+(pass) release tails stay bounded and failed starts do not evict valid voices [0.37ms]
+(pass) fixed-tick accumulation delivers the half-second marker at tick thirty [0.19ms]
+(pass) marker activation/loop keys do not replay a delivered hit after seek or direction changes [0.06ms]
+(pass) loop seeks preserve iteration identity and the exact preview endpoint [0.08ms]
+
+tests/project-archive.test.ts:
+(pass) one native opener migrates legacy scripts/materials/shaders and accepts raw PIF8 without executing source [87.24ms]
+(pass) unified opening rolls back hash mismatch, unknown resources, unsupported readers and cancellation [60.48ms]
+(pass) legacy format versions 1–7 migrate with accurate integrity status [176.95ms]
+(pass) cancellation during streamed upload removes only extraction-owned files [14.95ms]
+
+tests/dependency-scheduler.test.ts:
+(pass) topological scheduling stops at unchanged artifacts but honors direct source consumers [1.38ms]
+(pass) failed or cancelled dependency rebuild preserves complete previous graph [0.83ms]
+(pass) a late scheduler cannot overwrite a newer dependency edit; deletions with consumers reject [0.37ms]
+
+tests/pending.test.ts:
+(pass) missing companion reports are explicit and unsafe source names reject [0.17ms]
+(pass) repair preserves original sources, enforces project scope and checks hashes [3.36ms]
+(pass) recovery budgets and cancellation release admission without persistence [0.45ms]
+
+tests/hierarchy.test.ts:
+(pass) collections group physics without changing physics transforms, nested roundtrip [0.93ms]
+(pass) transform parenting and unparenting preserve world positions [0.49ms]
+(pass) invalid cycles, missing collections and physics parenting rejected [0.36ms]
+(pass) duplicate and delete complete subtrees without dangling references [0.49ms]
+
+tests/ui.test.ts:
+(pass) UI schemas roundtrip and reject invalid IDs, parents, values and styles [1.31ms]
+(pass) UI mutations are transactional, isolated and no-op writes do not dirty the renderer [0.53ms]
+(pass) headless event dispatch respects disabled/hidden ancestors and supports actions and unsubscribe [0.50ms]
+(pass) runtime UI actions, updates and pause/resume work without a DOM; authored data stays unchanged [9.43ms]
+(pass) real physics sensor trigger changes UI through a script lifecycle hook [3.88ms]
+(pass) script UI listeners clean up on entity destruction and callback errors disable only the offender [2.15ms]
+(pass) text input, select, and runtime widget creation use the same validated state model [0.40ms]
+
+tests/physics.test.ts:
+(pass) dynamic bodies fall and rest on real collider [1.37ms]
+(pass) kinematic characters activate fixed sensors [0.41ms]
+
+tests/commands.test.ts:
+(pass) shortcut chords distinguish exact modifiers and support Command on macOS [0.19ms]
+(pass) typing, modal, repeat, composition and handled events keep their own keys [0.16ms]
+(pass) scene clipboard pastes copied definitions after cut and rejects cross-project misuse [0.58ms]
+
+tests/shader-file-import.test.ts:
+(pass) shader file exchange validates without compiling and preserves the other input [0.45ms]
+(pass) shader files reject oversized input before reading, invalid encoding, extensions and uniform schema [0.45ms]
+
+tests/editor-ui.test.ts:
+(pass) recent project metadata rejects corrupted IDs, sizes and duplicate inventory [0.22ms]
+(pass) shared layout definitions and safe preference defaults [0.08ms]
+(pass) all editor control modules use source-owned shared primitives [2.36ms]
+
+ 168 pass
+ 0 fail
+ 1024 expect() calls
+Ran 168 tests across 38 files. [2.78s]

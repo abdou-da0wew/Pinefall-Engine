@@ -1,3 +1,4 @@
+import type { MaterialSlotBinding } from "./material-slots";
 import {
   parseGraphicsDefinition,
   parseSurface,
@@ -59,6 +60,7 @@ export interface Entity {
     material?: string;
     shader?: string;
     surface?: Surface;
+    slots?: MaterialSlotBinding[];
     castShadow?: boolean;
     receiveShadow?: boolean;
   };
@@ -329,6 +331,37 @@ export function parseScene(value: unknown): SceneDocument {
           fail("Missing material asset");
       }
       if (e.mesh.surface !== undefined) out.mesh.surface = parseSurface(e.mesh.surface);
+      if (e.mesh.slots !== undefined) {
+        if (!Array.isArray(e.mesh.slots) || e.mesh.slots.length > 64) fail("Material slot budget");
+        out.mesh.slots = e.mesh.slots.map((raw: unknown) => {
+          if (
+            !record(raw) ||
+            Object.keys(raw).some(
+              (key) => !["key", "source", "material", "surface"].includes(key),
+            ) ||
+            typeof raw.key !== "string" ||
+            raw.key.length > 240 ||
+            !/^([0-9]+\/)*[0-9]+:[0-9]+$/.test(raw.key) ||
+            typeof raw.source !== "string" ||
+            !/^(primitive:(box|sphere|capsule|cylinder|cone)|asset:sha256:[a-f0-9]{64})$/.test(
+              raw.source,
+            ) ||
+            (raw.material !== undefined) === (raw.surface !== undefined)
+          )
+            fail("Invalid material slot binding");
+          if (raw.material !== undefined && !graphics?.materials.some((m) => m.id === raw.material))
+            fail("Missing slot material");
+          return {
+            key: raw.key,
+            source: raw.source,
+            ...(raw.material === undefined
+              ? { surface: parseSurface(raw.surface) }
+              : { material: text(raw.material, "slot material") }),
+          };
+        });
+        if (new Set(out.mesh.slots.map((slot) => slot.key)).size !== out.mesh.slots.length)
+          fail("Duplicate material slot binding");
+      }
       for (const key of ["castShadow", "receiveShadow"] as const)
         if (e.mesh[key] !== undefined) {
           if (typeof e.mesh[key] !== "boolean") fail("shadow flag");
@@ -411,6 +444,22 @@ export function parseScene(value: unknown): SceneDocument {
       seen.add(p);
       p = entities.find((n) => n.id === p)?.parent;
     }
+  }
+  for (const surface of [
+    ...(graphics?.materials ?? []),
+    ...entities.flatMap((e) => [
+      ...(e.mesh?.surface ? [e.mesh.surface] : []),
+      ...(e.mesh?.slots ?? []).flatMap((slot) => (slot.surface ? [slot.surface] : [])),
+    ]),
+  ])
+    for (const binding of Object.values(surface.maps ?? {})) {
+      const image = graphics?.images?.find((image) => image.id === binding.image);
+      if (!image || image.format === "hdr") fail("Missing/non-LDR material image");
+    }
+  if (graphics?.environment?.image) {
+    const image = graphics.images?.find((image) => image.id === graphics.environment?.image);
+    if (!image || image.format !== "hdr" || image.width !== image.height * 2)
+      fail("Environment requires an HDR image resource");
   }
   const env = value.environment;
   return {

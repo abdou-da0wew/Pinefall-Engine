@@ -78,6 +78,17 @@ export async function folderLayout(
     scripts[script.id] = file;
     scriptEntries.push({ id: script.id, name: script.name, file });
   }
+  const images = [];
+  for (const image of scene.graphics?.images ?? [])
+    images.push({
+      ...image,
+      data: undefined,
+      file: binary(
+        `images/${await key(image.id, image.name)}.${image.format}`,
+        image.data,
+        `image:${image.id}`,
+      ),
+    });
   const materials = [];
   for (const material of scene.graphics?.materials ?? [])
     materials.push({
@@ -152,6 +163,7 @@ export async function folderLayout(
             graphics: {
               ...scene.graphics,
               materials,
+              ...(scene.graphics.images ? { images } : {}),
               ...(scene.graphics.shaders ? { shaders: shaderEntries } : {}),
             },
           }
@@ -253,6 +265,27 @@ export async function readFolder(reader: FolderReader): Promise<SceneDocument> {
   }
   if (scene.graphics !== undefined) {
     const graphics = object(scene.graphics);
+    if (graphics.images !== undefined) {
+      let total = 0;
+      const images = [];
+      for (const image of inventory(graphics.images, 32)) {
+        if ("data" in image) throw Error("Folder images must be separate files");
+        binding(`image:${image.id}`, image.file);
+        const value = await reader.binary(projectRelativePath(image.file), 16 * 1024 * 1024);
+        total += value.bytes;
+        if (!isBlobRef(value.ref) || value.bytes < 1 || total > 128 * 1024 * 1024)
+          throw Error("Graphics image source budget");
+        images.push({
+          id: image.id,
+          name: image.name,
+          format: image.format,
+          width: image.width,
+          height: image.height,
+          data: value.ref,
+        });
+      }
+      graphics.images = images;
+    }
     const materials = [];
     for (const entry of inventory(graphics.materials, 64)) {
       const material = object(await readJSON(entry.file, 65536));

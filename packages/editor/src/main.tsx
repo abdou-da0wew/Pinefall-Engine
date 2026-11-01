@@ -1,3 +1,5 @@
+import { mergePrefabGraphics } from "./prefab-graphics";
+import { GraphicsResources } from "./graphics-resources";
 import { folderLayout } from "../../project/src/folder-format";
 import { ProjectFilesDialog } from "./project-files-dialog";
 import { FolderSession, type FolderSnapshot } from "../../project/src/folder-session";
@@ -162,6 +164,8 @@ function App({
   const [audioOpen, setAudioOpen] = useState(false);
   const [materialEditor, setMaterialEditor] = useState(false);
   const [shaderEditor, setShaderEditor] = useState(false);
+  const [graphicsResources, setGraphicsResources] = useState(false),
+    [materialSlot, setMaterialSlot] = useState("");
   const [filesOpen, setFilesOpen] = useState(false);
   const [folderSession, setFolderSession] = useState<FolderSession | null>(initialFolder ?? null);
   const [repackShortcut, setRepackShortcut] = useState("Mod+Shift+S");
@@ -435,6 +439,34 @@ function App({
     } finally {
       if (!adopted) session?.dispose();
       if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
+    }
+  }
+  async function applyGraphicsEdit(edit: (scene: SceneDocument) => void) {
+    if (playing || projectBusy || loadBusy || !engine.current)
+      throw Error("Stop and wait for the renderer before graphics edits");
+    const before = current.current,
+      next = cloneScene(before);
+    edit(next);
+    const checked = parseScene(next),
+      controller = new AbortController();
+    folderApplyAbort.current = controller;
+    setProjectBusy(true);
+    try {
+      await engine.current.load(checked, {
+        preserveView: true,
+        strictShaders: true,
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Project changed during graphics staging");
+      preloadedScene.current = checked;
+      history.current.commit(before);
+      current.current = checked;
+      setScene(checked);
+      setRevision((revision) => revision + 1);
+    } finally {
+      if (folderApplyAbort.current === controller) folderApplyAbort.current = null;
       setProjectBusy(false);
     }
   }
@@ -936,6 +968,10 @@ function App({
     const target = recovery?.target || reimportTarget.current;
     reimportTarget.current = undefined;
     if (engine.current?.playing || importAbort.current || !files.length) return;
+    if (projectAbort.current || homeBusy || loadBusy) {
+      setStatus("Wait for the current project operation before importing models.");
+      return;
+    }
     const controller = new AbortController();
     importAbort.current = controller;
     setImportBusy(true);
@@ -1121,25 +1157,7 @@ function App({
       );
       commit((d) => {
         d.version = d.version === 3 || prefab.version === 3 ? 3 : 2;
-        const materialMap = new Map<string, string>();
-        const shaderMap = new Map<string, string>();
-        if (prefab.graphics?.shaders?.length) {
-          d.graphics ??= emptyGraphics();
-          d.graphics.shaders ??= [];
-          for (const shader of prefab.graphics.shaders) {
-            const id = crypto.randomUUID();
-            shaderMap.set(shader.id, id);
-            d.graphics.shaders.push({ ...shader, id });
-          }
-        }
-        if (prefab.graphics?.materials.length) {
-          d.graphics ??= emptyGraphics();
-          for (const material of prefab.graphics.materials) {
-            const id = crypto.randomUUID();
-            materialMap.set(material.id, id);
-            d.graphics.materials.push({ ...material, id });
-          }
-        }
+        const remapGraphics = mergePrefabGraphics(d, prefab);
         if (prefab.collections?.length) {
           d.collections ??= [];
           d.collections.push(
@@ -1159,8 +1177,7 @@ function App({
         for (const e of prefab.entities) {
           const item = structuredClone(e);
           item.id = mapping.get(e.id)!;
-          if (item.mesh?.shader) item.mesh.shader = shaderMap.get(item.mesh.shader)!;
-          if (item.mesh?.material) item.mesh.material = materialMap.get(item.mesh.material)!;
+          remapGraphics(item);
           item.parent = e.parent ? mapping.get(e.parent) : undefined;
           item.collection = e.collection ? collectionMap.get(e.collection) : undefined;
           d.entities.push(item);
@@ -1781,28 +1798,93 @@ function App({
       )}
       {materialEditor && chosen?.mesh && (
         <SurfaceDialog
-          key={chosen.id}
+          key={chosen.id + ":" + materialSlot}
+          images={scene.graphics?.images ?? []}
+          slots={loadedScene === scene ? engine.current?.inspectMaterialSlots(chosen.id) : []}
+          selectedSlot={materialSlot}
+          onSlot={setMaterialSlot}
+          onResources={() => setGraphicsResources(true)}
+          onInspectUV={(channel) =>
+            engine.current!.inspectUV(
+              chosen.id,
+              materialSlot || engine.current!.inspectMaterialSlots(chosen.id)[0]?.key || "",
+              channel,
+            )
+          }
           initial={
+            (materialSlot
+              ? (chosen.mesh.slots?.find((slot) => slot.key === materialSlot)?.surface ??
+                scene.graphics?.materials.find(
+                  (material) =>
+                    material.id ===
+                    chosen.mesh?.slots?.find((slot) => slot.key === materialSlot)?.material,
+                ))
+              : undefined) ??
             chosen.mesh.surface ??
             scene.graphics?.materials.find((m) => m.id === chosen.mesh?.material) ?? {
               ...DEFAULT_SURFACE,
               color: chosen.mesh.color,
             }
           }
-          onClose={() => setMaterialEditor(false)}
-          onApply={(surface, reusable) => {
-            commit((d) => {
+          onClose={() => {
+            folderApplyAbort.current?.abort();
+            setMaterialEditor(false);
+          }}
+          onApply={async (surface, reusable) => {
+            await applyGraphicsEdit((d) => {
               const e = d.entities.find((e) => e.id === chosen.id);
               if (!e?.mesh) return;
               if (reusable) {
                 d.graphics ??= emptyGraphics();
                 const id = crypto.randomUUID();
                 d.graphics.materials.push({ ...surface, id, name: chosen.name + " material" });
-                e.mesh.material = id;
-                delete e.mesh.surface;
+                if (materialSlot) {
+                  e.mesh.slots = [
+                    ...(e.mesh.slots ?? []).filter((slot) => slot.key !== materialSlot),
+                    {
+                      key: materialSlot,
+                      source:
+                        e.mesh.primitive === "asset"
+                          ? d.assets.find((asset) => asset.id === e.mesh?.asset)!.data
+                          : "primitive:" + e.mesh.primitive,
+                      material: id,
+                    },
+                  ];
+                } else {
+                  e.mesh.material = id;
+                  delete e.mesh.surface;
+                }
+              } else if (materialSlot) {
+                e.mesh.slots = [
+                  ...(e.mesh.slots ?? []).filter((slot) => slot.key !== materialSlot),
+                  {
+                    key: materialSlot,
+                    source:
+                      e.mesh.primitive === "asset"
+                        ? d.assets.find((asset) => asset.id === e.mesh?.asset)!.data
+                        : "primitive:" + e.mesh.primitive,
+                    surface,
+                  },
+                ];
               } else e.mesh.surface = surface;
             });
             setMaterialEditor(false);
+          }}
+        />
+      )}
+      {graphicsResources && (
+        <GraphicsResources
+          images={scene.graphics?.images ?? []}
+          onClose={() => {
+            folderApplyAbort.current?.abort();
+            setGraphicsResources(false);
+          }}
+          onAdd={async (image) => {
+            await applyGraphicsEdit((d) => {
+              d.graphics ??= emptyGraphics();
+              d.graphics.images ??= [];
+              d.graphics.images.push(image);
+            });
           }}
         />
       )}
@@ -2402,9 +2484,27 @@ function App({
                         />
                       </label>
                     ))}
-                    <Button disabled={playing} onClick={() => setMaterialEditor(true)}>
+                    <Button
+                      disabled={playing || projectBusy || loadBusy}
+                      onClick={() => {
+                        setMaterialSlot("");
+                        setMaterialEditor(true);
+                      }}
+                    >
                       Edit material surface…
                     </Button>
+                    {!!chosen.mesh.slots?.length && (
+                      <Button
+                        disabled={playing || projectBusy}
+                        onClick={() =>
+                          patchEntity((e) => {
+                            if (e.mesh) delete e.mesh.slots;
+                          })
+                        }
+                      >
+                        Clear per-slot overrides
+                      </Button>
+                    )}
                     {chosen.mesh.surface && (
                       <Button
                         disabled={playing}
@@ -2461,8 +2561,8 @@ function App({
                       </Button>
                     )}
                     <small className="hint">
-                      Instance-safe scalar overrides. Imported texture/UV authoring is a later Plan
-                      03 gate.
+                      Instance-safe surfaces, texture maps, UV inspection and source-guarded
+                      material slots.
                     </small>
                   </Panel>
                 )}
@@ -2942,6 +3042,37 @@ function App({
               </Panel>
               <Panel>
                 <h3>Scene reflection lighting (authored)</h3>
+                <Button
+                  disabled={playing || projectBusy || loadBusy}
+                  onClick={() => setGraphicsResources(true)}
+                >
+                  Graphics image resources…
+                </Button>
+                {scene.graphics?.environment && (
+                  <label>
+                    External HDR environment
+                    <Select
+                      aria-label="HDR environment image"
+                      disabled={playing || projectBusy || loadBusy}
+                      value={scene.graphics.environment.image ?? ""}
+                      onChange={(event) => {
+                        const id = event.target.value;
+                        void applyGraphicsEdit((d) => {
+                          d.graphics!.environment!.image = id || undefined;
+                        }).catch((error) => setStatus(String(error)));
+                      }}
+                    >
+                      <option value="">Procedural hemisphere</option>
+                      {scene.graphics.images
+                        ?.filter((image) => image.format === "hdr")
+                        .map((image) => (
+                          <option key={image.id} value={image.id}>
+                            {image.name}
+                          </option>
+                        ))}
+                    </Select>
+                  </label>
+                )}
                 <label className="row-field">
                   PMREM hemisphere environment
                   <Input
@@ -3337,6 +3468,7 @@ function App({
         hidden
         type="file"
         accept=".glb,.fbx,.png,.jpg,.jpeg"
+        disabled={projectBusy || loadBusy || homeBusy || playing || importBusy}
         multiple
         onChange={(e) => void importGlb(e)}
       />

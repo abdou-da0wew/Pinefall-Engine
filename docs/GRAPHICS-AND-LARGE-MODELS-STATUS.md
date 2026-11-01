@@ -41,3 +41,7 @@ These changes are included in published development pre-release v0.6.3-dev.2. Th
 ## Current graphics checkpoint
 
 [Current status](CURRENT-STATUS.md) supersedes older milestone descriptions: v0.6.3-dev.2 is published; native folder backups use PIF8. Procedural PMREM, independent shadow update modes/fitted bounds and depth-aware height scattering are implemented and software-tested. Texture/UV/packing/per-slot authoring, external HDR input and broader graphics gates remain open.
+
+## 0.7.0 source update
+
+Texture/UV/packing/per-slot authoring, external HDR and advanced scattering are now implemented. Native opening additionally supports portable PIF9; raw-folder backups remain PIF8. See [current status](CURRENT-STATUS.md) and [graphics authoring](GRAPHICS-AUTHORING.md) for the current contract and release state; older checkpoint descriptions above are historical.

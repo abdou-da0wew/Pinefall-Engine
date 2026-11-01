@@ -1,0 +1,1 @@
+PASS native external workflow: IDE typings, semantic diagnostics, external editor, explicit Apply/no execution, shader retention, streamed raw PIF8 including unregistered drafts, automatic per-action/interval and custom-shortcut backups, persistent folder recents and settings across restart

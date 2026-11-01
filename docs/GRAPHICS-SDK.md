@@ -1,10 +1,10 @@
 # Graphics authoring, preview and SDK — Plan 03 development
 
-This documents implemented development APIs, not completion of the whole Plan 03. The bounded custom-unlit GLSL pipeline is implemented. Texture-map/UV/channel-packing/per-slot authoring and external HDR inputs remain incomplete. Procedural PMREM and depth-aware height scattering are implemented; see [current status](CURRENT-STATUS.md).
+This documents the implemented 0.7.0 graphics contract. See [texture/UV/slot/HDR authoring](GRAPHICS-AUTHORING.md) for resource workflows and bounds, and [current status](CURRENT-STATUS.md) for publication and evidence.
 
 ## Three separate kinds of settings
 
-1. **Authored:** `scene.graphics` (version 1), reusable scalar material assets, optional artistic post settings, entity material references/instance surfaces, independent light definitions and per-mesh shadow flags. Saved in legacy portable PIF7 or native folder/PIF8 resources. Older PIF formats remain readable; published 0.6.2 cannot open PIF7.
+1. **Authored:** `scene.graphics` (version 1), reusable material assets and image/UV bindings, optional artistic post settings, entity material references/instance surfaces, independent light definitions and per-mesh shadow flags. Saved in portable PIF7/PIF9 or native folder/PIF8 resources. Older PIF formats remain readable; published 0.6.2 cannot open PIF7.
 2. **Device/preview:** Rendering → resolution scale, quality and shadow ceilings, local post overrides. The GPU/CPU/compositor button opens the existing restart-only desktop controls. A browser cannot change its host acceleration policy. These device settings are not serialized into the project.
 3. **Runtime:** `ctx.graphics` updates transient material/light/post values. No authoring undo or saved scene mutation. Runtime material changes use an owned per-entity material; subsequent scalar changes update uniforms without replacing that material. Stop restores authored values and the pre-Play preview settings.
 
@@ -67,7 +67,7 @@ Light type changes are authored scene edits, not runtime uniform updates. Materi
 
 Select an entity → Mesh renderer → **Edit material surface**. Apply an instance override or save a reusable material. Supported scalar fields: PBR/unlit family, base colour, roughness, metalness, emissive colour/intensity, alpha mode/cutoff/opacity and double-sidedness. Reusable materials are selected by stable ID. Prefab material IDs are remapped on import.
 
-Current overrides deliberately replace **all material slots** on an entity. They do not preserve an imported material's texture maps; the dialog warns about this. Per-slot edits, texture maps/channel packing/UVs and displacement are later gates. Unlit uses base colour/alpha and ignores lighting/PBR/emissive parameters.
+Overrides can target all slots or one source-guarded structural slot. Explicit surfaces replace targeted imported materials; unaffected slots remain intact. PBR supports eight canonical map roles and bounded normal/displacement controls; unlit supports color/alpha maps. UV0/UV1 inspection and transforms, worker channel packing and external HDR are implemented. See [the authoring guide](GRAPHICS-AUTHORING.md).
 
 Emissive surfaces do not create lights. Bloom does not light neighbouring objects. Blended surfaces have sorting limitations and default to not casting opaque shadows. Forcing a blended caster does not create coloured/translucent shadow transport.
 
@@ -77,9 +77,9 @@ Low preview: shadows off by default; explicit opt-in permits one 512px sun map. 
 
 ## Post stack and accounting
 
-Linear scene/opaque depth → optional half-resolution scattering → multi-resolution bloom → grading/vignette/grain/chromatic aberration → tone mapping and one sRGB conversion → display-space FXAA. DOM game UI remains outside the chain. Exposure/tone mapping also work without post enabled. The `none` curve uses linear exposure gain/clipping rather than an artistic tone curve. Bloom is based on Three r185 `UnrealBloomPass`, not the previous five-tap approximation.
+Linear scene/opaque depth → optional half/full-resolution scattering → multi-resolution bloom → grading/vignette/grain/chromatic aberration → tone mapping and one sRGB conversion → display-space FXAA. DOM game UI remains outside the chain. Exposure/tone mapping also work without post enabled. The `none` curve uses linear exposure gain/clipping rather than an artistic tone curve. Bloom is based on Three r185 `UnrealBloomPass`, not the previous five-tap approximation.
 
-HDR render targets are chosen when `EXT_color_buffer_float` is available; otherwise the stack uses byte targets and labels bloom/scattering as an LDR approximation. Target estimates account for composer ping-pong, depth, half-resolution scattering and bloom mip targets and reserve from the shared asset-work budget, with a 96 MiB post ceiling. These are conservative accounting estimates, **not measured VRAM**, total process RAM or GPU timings. Disabling passes disposes their owned targets/materials. Scalar effect edits do not recreate the composer.
+HDR render targets are chosen when `EXT_color_buffer_float` is available; otherwise the stack uses byte targets and labels bloom/scattering as an LDR approximation. Target estimates account for composer ping-pong, depth, scattering/history/optional transparent-interface depth and bloom mip targets and reserve from the shared asset-work budget, with a 96 MiB post ceiling. These are conservative accounting estimates, **not measured VRAM**, total process RAM or GPU timings. Disabling passes disposes their owned targets/materials. Scalar effect edits do not recreate the composer.
 
 WebGL context loss stops frame submission/simulation advancement while retaining authored data; restoration recreates the post chain and reapplies settings. One restore cycle and 100 effect-toggle/resize cycles are tested. This is not the full staged upload/repeated-driver-failure recovery system promised by later gates.
 
@@ -128,10 +128,10 @@ Import only reads and schema-checks files. Enable **Rendering → Trust and relo
 
 ## PMREM environments and depth-aware scattering
 
-`scene.graphics.environment = { sky: "#b8d7ff", ground: "#30352a", intensity: 1, resolution: 128 }` authors a filtered hemisphere environment. Resolution is 128 or 256; intensity is 0–8. Source colours are converted to linear radiance. Renderer-local leases share the texture across staged worlds; intensity-only changes do not regenerate PMREM. Context generations invalidate old targets. Floating-point-target support is required and unsupported intent is reported. External HDR image loading remains open.
+`scene.graphics.environment = { sky: "#b8d7ff", ground: "#30352a", intensity: 1, resolution: 128 }` authors a filtered hemisphere environment. Resolution is 128 or 256; intensity is 0–8. Source colours are converted to linear radiance. Renderer-local leases share the texture across staged worlds; intensity-only changes do not regenerate PMREM. Context generations invalidate old targets. Floating-point-target support is required and unsupported intent is reported. Set `image` to a catalog Radiance HDR ID for an external environment. See the authoring guide for decoding, bounds and minimum PMREM size.
 
 `PostSettings.scattering` is optional. Import `DEFAULT_SCATTERING` from `@pinefall/sdk`, then set density (0–0.5), heightFalloff (0–2), baseHeight (−100–100), maxDistance (1–200), steps (8/16/32), colour, intensity (0–8) and anisotropy (−0.8–0.8). Rendering exposes preview controls and the same explicit commit-to-project action as other post fields.
 
-The pass integrates a height-density medium using Beer–Lambert transmittance and terminates at opaque scene depth. Depth-aware upsampling reduces edge bleeding. It does not terminate at transparent objects, sample shadow maps or maintain temporal history; thin geometry may reveal half-resolution limitations. Fake cone beams remain a separate feature. Software pixel tests do not establish physical CEDAR performance.
+The pass integrates a height-density medium using Beer–Lambert transmittance. Optional fields are `resolution: "half" | "full"`, `lighting: "artistic" | "directional-shadow"`, `transparentDepth: "opaque" | "nearest"`, `temporal: boolean`, and `historyWeight: 0–0.95`. Depth-aware upsampling includes edge reintegration. Nearest-interface depth is not multilayer transparent transport; shadow sampling supports the brightest visible directional light (Basic/PCF, not VSM or point/spot). Temporal reprojection rejects depth mismatches and clamps history; cuts, settings, size and context changes invalidate it. These bounded approximations and their fallback reasons are documented in the [authoring guide](GRAPHICS-AUTHORING.md). Fake cone beams remain separate.
 
-Tests: `environment-browser.ts`, `shadow-fit.test.ts`, `scattering-browser.ts`, `plan03-browser.ts` and native `plan03-editor.ts`. See [checkpoint details](DISK-PROJECTS-IMPLEMENTATION.md) for measured software results and open gates.
+Tests include `graphics-images-browser.ts`, `material-maps-browser.ts`, `material-slots-browser.ts`, `graphics-failures-browser.ts`, `scattering-advanced-browser.ts`, existing graphics/shader suites, native authoring and production standalone export. Physical CEDAR performance is not inferred from software tests.

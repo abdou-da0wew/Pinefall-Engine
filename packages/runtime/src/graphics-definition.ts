@@ -1,5 +1,18 @@
+import {
+  MAP_ROLES,
+  parseGraphicsImage,
+  parseTextureBinding,
+  type MapRole,
+  type TextureBinding,
+  type GraphicsImage,
+} from "./image-definition";
 import { parseShaderAsset, type ShaderAsset } from "./shader-definition";
 export interface Surface {
+  maps?: Partial<Record<MapRole, TextureBinding>>;
+  normalScale?: [number, number];
+  displacementScale?: number;
+  displacementBias?: number;
+  aoIntensity?: number;
   family: "pbr" | "unlit";
   color: string;
   roughness: number;
@@ -16,6 +29,11 @@ export interface MaterialAsset extends Surface {
   name: string;
 }
 export interface ScatteringSettings {
+  resolution?: "half" | "full";
+  lighting?: "artistic" | "directional-shadow";
+  transparentDepth?: "opaque" | "nearest";
+  temporal?: boolean;
+  historyWeight?: number;
   density: number;
   heightFalloff: number;
   baseHeight: number;
@@ -38,12 +56,27 @@ export const DEFAULT_SCATTERING: ScatteringSettings = {
 export function parseScattering(value: unknown): ScatteringSettings {
   const v = object(value);
   if (
-    Object.keys(v).some((k) => !Object.hasOwn(DEFAULT_SCATTERING, k)) ||
+    Object.keys(v).some(
+      (k) =>
+        !Object.hasOwn(DEFAULT_SCATTERING, k) &&
+        !["resolution", "lighting", "transparentDepth", "temporal", "historyWeight"].includes(k),
+    ) ||
     ![8, 16, 32].includes(Number(v.steps)) ||
     typeof v.steps !== "number"
   )
     throw Error("Invalid scattering settings");
   return {
+    ...(v.resolution === undefined
+      ? {}
+      : { resolution: choice(v.resolution, ["half", "full"] as const) }),
+    ...(v.lighting === undefined
+      ? {}
+      : { lighting: choice(v.lighting, ["artistic", "directional-shadow"] as const) }),
+    ...(v.transparentDepth === undefined
+      ? {}
+      : { transparentDepth: choice(v.transparentDepth, ["opaque", "nearest"] as const) }),
+    ...(v.temporal === undefined ? {} : { temporal: bool(v.temporal) }),
+    ...(v.historyWeight === undefined ? {} : { historyWeight: bounded(v.historyWeight, 0, 0.95) }),
     density: bounded(v.density, 0, 0.5),
     heightFalloff: bounded(v.heightFalloff, 0, 2),
     baseHeight: bounded(v.baseHeight, -100, 100),
@@ -71,6 +104,7 @@ export interface PostSettings {
   fxaa: boolean;
 }
 export interface EnvironmentLighting {
+  image?: string;
   sky: string;
   ground: string;
   intensity: number;
@@ -79,12 +113,15 @@ export interface EnvironmentLighting {
 export function parseEnvironment(value: unknown): EnvironmentLighting {
   const v = object(value);
   if (
-    Object.keys(v).some((k) => !["sky", "ground", "intensity", "resolution"].includes(k)) ||
+    Object.keys(v).some(
+      (k) => !["sky", "ground", "intensity", "resolution", "image"].includes(k),
+    ) ||
     ![128, 256].includes(Number(v.resolution)) ||
     typeof v.resolution !== "number"
   )
     throw Error("Invalid environment lighting");
   return {
+    ...(v.image === undefined ? {} : { image: text(v.image) }),
     sky: color(v.sky),
     ground: color(v.ground),
     intensity: bounded(v.intensity, 0, 8),
@@ -92,6 +129,7 @@ export function parseEnvironment(value: unknown): EnvironmentLighting {
   };
 }
 export interface GraphicsDefinition {
+  images?: GraphicsImage[];
   environment?: EnvironmentLighting;
   shaders?: ShaderAsset[];
   version: 1;
@@ -157,9 +195,50 @@ function text(value: unknown) {
 export function parseSurface(value: unknown): Surface {
   const v = object(value);
   for (const key of Object.keys(v))
-    if (!Object.hasOwn(DEFAULT_SURFACE, key) && key !== "id" && key !== "name")
+    if (
+      !Object.hasOwn(DEFAULT_SURFACE, key) &&
+      ![
+        "id",
+        "name",
+        "maps",
+        "normalScale",
+        "displacementScale",
+        "displacementBias",
+        "aoIntensity",
+      ].includes(key)
+    )
       throw Error("Unsupported material field: " + key);
+  let maps: Surface["maps"];
+  if (v.maps !== undefined) {
+    maps = {};
+    for (const [role, binding] of Object.entries(object(v.maps))) {
+      if (
+        !MAP_ROLES.includes(role as MapRole) ||
+        (v.family === "unlit" && !["color", "alpha"].includes(role))
+      )
+        throw Error("Unsupported material map role/family");
+      maps[role as MapRole] = parseTextureBinding(binding);
+    }
+  }
+  if (v.normalScale !== undefined && (!Array.isArray(v.normalScale) || v.normalScale.length !== 2))
+    throw Error("Invalid normal scale");
   return {
+    ...(maps ? { maps } : {}),
+    ...(v.normalScale === undefined
+      ? {}
+      : {
+          normalScale: (v.normalScale as unknown[]).map((n) => bounded(n, -8, 8)) as [
+            number,
+            number,
+          ],
+        }),
+    ...(v.displacementScale === undefined
+      ? {}
+      : { displacementScale: bounded(v.displacementScale, -20, 20) }),
+    ...(v.displacementBias === undefined
+      ? {}
+      : { displacementBias: bounded(v.displacementBias, -20, 20) }),
+    ...(v.aoIntensity === undefined ? {} : { aoIntensity: bounded(v.aoIntensity, 0, 8) }),
     family: choice(v.family, ["pbr", "unlit"]),
     color: color(v.color),
     roughness: bounded(v.roughness, 0, 1),
@@ -201,10 +280,18 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
     !Array.isArray(v.materials) ||
     v.materials.length > 64 ||
     Object.keys(v).some(
-      (k) => !["version", "materials", "post", "shaders", "environment"].includes(k),
+      (k) => !["version", "materials", "post", "shaders", "environment", "images"].includes(k),
     )
   )
     throw Error("Invalid graphics schema/version/budget");
+  let images: GraphicsImage[] | undefined;
+  if (v.images !== undefined) {
+    if (!Array.isArray(v.images) || v.images.length > 32)
+      throw Error("Graphics image catalog budget");
+    images = v.images.map(parseGraphicsImage);
+    if (new Set(images.map((i) => i.id)).size !== images.length)
+      throw Error("Duplicate graphics image IDs");
+  }
   const materials = v.materials.map((raw) => {
     const m = object(raw);
     return { ...parseSurface(m), id: text(m.id), name: text(m.name) };
@@ -220,6 +307,7 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
   }
   return {
     version: 1,
+    ...(images ? { images } : {}),
     materials,
     ...(v.environment === undefined ? {} : { environment: parseEnvironment(v.environment) }),
     ...(v.post === undefined ? {} : { post: parsePost(v.post) }),

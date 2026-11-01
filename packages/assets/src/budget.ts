@@ -22,7 +22,7 @@ export class MemoryBudget {
       const old = this.owners.get(id)?.bytes || 0;
       if (this.usedBytes - old + next > this.limit)
         throw Error(
-          "Asset memory admission exhausted; keep the current project and unload unused resources before retrying",
+          `Asset memory admission exhausted (${kind}: requested ${Math.ceil(next / 1048576)} MiB; accounted ${Math.ceil(this.usedBytes / 1048576)} MiB); keep the current project and unload unused resources before retrying`,
         );
       this.usedBytes += next - old;
       this.peakBytes = Math.max(this.peakBytes, this.usedBytes);

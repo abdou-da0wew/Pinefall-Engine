@@ -1,10 +1,14 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { enterEditor, openAssetActions } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 import { texturedFbx } from "./asset-fixtures";
+const profile = await mkdtemp(resolve("build/isolated-native-profile-"));
 const app = await _electron.launch({
   executablePath: process.env.TEST_DESKTOP_EXECUTABLE,
   args: [
     ...(process.env.TEST_DESKTOP_EXECUTABLE ? [] : ["."]),
+    `--user-data-dir=${profile}`,
     "--no-sandbox",
     "--use-angle=swiftshader",
     "--enable-unsafe-swiftshader",
@@ -79,4 +83,5 @@ try {
   );
 } finally {
   await app.close();
+  await rm(profile, { recursive: true, force: true });
 }

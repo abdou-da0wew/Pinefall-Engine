@@ -22,3 +22,7 @@ The owner explicitly superseded release-and-pause for this task: continue throug
 ## Current release and attribution
 
 The latest published development pre-release is v0.6.3-dev.2; see [current status](CURRENT-STATUS.md). Use `bun run hooks:install` so ordinary local commits include the configured DiveeAgent co-author. Do not rewrite published history to add trailers. The owner has requested continuing the completion work: a checkpoint release is not a reason to stop or claim all gates complete.
+
+## 0.7.0 source update
+
+Texture/UV/packing/per-slot authoring, external HDR and advanced scattering are now implemented. Native opening additionally supports portable PIF9; raw-folder backups remain PIF8. See [current status](CURRENT-STATUS.md) and [graphics authoring](GRAPHICS-AUTHORING.md) for the current contract and release state; older checkpoint descriptions above are historical.

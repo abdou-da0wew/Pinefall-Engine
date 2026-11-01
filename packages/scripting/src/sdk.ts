@@ -1,3 +1,10 @@
+export type { GraphicsImage, TextureBinding, MapRole } from "../../runtime/src/image-definition";
+export { textureBinding, MAP_ROLES } from "../../runtime/src/image-definition";
+export type {
+  MaterialSlotBinding,
+  MaterialSlotInfo,
+  UVInspection,
+} from "../../runtime/src/material-slots";
 export type { GraphicsAPI, GraphicsSnapshot } from "../../runtime/src/graphics-api";
 export type {
   ScatteringSettings,

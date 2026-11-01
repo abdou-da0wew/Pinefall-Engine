@@ -1,3 +1,4 @@
+import { invalidateObjectGPU } from "./gpu-reset";
 import { cloneModel } from "./clone";
 import { assetMemory, type Reservation } from "./budget";
 import { readAssetBytes } from "./glb";
@@ -192,6 +193,9 @@ export class ModelCache {
       this.entries.delete(key);
       this.metrics.bytes -= entry.bytes;
     }
+  }
+  invalidateGPU() {
+    for (const entry of this.entries.values()) invalidateObjectGPU(entry.root);
   }
   dispose() {
     this.dead = true;

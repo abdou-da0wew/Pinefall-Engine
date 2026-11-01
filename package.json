@@ -1,12 +1,12 @@
 {
   "name": "pinefall-engine",
-  "version": "0.6.3-dev.2",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
   "scripts": {
     "dev": "bun scripts/prepare-language-service.ts && bun --bun vite --host 0.0.0.0",
-    "build": "bun run check && bun scripts/prepare-language-service.ts && bun --bun vite build",
+    "build": "bun run check && bun scripts/prepare-language-service.ts && bun scripts/build-vite.ts",
     "typecheck": "bun node_modules/typescript/bin/tsc --noEmit",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt --write .",
@@ -48,7 +48,9 @@
     "hooks:install": "bun scripts/install-hooks.ts",
     "prepare": "bun scripts/install-hooks.ts",
     "test:shader-files": "bun tests/shader-files-browser.ts",
-    "test:unified-sources-native": "xvfb-run -a bun tests/unified-sources-native.ts"
+    "test:unified-sources-native": "xvfb-run -a bun tests/unified-sources-native.ts",
+    "test:graphics-completion": "bun tests/graphics-images-browser.ts && bun tests/material-slots-browser.ts && bun tests/material-maps-browser.ts && bun tests/scattering-browser.ts && bun tests/scattering-advanced-browser.ts && bun tests/graphics-failures-browser.ts && bun tests/environment-browser.ts && bun tests/plan03-browser.ts && bun tests/shader-browser.ts",
+    "test:graphics-authoring-native": "xvfb-run -a bun tests/graphics-authoring-native.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

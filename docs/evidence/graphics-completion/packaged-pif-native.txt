@@ -1,0 +1,1 @@
+PASS Linux Electron production renderer: portable PIF worker import, disk folder and verified raw PIF8 save roundtrip

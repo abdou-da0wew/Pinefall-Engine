@@ -1,10 +1,10 @@
-# Pinefall Engine 0.6.3-dev.2
+# Pinefall Engine 0.7.0
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**Latest published development pre-release: [v0.6.3-dev.2](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.3-dev.2).** Native external-file projects, semantic diagnostics/offline IDE typings, streamed PIF8 backups and configurable repacking, persistent folder recents, procedural PMREM, independent shadow updates/fitted bounds and depth-aware scattering are implemented. **Plan03 remains incomplete.** See [current implementation status](docs/CURRENT-STATUS.md), [remaining execution plan](docs/COMPLETION-EXECUTION.md), and [release notes](docs/RELEASE-0.6.3-dev.2.md).
+**0.7.0 is the local release candidate; publication is not yet complete.** Texture maps, UV inspection/transforms, channel packing, source-guarded material slots, external HDR and advanced depth-aware scattering are implemented alongside the folder-first external-code workflow. See [current status](docs/CURRENT-STATUS.md), [graphics authoring](docs/GRAPHICS-AUTHORING.md), and [0.7.0 release notes](docs/RELEASE-0.7.0.md). The download links below still refer to the last verified public development release, v0.6.3-dev.2.
 
 **0.6.2 published:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). [Published downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.2).
 
@@ -82,7 +82,7 @@ Linux: `chmod +x Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage`, then launch no
 - Real Rapier fixed-60-Hz physics, CCD, primitive colliders, sensors, kinematic character controls, gravity/jumping, arcade driving, checkpoints and collectibles.
 - Configurable orbit, first-person, follow and vehicle camera rigs.
 - Low preset: up to 960×540, 30 FPS target, shadows/post/beam effects off by default. High preset: up to 1600×900, 60 FPS play target, sun shadows and optional effects. These are targets/caps, not guaranteed performance.
-- PBR/unlit surfaces, hemisphere/sun/point/spot lights, PMREM reflection environments, bounded shadows, HDR/LDR post, multi-resolution bloom and opaque-depth-aware height scattering. Approximate translucent cone beams remain a separately labeled option.
+- PBR/unlit surfaces, hemisphere/sun/point/spot lights, PMREM reflection environments, bounded shadows, HDR/LDR post, multi-resolution bloom and half/full-resolution depth-aware height scattering with optional directional shadows, nearest-interface depth and temporal history. Approximate translucent cone beams remain a separately labeled option.
 - Play/Stop isolation restores the authored scene and removes runtime-spawned objects.
 - Stats, a bounded event console with JSONL export, and rotating native diagnostic logs.
 
@@ -169,7 +169,7 @@ For browser tests, start the dev server, install Chromium with `bun x playwright
 
 Limits: 500 entities, 100 collections, eight lights, 16 model assets (200 MB combined model/companion import, 480 MB encoded model/source project capacity; separate decoded/GPU ceilings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
 
-Not yet implemented: texture/UV/channel-packing/per-slot material authoring, external HDR environment images, full scattering transparency/shadow/history handling, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects,  automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, embedded IDE/debugger or silent script hot reload. External IDE typings are available. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
+Not implemented: multilayer volumetric transparency, point/spot volumetric shadow integration, UV unwrapping, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects,  automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, embedded IDE/debugger or silent script hot reload. External IDE typings are available. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
 
 ### Historical asset pipeline introduction in 0.5.3
 

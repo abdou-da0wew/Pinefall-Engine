@@ -1,0 +1,1 @@
+PASS production standalone maps/HDR/scattering reference, actual bitmap/half-float uploads and GPU draws: {"bitmap":3,"half":2,"draws":112}

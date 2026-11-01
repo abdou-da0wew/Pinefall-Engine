@@ -1,3 +1,8 @@
+import { UVPreview } from "./uv-preview";
+import type { UVInspection } from "../../runtime/src/material-slots";
+import { TextureMaps } from "./texture-maps";
+import type { GraphicsImage } from "../../runtime/src/image-definition";
+import type { MaterialSlotInfo } from "../../runtime/src/material-slots";
 import { ColorPicker } from "./color-picker";
 import { useState } from "react";
 import { Button, Input, Select, Panel, Dialog, Switch } from "./ui";
@@ -138,6 +143,78 @@ export function PreviewRendering({
           </label>
           {post.scattering && (
             <>
+              {(
+                [
+                  ["resolution", ["half", "full"], "Integration resolution"],
+                  ["lighting", ["artistic", "directional-shadow"], "Volume lighting"],
+                  ["transparentDepth", ["opaque", "nearest"], "Transparent surface depth"],
+                ] as const
+              ).map(([key, options, label]) => (
+                <label key={key}>
+                  {label}
+                  <Select
+                    aria-label={"Scattering " + key}
+                    value={post.scattering![key] ?? options[0]}
+                    onChange={(event) =>
+                      onPost({
+                        ...post,
+                        scattering: { ...post.scattering!, [key]: event.target.value },
+                      })
+                    }
+                  >
+                    {options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              ))}
+              <label>
+                Temporal reprojection
+                <Input
+                  aria-label="Scattering temporal"
+                  type="checkbox"
+                  checked={post.scattering.temporal ?? false}
+                  onChange={(event) =>
+                    onPost({
+                      ...post,
+                      scattering: { ...post.scattering!, temporal: event.target.checked },
+                    })
+                  }
+                />
+              </label>
+              {post.scattering.temporal && (
+                <label>
+                  History weight
+                  <Input
+                    aria-label="Scattering history weight"
+                    type="range"
+                    min={0}
+                    max={0.95}
+                    step={0.05}
+                    value={post.scattering.historyWeight ?? 0.85}
+                    onChange={(event) =>
+                      onPost({
+                        ...post,
+                        scattering: {
+                          ...post.scattering!,
+                          historyWeight: Number(event.target.value),
+                        },
+                      })
+                    }
+                  />
+                </label>
+              )}
+              <p className="hint">
+                Half resolution uses full-resolution integration where depth samples disagree; full
+                resolution avoids undersampling thin geometry. Directional mode uses the brightest
+                visible directional light and its PCF shadow map, with an explicitly reported
+                unshadowed fallback. Nearest transparent depth terminates at the first nonzero-alpha
+                interface; it is an approximation, not layered glass transport. Temporal history
+                rejects depth discontinuities, camera cuts, projection/size/settings changes and
+                clamps history to current neighbors. Disable it for the lowest memory cost.
+              </p>
               <label>
                 Ray steps
                 <Select
@@ -196,10 +273,9 @@ export function PreviewRendering({
             </>
           )}
           <p className="hint">
-            Half-resolution Beer–Lambert integration stops at opaque scene depth. Transparent
-            surfaces do not terminate rays. No shadow-map sampling or temporal history; thin
-            geometry may show half-resolution limitations. This is separate from the fake cone
-            beams.
+            Bounded Beer–Lambert integration supports half/full resolution and adaptive depth edges.
+            Nearest transparent-interface depth, directional shadows and temporal history are
+            opt-in. This is separate from the fake cone beams.
           </p>
         </details>
         <Button onClick={onReset}>Use authored post settings</Button>
@@ -267,21 +343,72 @@ export function previewPost(settings: RenderSettings, authored?: PostSettings): 
   );
 }
 export function SurfaceDialog({
+  images = [],
+  slots = [],
+  selectedSlot = "",
+  onSlot,
+  onResources,
+  onInspectUV,
   initial,
   onApply,
   onClose,
 }: {
+  images?: GraphicsImage[];
+  slots?: MaterialSlotInfo[];
+  selectedSlot?: string;
+  onSlot?: (key: string) => void;
+  onResources?: () => void;
+  onInspectUV?: (channel: 0 | 1) => UVInspection;
   initial?: Surface;
-  onApply: (surface: Surface, reusable: boolean) => void;
+  onApply: (surface: Surface, reusable: boolean) => void | Promise<void>;
   onClose: () => void;
 }) {
   const [value, setValue] = useState<Surface>(initial ?? { ...DEFAULT_SURFACE });
+  const [uvOpen, setUVOpen] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function save(reusable: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onApply(value, reusable);
+    } catch (error) {
+      setError(String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <Dialog
       title="Material surface"
-      description="PBR / unlit instance authoring. These controls replace all material slots on the selected entity; imported texture maps are not preserved by this scalar override."
+      description="Authored PBR/unlit materials with explicit map bindings. Choose an entity-wide override or one source-identified material slot. Unoverridden imported slots retain their original materials."
       onClose={onClose}
     >
+      {onSlot && (
+        <label>
+          Material target
+          <Select
+            aria-label="Material target"
+            value={selectedSlot}
+            disabled={busy}
+            onChange={(event) => onSlot(event.target.value)}
+          >
+            <option value="">Entire entity</option>
+            {slots.map((slot) => (
+              <option key={slot.key} value={slot.key}>
+                {slot.name} — UV0 {slot.uv0 ? "yes" : "no"}, UV1 {slot.uv1 ? "yes" : "no"},{" "}
+                {slot.vertices} vertices
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
+      {onResources && (
+        <Button disabled={busy} onClick={onResources}>
+          Manage graphics images…
+        </Button>
+      )}
       <label>
         Shading family
         <Select
@@ -290,7 +417,14 @@ export function SurfaceDialog({
           onChange={(e) => setValue({ ...value, family: e.target.value as Surface["family"] })}
         >
           <option value="pbr">PBR standard</option>
-          <option value="unlit">Unlit</option>
+          <option
+            value="unlit"
+            disabled={Object.keys(value.maps ?? {}).some(
+              (role) => !["color", "alpha"].includes(role),
+            )}
+          >
+            Unlit (clear PBR-only maps first)
+          </option>
         </Select>
       </label>
       {(["color", "emissive"] as const).map((key) => (
@@ -359,15 +493,26 @@ export function SurfaceDialog({
           onChange={(e) => setValue({ ...value, doubleSided: e.target.checked })}
         />
       </label>
+      {onInspectUV && (
+        <details onToggle={(event) => setUVOpen(event.currentTarget.open)}>
+          <summary>Inspect UV triangle layout</summary>
+          {uvOpen && <UVPreview inspect={onInspectUV} />}
+        </details>
+      )}
+      <TextureMaps value={value} images={images} onChange={setValue} />
+      {error && <p role="alert">{error} Previous working runtime retained.</p>}
       <p className="hint">
         Emissive is visible radiance, not a light. Blended surfaces have sorting limits and do not
-        cast opaque shadows by default. Texture/UV authoring is not included in this scalar surface
-        editor yet.
+        cast opaque shadows by default. Explicit overrides replace imported maps on their targeted
+        slots; bind the desired images above. A missing UV set rejects Apply instead of silently
+        falling back.
       </p>
       <footer>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={() => onApply(value, true)}>Save reusable material</Button>
-        <Button variant="primary" onClick={() => onApply(value, false)}>
+        <Button disabled={busy} onClick={() => void save(true)}>
+          Save reusable material
+        </Button>
+        <Button variant="primary" disabled={busy} onClick={() => void save(false)}>
           Apply instance override
         </Button>
       </footer>

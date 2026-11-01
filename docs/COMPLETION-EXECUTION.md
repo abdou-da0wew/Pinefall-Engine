@@ -1,6 +1,6 @@
 # Remaining-feature execution plan
 
-Written 2026-11-01 before the next implementation tranche. Status: in progress, not a completion declaration.
+Written 2026-11-01 before the next implementation tranche. Implementation plan; current results are recorded below.
 
 1. Documentation and attribution: audit all Markdown, distinguish current guides from historical records, correct stale workflows/limits/publication claims, add a tested tracked TypeScript commit-msg hook and documented installation. Preserve other co-authors and avoid duplicate trailers.
 2. Texture resources: define typed bounded image/HDR resources and reference bindings before adding controls; wire folder, PIF, snapshot, prefab and export ownership. Decode off the interaction path; validate dimensions before allocation; preserve the previous runtime on failures.
@@ -12,6 +12,6 @@ Written 2026-11-01 before the next implementation tranche. Status: in progress, 
 8. Gate matrix: schema/roundtrip/headless/standalone; pixel and GPU fixture tests for ORM, normal handedness, UV sets, slots, skinning, alpha, displacement and HDR; failed allocations and repeated context loss; timing measurements with clear software/hardware labels. Owner-deferred physical checks remain unverified.
 9. Update current guides and evidence after each implemented slice; version, commit with the configured co-author, push and publish appropriately labeled builds. Do not rewrite published history or mark unimplemented gates complete.
 
-## Execution checkpoint
+## Execution result — 0.7.0 candidate
 
-Home persistent folder cards and guarded session handoff implemented and exercised in the native restart workflow. Browser GLSL/uniform file exchange is implemented with trusted staged Apply and browser tests. Native unified PIF1–8 opening and authored TS/GLSL/shader-metadata/material registration are implemented and exercised in Electron. The remaining graphics stages and wider failure/race matrices are still pending. See CURRENT-STATUS.md for checkpoint verification.
+Stages 1–8 are implemented with the bounded contracts in [graphics authoring](GRAPHICS-AUTHORING.md). Native Home/legacy/raw opening, registration and external-file regression suites pass. Graphics pixel, failure, context, native authoring and production standalone gates pass; physical acceptance remains owner-deferred. Stage 9 documentation/version/artifact preparation is local; push/publication still requires the previously authorized transient credential, which is not available in the resumed environment. No public-release claim is made. See [current status](CURRENT-STATUS.md).

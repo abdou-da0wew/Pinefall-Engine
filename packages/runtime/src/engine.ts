@@ -1,3 +1,6 @@
+import { invalidateObjectGPU } from "../../assets/src/gpu-reset";
+import { materialSlots, inspectSlotUV } from "./material-slots";
+import { GraphicsImages } from "./graphics-images";
 import { acquireEnvironment, invalidateEnvironments, type EnvironmentLease } from "./environment";
 import { installDirectionalFit } from "./shadow-fit";
 import { ShaderCompiler, setShaderUniform } from "./shader-runtime";
@@ -43,6 +46,7 @@ import type { SceneDocument, Entity, RenderSettings, Primitive, Vec3 } from "./s
 import { registerBuiltins } from "./behaviors";
 import type { BehaviorFactory, Behavior } from "./behaviors";
 interface WorldResources {
+  images?: GraphicsImages;
   environment?: EnvironmentLease;
   animators: Map<string, AnimationGraphPlayer>;
   reservation?: Reservation;
@@ -56,6 +60,7 @@ interface WorldResources {
 }
 function disposeWorld(world: WorldResources) {
   world.environment?.release();
+  world.images?.dispose();
   for (const animator of world.animators.values()) animator.dispose();
   world.animators.clear();
   world.physics.dispose();
@@ -153,6 +158,7 @@ export class Engine {
   private runtimeSurfaces = new Map<string, Surface>();
   private contextLost = false;
   private environmentLease?: EnvironmentLease;
+  private graphicsImages?: GraphicsImages;
   private shadowFitFrame = 0;
   private shadowBoundsFrame = -1;
   private shadowBounds = new T.Box3();
@@ -244,6 +250,7 @@ export class Engine {
           shadowViews: engine.shadowViews,
           reasons: [
             ...engine.shadowReasons,
+            ...(engine.effects?.snapshot.scattering?.reasons ?? []),
             ...(engine.document?.graphics?.environment && !engine.environmentLease
               ? ["PMREM environment unavailable: floating-point render targets are unsupported."]
               : []),
@@ -282,12 +289,14 @@ export class Engine {
           };
         const next = parseSurface({ ...base, ...patch });
         const old = engine.materials.get("runtime:" + id);
+        if (JSON.stringify(next.maps) !== JSON.stringify(base.maps))
+          throw Error("Runtime texture bindings are immutable; stage authored changes with load()");
         const compatible =
           (next.family === "pbr" && old instanceof T.MeshStandardMaterial) ||
           (next.family === "unlit" && old instanceof T.MeshBasicMaterial);
         const material = compatible
           ? (old as T.MeshStandardMaterial | T.MeshBasicMaterial)
-          : surfaceMaterial(next);
+          : surfaceMaterial(next, engine.graphicsImages);
         if (compatible) updateSurface(material, next);
         engine.assignSurface(id, material, engine.liveWorld());
         if (old !== material) old?.dispose();
@@ -369,20 +378,71 @@ export class Engine {
   private assignSurface(id: string, material: T.Material, world: WorldResources) {
     world.objects.get(id)?.traverse((o) => {
       if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === id)
-        o.material = material;
+        o.material =
+          o.userData.pinefallSlotCount > 1
+            ? Array.from({ length: o.userData.pinefallSlotCount }, () => material)
+            : material;
     });
   }
+  inspectUV(id: string, key: string, channel: 0 | 1) {
+    const root = this.objects.get(id);
+    if (!root) throw Error("UV inspection target missing");
+    return inspectSlotUV(root, id, key, channel);
+  }
+  inspectMaterialSlots(id: string) {
+    const root = this.objects.get(id);
+    return root
+      ? materialSlots(root, id).map(({ mesh: _mesh, index: _index, ...info }) => info)
+      : [];
+  }
   private authoredSurface(e: Entity, doc: SceneDocument, world: WorldResources) {
+    const slots = materialSlots(world.objects.get(e.id)!, e.id);
     const surface =
       e.mesh?.surface ?? doc.graphics?.materials.find((m) => m.id === e.mesh?.material);
     if (surface) {
-      const material = surfaceMaterial(surface);
+      const material = surfaceMaterial(surface, world.images);
+      world.objects.get(e.id)?.traverse((object) => {
+        if (object instanceof T.Mesh && object.userData.entityId === e.id)
+          for (const binding of Object.values(surface.maps ?? {})) {
+            if (!object.geometry.getAttribute(binding.uv === 0 ? "uv" : "uv1")) {
+              material.dispose();
+              throw Error("Requested UV channel missing on " + e.name);
+            }
+          }
+      });
       world.materials.set("surface:" + e.id, material);
       this.assignSurface(e.id, material, world);
     }
+    for (const binding of e.mesh?.slots ?? []) {
+      const source =
+        e.mesh?.primitive === "asset"
+          ? doc.assets.find((asset) => asset.id === e.mesh?.asset)?.data
+          : "primitive:" + e.mesh?.primitive;
+      if (source !== binding.source)
+        throw Error("Material slots require review/remapping after model replacement");
+      const slot = slots.find((slot) => slot.key === binding.key);
+      if (!slot) throw Error("Authored material slot no longer exists");
+      const definition =
+        binding.surface ?? doc.graphics?.materials.find((m) => m.id === binding.material);
+      if (!definition) throw Error("Missing slot material");
+      for (const map of Object.values(definition.maps ?? {}))
+        if (!slot.mesh.geometry.getAttribute(map.uv === 0 ? "uv" : "uv1"))
+          throw Error("Requested UV channel is missing on slot " + binding.key);
+      const material = surfaceMaterial(definition, world.images);
+      world.materials.set("slot:" + e.id + ":" + binding.key, material);
+      const materials = Array.isArray(slot.mesh.material)
+        ? [...slot.mesh.material]
+        : Array.from(
+            { length: slot.mesh.userData.pinefallSlotCount },
+            () => slot.mesh.material as T.Material,
+          );
+      materials[slot.index] = material;
+      slot.mesh.material = materials.length === 1 ? materials[0] : materials;
+    }
     world.objects.get(e.id)?.traverse((o) => {
       if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === e.id) {
-        o.castShadow = e.mesh?.castShadow ?? surface?.alphaMode !== "blend";
+        const materials = Array.isArray(o.material) ? o.material : [o.material];
+        o.castShadow = e.mesh?.castShadow ?? materials.some((material) => !material.transparent);
         o.receiveShadow = e.mesh?.receiveShadow ?? true;
       }
     });
@@ -524,6 +584,12 @@ export class Engine {
       this.contextLost = true;
       this.shaderEpoch.abort();
       this.loadAbort?.abort();
+      this.effects?.dispose();
+      this.effects = null;
+      invalidateEnvironments(this.renderer);
+      this.graphicsImages?.invalidateGPU();
+      this.assetCache.invalidateGPU();
+      invalidateObjectGPU(this.scene);
       this.input.clear();
       this.audio.setPaused(true);
       this.events.emit("render", "WebGL context lost; rendering suspended; authored data retained");
@@ -538,7 +604,16 @@ export class Engine {
       invalidateEnvironments(this.renderer);
       this.environmentLease?.release();
       this.environmentLease = this.document?.graphics?.environment
-        ? acquireEnvironment(this.renderer, this.document.graphics.environment)
+        ? acquireEnvironment(
+            this.renderer,
+            this.document.graphics.environment,
+            this.document.graphics.environment.image
+              ? this.graphicsImages?.source(this.document.graphics.environment.image)
+              : undefined,
+            this.document.graphics.images?.find(
+              (image) => image.id === this.document.graphics?.environment?.image,
+            )?.data,
+          )
         : undefined;
       this.scene.environment = this.environmentLease?.texture ?? null;
       this.applySettings(this.settings);
@@ -552,7 +627,7 @@ export class Engine {
     });
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = T.PCFShadowMap;
     this.renderer.info.autoReset = false;
     const gl = this.renderer.getContext(),
       ext = gl.getExtension("WEBGL_debug_renderer_info");
@@ -811,8 +886,35 @@ export class Engine {
         imported: new Map(),
         beams: [],
       };
+      const imageIds = new Set<string>();
+      for (const entity of scene.entities) {
+        const surface =
+          entity.mesh?.surface ??
+          scene.graphics?.materials.find((material) => material.id === entity.mesh?.material);
+        for (const binding of Object.values(surface?.maps ?? {})) imageIds.add(binding.image);
+        for (const slot of entity.mesh?.slots ?? []) {
+          const material =
+            slot.surface ?? scene.graphics?.materials.find((m) => m.id === slot.material);
+          for (const binding of Object.values(material?.maps ?? {})) imageIds.add(binding.image);
+        }
+      }
+      if (scene.graphics?.environment?.image) imageIds.add(scene.graphics.environment.image);
+      world.images = await GraphicsImages.prepare(
+        scene.graphics?.images ?? [],
+        imageIds,
+        controller.signal,
+        scene.graphics?.environment?.resolution,
+      );
       if (scene.graphics?.environment)
-        world.environment = acquireEnvironment(this.renderer, scene.graphics.environment);
+        world.environment = acquireEnvironment(
+          this.renderer,
+          scene.graphics.environment,
+          scene.graphics.environment.image
+            ? world.images.source(scene.graphics.environment.image)
+            : undefined,
+          scene.graphics.images?.find((image) => image.id === scene.graphics?.environment?.image)
+            ?.data,
+        );
       let slice = performance.now();
       for (const e of scene.entities) {
         controller.signal.throwIfAborted();
@@ -846,8 +948,22 @@ export class Engine {
           slice = performance.now();
         }
       }
+      await world.images.upload(this.renderer, controller.signal);
       for (const e of scene.entities)
         if (e.parent) world.objects.get(e.parent)!.add(world.objects.get(e.id)!);
+      if (imageIds.size || scene.entities.some((entity) => entity.mesh?.slots?.length)) {
+        const warm = new T.Scene();
+        warm.environment = world.environment?.texture ?? null;
+        const sun = this.sun.clone(),
+          ambient = this.ambient.clone();
+        warm.add(world.root, sun, ambient);
+        try {
+          await this.renderer.compileAsync(warm, this.camera);
+        } finally {
+          warm.remove(world.root);
+          sun.shadow.dispose();
+        }
+      }
       controller.signal.throwIfAborted();
       if (this.dead || generation !== this.generation) return;
     } catch (error) {
@@ -897,6 +1013,7 @@ export class Engine {
     for (const [id, object] of world.objects) this.objects.set(id, object);
     this.worldReservation = world.reservation;
     this.environmentLease = world.environment;
+    this.graphicsImages = world.images;
     this.scene.environment = world.environment?.texture ?? null;
     this.scene.environmentIntensity = scene.graphics?.environment?.intensity ?? 1;
     this.physics = world.physics;
@@ -945,6 +1062,7 @@ export class Engine {
     return {
       reservation: this.worldReservation,
       environment: this.environmentLease,
+      images: this.graphicsImages,
       animators: this.animators,
       root: this.root,
       objects: this.objects,

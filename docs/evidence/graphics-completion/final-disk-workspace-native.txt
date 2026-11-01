@@ -1,0 +1,1 @@
+PASS native disk bridge: explicit folder grant, bounded read/write, external atomic-save watch, conflict protection, root/session confinement and shutdown

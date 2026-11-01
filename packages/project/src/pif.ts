@@ -1,3 +1,5 @@
+import { needsPIF9 } from "./graphics-format";
+import { inspectGraphicsImage } from "../../assets/src/graphics-images";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
 import { blobs, isBlobRef } from "../../assets/src/blobs";
 import { readAssetBytes } from "../../assets/src/glb";
@@ -16,7 +18,7 @@ export const PIF_EXPANDED_LIMIT = ARCHIVE_BYTES;
 const encoder = new TextEncoder(),
   decoder = new TextDecoder("utf-8", { fatal: true });
 const safePath = (s: string) =>
-  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|shaders\/[A-Za-z0-9_-]+\.(glsl|json)|audio\/[A-Za-z0-9_-]+\.wav)$/.test(
+  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|shaders\/[A-Za-z0-9_-]+\.(glsl|json)|audio\/[A-Za-z0-9_-]+\.wav|images\/[A-Za-z0-9_-]+\.(png|jpeg|hdr))$/.test(
     s,
   );
 export function writeTar(files: Map<string, Uint8Array>): Uint8Array {
@@ -171,6 +173,23 @@ export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8
   const graphics = checked.graphics
     ? {
         ...checked.graphics,
+        ...(checked.graphics.images
+          ? {
+              images: checked.graphics.images.map((image, i) => {
+                const file = `images/${i}.${image.format}`,
+                  bytes = read(image.data);
+                const info = inspectGraphicsImage(bytes);
+                if (
+                  info.format !== image.format ||
+                  info.width !== image.width ||
+                  info.height !== image.height
+                )
+                  throw Error("Image metadata mismatch");
+                files.set(file, bytes);
+                return { ...image, data: undefined, file };
+              }),
+            }
+          : {}),
         ...(checked.graphics.shaders
           ? {
               shaders: checked.graphics.shaders.map((shader, i) => {
@@ -204,28 +223,32 @@ export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8
     encoder.encode(
       JSON.stringify({
         format: "pinefall-project",
-        version: needsGraphicsFormat(checked)
-          ? 7
-          : checked.audio
-            ? 6
-            : checked.version === 3 || checked.entities.some((e) => e.animator)
-              ? 5
-              : checked.assets.some((a) => a.import?.version === 2)
-                ? 4
-                : checked.assets.some((a) => a.import)
-                  ? 3
-                  : 2,
-        minimumReader: needsGraphicsFormat(checked)
-          ? 7
-          : checked.audio
-            ? 6
-            : checked.version === 3 || checked.entities.some((e) => e.animator)
-              ? 5
-              : checked.assets.some((a) => a.import?.version === 2)
-                ? 4
-                : checked.assets.some((a) => a.import)
-                  ? 3
-                  : 2,
+        version: needsPIF9(checked)
+          ? 9
+          : needsGraphicsFormat(checked)
+            ? 7
+            : checked.audio
+              ? 6
+              : checked.version === 3 || checked.entities.some((e) => e.animator)
+                ? 5
+                : checked.assets.some((a) => a.import?.version === 2)
+                  ? 4
+                  : checked.assets.some((a) => a.import)
+                    ? 3
+                    : 2,
+        minimumReader: needsPIF9(checked)
+          ? 9
+          : needsGraphicsFormat(checked)
+            ? 7
+            : checked.audio
+              ? 6
+              : checked.version === 3 || checked.entities.some((e) => e.animator)
+                ? 5
+                : checked.assets.some((a) => a.import?.version === 2)
+                  ? 4
+                  : checked.assets.some((a) => a.import)
+                    ? 3
+                    : 2,
         scene: "scene.json",
         project: metadata,
       }),
@@ -266,7 +289,7 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3, 4, 5, 6, 7].includes(manifest.version) ||
+    ![1, 2, 3, 4, 5, 6, 7, 9].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
@@ -370,6 +393,38 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
       ...(provenance ? { import: provenance } : {}),
     };
   });
+  if (scene.graphics?.images !== undefined) {
+    if (
+      manifest.version !== 9 ||
+      !Array.isArray(scene.graphics.images) ||
+      scene.graphics.images.length > 32
+    )
+      throw Error("Images require PIF9");
+    let total = 0;
+    scene.graphics.images = scene.graphics.images.map((raw: unknown) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw))
+        throw Error("Invalid archived image");
+      const image = raw as Record<string, unknown>;
+      if ("data" in image || typeof image.file !== "string" || !image.file.startsWith("images/"))
+        throw Error("Image must reference an archive file");
+      const bytes = get(image.file),
+        info = inspectGraphicsImage(bytes);
+      total += bytes.length;
+      if (
+        total > 128 * 1024 * 1024 ||
+        info.format !== image.format ||
+        info.width !== image.width ||
+        info.height !== image.height
+      )
+        throw Error("Image metadata/budget mismatch");
+      return {
+        id: image.id,
+        name: image.name,
+        ...info,
+        data: "data:application/octet-stream;base64," + base64(bytes),
+      };
+    });
+  }
   if (scene.graphics?.shaders) {
     if (
       manifest.version < 7 ||
@@ -429,6 +484,7 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
     });
   if (used.size !== files.size) throw Error("Unreferenced PIF archive entries");
   if (refs.size && scene.version !== 3) scene.version = 2;
+  if (manifest.version !== 9 && needsPIF9(scene)) throw Error("Extended graphics require PIF9");
   return parseScene(scene);
 }
 export const PIF_VERSION = 7;
@@ -476,7 +532,7 @@ export async function sceneFromFiles(
     if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
     return decodeFiles(files);
   }
-  if (![2, 3, 4, 5, 6, 7].includes(manifest.version))
+  if (![2, 3, 4, 5, 6, 7, 9].includes(manifest.version))
     throw Error("Unsupported PIF manifest version");
   const proofBytes = files.get("integrity.json");
   if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");

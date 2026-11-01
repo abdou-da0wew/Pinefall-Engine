@@ -118,3 +118,7 @@ bun run game verify-pif my-game.pif --require-integrity
 
 CLI FBX conversion is not yet available: it currently uses the editor's worker
 image/GLTF export APIs. The standalone player loads cooked GLB, not original FBX.
+
+## 0.7.0 source update
+
+Texture/UV/packing/per-slot authoring, external HDR and advanced scattering are now implemented. Native opening additionally supports portable PIF9; raw-folder backups remain PIF8. See [current status](CURRENT-STATUS.md) and [graphics authoring](GRAPHICS-AUTHORING.md) for the current contract and release state; older checkpoint descriptions above are historical.

@@ -19,3 +19,7 @@ Git hooks are local configuration: each checkout must install them. Git's `--no-
 ## Documentation policy
 
 [Current status](CURRENT-STATUS.md) is the implementation index. Update user workflows, compatibility, SDK fields, limits, release links and evidence when code changes. Historical release notes, plans and acceptance records remain dated records; preserve their original results rather than rewriting history. Never turn an owner-deferred physical gate into a pass.
+
+## Production bundling memory
+
+Authored code, orchestration and tests remain TypeScript/Bun. Production Vite/Rollup runs through `scripts/build-vite.ts` using the vendored Vite entry under Node with a 1 GiB JS heap limit. Forcing that dependency tool through Bun exceeded the 2 GiB build sandbox after image workers were added; the bounded Node path builds successfully. Install Node alongside Bun for production builds. This tooling choice does not change Electron/game rendering, graphics settings or production sandbox policy.
