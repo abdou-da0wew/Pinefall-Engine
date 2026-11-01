@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("engineDesktop", {
   workspace: {
+    registerSource: (id: string, path: string, name: string) =>
+      ipcRenderer.invoke("workspace:register-source", id, path, name),
     recents: () => ipcRenderer.invoke("workspace:recents"),
     reopen: (id: string) => ipcRenderer.invoke("workspace:reopen", id),
     openFolderArchive: () => ipcRenderer.invoke("workspace:open-folder-archive"),

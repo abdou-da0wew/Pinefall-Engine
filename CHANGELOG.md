@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Unified native PIF1–8 opening with streamed legacy extraction, pre-conversion integrity checks, editable metadata migration, rollback and cancellation checks.
+- Explicit disk registration of TS/GLSL/shader-metadata/material sources and trusted staged selection of registered shaders. Watcher-owned validation avoids competing semantic-check jobs.
+- New Electron end-to-end coverage and legacy version/failure/cancellation fixtures; 162 tests / 986 assertions. Graphics completion/release remains pending.
+
 - Browser GLSL/uniform JSON import/export with bounded UTF-8 ingestion, explicit trust and staged Apply; failed compilation retains the previous authored/runtime shader. No embedded source editor.
 - Browser import/failure/export/reopen coverage and native workflow regression pass; current suite 157 tests / 936 assertions.
 

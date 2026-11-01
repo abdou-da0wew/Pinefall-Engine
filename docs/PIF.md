@@ -1,6 +1,6 @@
 # PIF project containers — legacy PIF1–7 and native PIF8
 
-**Native folder backups use streamed raw PIF8. Legacy scene/browser/export writers select PIF7 for graphics, v6 for audio, v5 for animator/root-motion, v4/v3 for provenance and v2 otherwise; legacy readers support v1–v7.** PIF8 currently has its own native Open raw folder PIF action. Older applications cannot read newer formats. The following manifest/resource discussion describes the legacy format unless explicitly labeled PIF8; the native raw format is documented below.
+**Native folder backups use streamed raw PIF8. Legacy scene/browser/export writers select PIF7 for graphics, v6 for audio, v5 for animator/root-motion, v4/v3 for provenance and v2 otherwise; legacy readers support v1–v7.** Native Open project now detects PIF1–8 and extracts into an explicitly empty working folder. Browser/standalone readers remain legacy PIF1–7. Older applications cannot read newer formats. The following manifest/resource discussion describes the legacy format unless explicitly labeled PIF8; the native raw format is documented below.
 
 A `.pif` is a real **XZ-compressed USTAR archive**, using LZMA2 preset 6 and CRC64. Higher presets are not automatically better for already compressed textures and require substantially more memory. Compression ratio depends on project content.
 
@@ -147,8 +147,14 @@ Portable export materializes and verifies disk references in the worker; machine
 
 ## Native raw-folder PIF8 checkpoint
 
-Folder-backed Save project now creates a streaming PIF8 archive. Use **Project → Project files & external tools → Open raw folder PIF** to extract it into an empty directory; the existing legacy Open project path is still for PIF1–7. Native repacking supports manual, interval and settled-change modes and a customizable shortcut. Recent folders and destinations are persisted locally.
+Folder-backed Save project now creates a streaming PIF8 archive. Use native **Open project** (Home, Project menu or Mod+O), or **Project files & external tools → Open project PIF**, to extract it into an empty directory. These routes detect PIF1–8; legacy v1–7 metadata is converted to the folder layout after integrity checks. Native repacking supports manual, interval and settled-change modes and a customizable shortcut. Recent folders and destinations are persisted locally.
 
 PIF8 is XZ-compressed TAR with a `folder.json` index and separate `files/N.bin` entries. The index records original relative paths, byte counts and SHA-256 digests. It preserves invalid JSON, unapplied code and unregistered files rather than serializing only the last valid runtime. Hidden files and `node_modules` are excluded; the destination archive must be outside the working directory. Limits are 512 MiB compressed/expanded, 10,000 files, a 4 MiB index and confined portable paths. The codec is worker-isolated and pull-based with 64 KiB chunks; decoder memory is limited to 256 MiB. Hashes and XZ checksums are not signatures or an authenticity guarantee.
 
 The legacy browser/export/snapshot codec remains PIF7 with its existing memory/entry constraints. PIF8 extraction does not execute code or implicitly Apply a pending working folder.
+
+### Legacy-to-folder conversion limits
+
+The native opener streams 64 KiB chunks, caps compressed/expanded transport at 512 MiB, and retains the 100-entry legacy inventory limit. It reads only bounded metadata/source text during conversion, not all model/source binaries into JavaScript memory. Legacy project metadata is capped at 16 KiB, integrity at 32 KiB, and scene JSON at 4 MiB. Converted catalogs are schema-checked using content-addressed binary references; runtime model/audio validation still occurs when resources are consumed. SHA-256 proves internal consistency, not authorship or trust. PIF1 has no integrity proof. The original PIF remains unchanged; PIF2–7 historical proof is retained with a warning under `migration/legacy-integrity.json` and is not a signature of the editable folder.
+
+Cancellation or rejection removes extraction-owned files only if their recorded hashes still match. Concurrent external edits are preserved; empty directories can remain after rollback. The explicit empty-directory requirement does not constitute an OS filesystem snapshot. Binary source fingerprints are rechecked before success. Native archives use a 128 MiB V8 worker budget and a cooperative deadline; WASM/OS memory is separate. Browser JSON/legacy archive import remains available in browser mode.

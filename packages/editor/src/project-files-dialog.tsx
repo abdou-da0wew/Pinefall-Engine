@@ -50,6 +50,7 @@ export function ProjectFilesDialog({
   const api = window.engineDesktop?.workspace;
   const [selected, setSelected] = useState(preferredFile ?? "scene.json");
   const [filter, setFilter] = useState("");
+  const [registrationName, setRegistrationName] = useState("");
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const [editor, setEditor] = useState<ExternalEditorKind>("system");
@@ -251,7 +252,7 @@ export function ProjectFilesDialog({
               disabled={busy}
               onClick={() => void perform(async () => adoptGrant(await api.openFolderArchive()))}
             >
-              Open raw folder PIF…
+              Open project PIF…
             </Button>
             {recents.map((record) => (
               <Button
@@ -396,6 +397,52 @@ export function ProjectFilesDialog({
               ))}
             </Select>
           </label>
+          <details>
+            <summary>Register existing authored source</summary>
+            <p>
+              Register a selected TypeScript module, GLSL fragment, shader metadata JSON, or
+              material JSON. Existing files stay in place. Uniform JSON is linked through shader
+              metadata, not registered alone. Registration updates the disk catalog only: validation
+              and Apply remain explicit; no code is executed.
+            </p>
+            <label>
+              Module / new shader name
+              <Input
+                aria-label="Registered source name"
+                value={registrationName}
+                placeholder={selected.split("/").at(-1) ?? ""}
+                onChange={(event) => setRegistrationName(event.target.value)}
+              />
+            </label>
+            <Button
+              disabled={
+                !session ||
+                busy ||
+                !files.includes(selected) ||
+                selected.endsWith(".d.ts") ||
+                !/\.(ts|glsl|json)$/.test(selected)
+              }
+              onClick={() =>
+                void perform(async () => {
+                  const owned = session!;
+                  onPending(null);
+                  await api.registerSource(
+                    owned.grant.id,
+                    selected,
+                    registrationName.trim() || selected.split("/").at(-1)!,
+                  );
+                  if (!mounted.current) return;
+                  // The root watcher owns validation; a parallel read would supersede its
+                  // semantic job and could present an older snapshot as the newest result.
+                  setMessage(
+                    "Source registered on disk. Review diagnostics, then Apply explicitly. Raw source was not overwritten.",
+                  );
+                })
+              }
+            >
+              Register selected source
+            </Button>
+          </details>
           <div className="script-toolbar">
             <Button
               disabled={!session || !files.includes(selected) || busy}

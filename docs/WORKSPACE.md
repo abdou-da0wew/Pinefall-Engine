@@ -64,3 +64,7 @@ The 0.4 Linux package also passed the existing script import/trust/physics-spawn
 ### Unreleased: Home working folders
 
 Desktop Home lists persisted working folders separately from browser snapshots. Opening a folder validates its registered sources and verifies hashes before handing the session to the editor. It does not grant script or shader trust. Invalid registered sources must be fixed externally before opening succeeds; raw PIF backups still preserve unregistered drafts.
+
+### Unreleased: unified native opening and registration
+
+Native Open project and Mod+O now open both legacy PIF1–7 and raw PIF8 through an empty-folder extraction workflow. Home validates before entering the editor; in-editor opening presents diagnostics and requires Apply. Project files → Register existing authored source adds externally created TS, GLSL, shader metadata and material JSON without replacing source files or granting execution trust. See [PIF conversion limits](PIF.md#legacy-to-folder-conversion-limits) and [source registration](SCRIPTING.md#registering-files-created-outside-pinefall).

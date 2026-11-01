@@ -1,3 +1,4 @@
+import { folderLayout } from "../../project/src/folder-format";
 import { ProjectFilesDialog } from "./project-files-dialog";
 import { FolderSession, type FolderSnapshot } from "../../project/src/folder-session";
 import {
@@ -396,6 +397,79 @@ function App({
         ? "External files have diagnostics; running code unchanged."
         : "Disk changes validated; open Project files to Apply explicitly.",
     );
+  }
+  async function openProjectPicker() {
+    const api = window.engineDesktop?.workspace;
+    if (!api) {
+      const input = file.current;
+      if (input?.showPicker) input.showPicker();
+      else input?.click();
+      return;
+    }
+    if (projectBusy || playing) return;
+    const before = current.current,
+      controller = new AbortController();
+    projectAbort.current = controller;
+    setProjectBusy(true);
+    let session: FolderSession | undefined,
+      adopted = false;
+    try {
+      const grant = await api.openFolderArchive();
+      if (!grant) return;
+      session = new FolderSession(api, grant);
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Project changed while opening archive");
+      const snapshot = await session.read(controller.signal);
+      session.layout = await folderLayout(snapshot.scene, snapshot.paths);
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Project changed while validating archive");
+      setFolderSession(session);
+      setFolderPending(snapshot);
+      setFilesOpen(true);
+      adopted = true;
+      setStatus(
+        "Project extracted and validated; review diagnostics and Apply explicitly. Code trust is not granted.",
+      );
+    } catch (error) {
+      setStatus(String(error));
+    } finally {
+      if (!adopted) session?.dispose();
+      if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
+    }
+  }
+  async function applyShaderBinding(id: string) {
+    if (!chosen?.mesh || playing || projectBusy || loadBusy || !engine.current)
+      throw Error("Stop and wait for the renderer before selecting a shader");
+    if (id && !engine.current.settings.allowCustomShaders)
+      throw Error("Enable trusted shader preview in Rendering before selecting a shader");
+    const before = current.current,
+      next = cloneScene(before),
+      target = next.entities.find((entity) => entity.id === chosen.id);
+    if (!target?.mesh) throw Error("Shader target changed");
+    target.mesh.shader = id || undefined;
+    const checked = parseScene(next),
+      controller = new AbortController();
+    folderApplyAbort.current = controller;
+    setProjectBusy(true);
+    try {
+      await engine.current.load(checked, {
+        preserveView: true,
+        strictShaders: true,
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Project changed during shader selection");
+      preloadedScene.current = checked;
+      history.current.commit(before);
+      current.current = checked;
+      setScene(checked);
+      setRevision((revision) => revision + 1);
+      setStatus("Registered shader selected after successful staged compilation.");
+    } finally {
+      if (folderApplyAbort.current === controller) folderApplyAbort.current = null;
+      setProjectBusy(false);
+    }
   }
   async function applyBrowserShader(source: ShaderSource, signal: AbortSignal) {
     if (
@@ -1186,9 +1260,7 @@ function App({
         "Open project",
         ["Mod+O"],
         () => {
-          const input = file.current;
-          if (input?.showPicker) input.showPicker();
-          else input?.click();
+          void openProjectPicker();
         },
         editReason,
       ),
@@ -1914,7 +1986,7 @@ function App({
             </MenuItem>
             <MenuItem
               disabled={playing || projectBusy || homeBusy}
-              onSelect={() => file.current?.click()}
+              onSelect={() => void openProjectPicker()}
             >
               Open project…
             </MenuItem>
@@ -2344,6 +2416,34 @@ function App({
                       >
                         Remove instance surface override
                       </Button>
+                    )}
+                    {!!scene.graphics?.shaders?.length && (
+                      <label>
+                        Registered shader
+                        <Select
+                          aria-label="Registered shader"
+                          disabled={
+                            playing || projectBusy || loadBusy || !settings.allowCustomShaders
+                          }
+                          value={chosen.mesh.shader ?? ""}
+                          onChange={(event) =>
+                            void applyShaderBinding(event.target.value).catch((error) =>
+                              setStatus(String(error)),
+                            )
+                          }
+                        >
+                          <option value="">No custom shader</option>
+                          {scene.graphics.shaders.map((shader) => (
+                            <option key={shader.id} value={shader.id}>
+                              {shader.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <small>
+                          Selection compiles and applies explicitly; enable trusted shader preview
+                          in Rendering first.
+                        </small>
+                      </label>
                     )}
                     <Button disabled={playing} onClick={() => setShaderEditor(true)}>
                       Custom shader…

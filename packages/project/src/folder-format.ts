@@ -225,7 +225,7 @@ export async function readFolder(reader: FolderReader): Promise<SceneDocument> {
     const imported = asset.import === undefined ? undefined : object(asset.import);
     if (imported) {
       const sources = [];
-      for (const [index, source] of inventory(imported.sources, 32).entries()) {
+      for (const [index, source] of inventory(imported.sources, 33).entries()) {
         binding(`source:${asset.id}:${index}`, source.file);
         if ("data" in source) throw Error("Folder sources must be separate files");
         const data = await binary(source.file);

@@ -14,4 +14,4 @@ Written 2026-11-01 before the next implementation tranche. Status: in progress, 
 
 ## Execution checkpoint
 
-Home persistent folder cards and guarded session handoff implemented and exercised in the native restart workflow. Browser GLSL/uniform file exchange is implemented with trusted staged Apply and browser tests. Unified opening, registration and the remaining graphics stages are still pending. See CURRENT-STATUS.md for checkpoint verification.
+Home persistent folder cards and guarded session handoff implemented and exercised in the native restart workflow. Browser GLSL/uniform file exchange is implemented with trusted staged Apply and browser tests. Native unified PIF1–8 opening and authored TS/GLSL/shader-metadata/material registration are implemented and exercised in Electron. The remaining graphics stages and wider failure/race matrices are still pending. See CURRENT-STATUS.md for checkpoint verification.

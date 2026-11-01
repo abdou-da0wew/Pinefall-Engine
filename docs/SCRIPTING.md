@@ -177,3 +177,9 @@ Limits: 32 script assets, 64,000 source characters per script, 512,000 combined 
 ## Game UI SDK (0.5.0)
 
 Scripts now expose `ctx.ui` for typed widget queries, creation/removal, text/value/style changes, visibility, interaction events and named actions. It works in `start`, `fixedUpdate`, `update`, `trigger`, and event callbacks, both graphically and headlessly. UI subscriptions clean up with their attachment; Play-time UI changes reset on Stop. See [Game UI toolkit](UI-TOOLKIT.md) for the full API, editor workflow, runnable UI Lab and limitations.
+
+## Registering files created outside Pinefall
+
+In desktop Project files, select a file and expand **Register existing authored source**. Supply a unique module/new-shader name, then **Register selected source**. `.ts` modules and `.glsl` fragments keep their existing paths. GLSL registration creates separate uniform and metadata JSON files with the default `uTint` declaration; edit those externally for other uniforms. Existing shader metadata JSON (`id`, `name`, `version`, `source`, `uniforms`) and material asset JSON can also be registered. Existing metadata supplies its own ID/name. Declaration files and SDK files are not runtime modules. A uniform JSON file alone is not a separately registered asset.
+
+Registration modifies only the disk catalog; automatic validation follows and explicit Apply is still required. It never runs top-level TypeScript or attaches a shader. Registered shaders are selectable in the mesh Inspector after explicit Rendering trust, and selection stages compilation before replacing the working runtime. Invalid source remains on disk for correction and raw PIF8 backup. Models/audio continue through their existing import paths, not this source-registration control.

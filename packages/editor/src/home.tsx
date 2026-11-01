@@ -1,5 +1,5 @@
 import { FolderSession } from "../../project/src/folder-session";
-import type { FolderRecent } from "../../project/src/disk-api";
+import type { DiskProjectGrant, FolderRecent } from "../../project/src/disk-api";
 import type { GraphicsPreferences, GraphicsState } from "./graphics";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
 /* oxlint-disable react/refs -- Event handler ref keeps keyboard routing current without reattaching listeners. */
@@ -251,7 +251,7 @@ export function Home({
       label: "Open project",
       keys: ["Mod+O"],
       disabled: busy ? "Project operation in progress" : undefined,
-      run: () => file.current?.click(),
+      run: () => openProjectPicker(),
     },
     {
       id: "save",
@@ -299,7 +299,15 @@ export function Home({
       .then(setFolders)
       .catch((error) => setError(String(error)));
   }, [recovery]);
-  async function openFolder(id: string) {
+  function openProjectPicker() {
+    const api = window.engineDesktop?.workspace;
+    if (api) void openWorkingFolder(() => api.openFolderArchive());
+    else file.current?.click();
+  }
+  function openFolder(id: string) {
+    return openWorkingFolder(() => window.engineDesktop!.workspace.reopen(id));
+  }
+  async function openWorkingFolder(choose: () => Promise<DiskProjectGrant | null>) {
     const api = window.engineDesktop?.workspace;
     if (!api || busy) return;
     setBusy(true);
@@ -307,8 +315,9 @@ export function Home({
     let adopted = false;
     let candidate: FolderSession | undefined;
     try {
-      const grant = await api.reopen(id),
-        session = new FolderSession(api, grant);
+      const grant = await choose();
+      if (!grant) return;
+      const session = new FolderSession(api, grant);
       if (!mounted.current) {
         session.dispose();
         throw Error("Home closed during folder opening");
@@ -436,7 +445,7 @@ export function Home({
                 variant="secondary"
                 size="lg"
                 disabled={busy}
-                onClick={() => file.current?.click()}
+                onClick={() => openProjectPicker()}
               >
                 <Icon name="folderOpen" /> Open project
               </Button>

@@ -32,7 +32,7 @@ Verification: 157 unit tests / 936 assertions; typecheck/lint (237 files); deskt
 
 Texture-map authoring, UV inspection/transforms, channel-packing tools, per-slot material authoring and displacement coverage; external HDR images; broader graphics fixture/failure/timing coverage. Scattering currently does not terminate at transparent surfaces, sample light shadow maps, or retain temporal history; thin geometry has half-resolution limitations.
 
-Folder follow-ups: unified legacy/PIF8 opening, comprehensive new-source registration and further transition-race coverage. See [completion execution plan](COMPLETION-EXECUTION.md).
+Folder follow-ups: further transition-race and large/adversarial fixture coverage. Native unified PIF opening and authored-source registration were implemented after the browser shader checkpoint; see below. See [completion execution plan](COMPLETION-EXECUTION.md).
 
 ## Evidence and acceptance
 
@@ -45,3 +45,11 @@ Physical AMD CEDAR/Windows, listening, timing and independent acceptance remain 
 - [Folder workflow](DISK-PROJECTS-IMPLEMENTATION.md), [PIF compatibility](PIF.md), [scripting](SCRIPTING.md), [graphics SDK](GRAPHICS-SDK.md), [shortcuts](SHORTCUTS.md).
 - [Contribution setup and co-author hook](CONTRIBUTING.md).
 - Original plans and historical release notes retain their original scope/results and are labeled accordingly; they must not be used as current feature inventories.
+
+## Unified opening and authored-source registration — unreleased
+
+Native Home Open project, editor Open project / Mod+O, and Project files → Open project PIF now use the same bounded opener. It detects raw PIF8 or streams legacy PIF1–7 files into an explicitly empty destination. Legacy v2–7 per-file/root hashes are checked before metadata conversion; v1 remains unsigned/unverified. Inline materials and shader metadata become editable files while binary resources stay on disk. Unregistered/invalid raw PIF8 drafts are preserved. Original input archives are not modified. Historical legacy integrity proof is labeled under `migration/`.
+
+Project files can register existing `.ts` modules, `.glsl` fragments, shader metadata JSON and material JSON. Registration preserves source paths/bytes and writes the scene catalog last with compare-and-swap checks. Generated wrappers are cleaned up on failure unless externally edited. Registration does not execute or attach code; the watcher owns validation and Apply remains explicit. Uniform JSON belongs to a shader metadata reference, not a standalone asset. Binary models/audio still use their existing import pipelines; this is not an arbitrary-file-to-runtime importer. Registered shaders can be selected in the Inspector with trusted staged compilation.
+
+Validation: 162 unit tests / 986 assertions, 243 linted files, desktop build, actual Electron Home legacy opening → TS/GLSL registration → shader selection → editor PIF8 reopening, and full native external-workflow/restart regression. Unit coverage includes versions 1–7, hash failures, unknown resources, minimum-reader rejection and mid-upload cancellation. No new release is published; broader graphics completion is still required. [Evidence](evidence/unified-sources/README.md).

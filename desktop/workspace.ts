@@ -1,3 +1,4 @@
+import { registerProjectSource } from "../packages/project/src/source-registration";
 import { FolderHistory } from "./folder-history";
 import { Worker } from "node:worker_threads";
 import type { FolderRecent, RepackSettings } from "../packages/project/src/disk-api";
@@ -214,24 +215,32 @@ export function installWorkspaceBridge(win: BrowserWindow, preferences: string) 
     schedule();
     return status();
   });
+  let openingArchive = false;
   ipcMain.handle("workspace:open-folder-archive", async (event) => {
-    guard(event);
-    const cancellation = archiveCancellation;
-    if (archiveWorker) throw Error("Archive operation already running");
-    const input = await dialog.showOpenDialog(win, {
-      title: "Open raw folder archive (PIF8)",
-      properties: ["openFile"],
-      filters: [{ name: "Pinefall folder archive", extensions: ["pif"] }],
-    });
-    if (input.canceled || !input.filePaths[0]) return null;
-    const output = await dialog.showOpenDialog(win, {
-      title: "Choose an empty extraction folder",
-      properties: ["openDirectory", "createDirectory"],
-    });
-    if (output.canceled || !output.filePaths[0]) return null;
-    if (cancellation !== archiveCancellation) throw Error("Archive selection cancelled");
-    await runArchive(output.filePaths[0], input.filePaths[0], "unpack");
-    return activate(output.filePaths[0]);
+    if (openingArchive) throw Error("Project archive selection already open");
+    openingArchive = true;
+    try {
+      guard(event);
+      const cancellation = archiveCancellation;
+      if (archiveWorker) throw Error("Archive operation already running");
+      const input = await dialog.showOpenDialog(win, {
+        title: "Open Pinefall project (PIF1–8)",
+        properties: ["openFile"],
+        filters: [{ name: "Pinefall folder archive", extensions: ["pif"] }],
+      });
+      if (input.canceled || !input.filePaths[0]) return null;
+      if (cancellation !== archiveCancellation) throw Error("Archive selection cancelled");
+      const output = await dialog.showOpenDialog(win, {
+        title: "Choose an empty extraction folder",
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (output.canceled || !output.filePaths[0]) return null;
+      if (cancellation !== archiveCancellation) throw Error("Archive selection cancelled");
+      await runArchive(output.filePaths[0], input.filePaths[0], "unpack");
+      return await activate(output.filePaths[0]);
+    } finally {
+      openingArchive = false;
+    }
   });
   ipcMain.handle("workspace:ide-kit", async (event, id: unknown) => {
     const disk = get(event, id);
@@ -261,6 +270,9 @@ export function installWorkspaceBridge(win: BrowserWindow, preferences: string) 
     "workspace:read",
     (event, id: unknown, path: string, offset: number, length: number) =>
       get(event, id).read(path, offset, length),
+  );
+  ipcMain.handle("workspace:register-source", (event, id: unknown, path: string, name: string) =>
+    registerProjectSource(get(event, id), path, name),
   );
   ipcMain.handle("workspace:hash", (event, id: unknown, path: string) =>
     get(event, id).fingerprint(path),

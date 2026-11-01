@@ -47,7 +47,8 @@
     "generate:materials-reference": "bun scripts/generate-materials-reference.ts",
     "hooks:install": "bun scripts/install-hooks.ts",
     "prepare": "bun scripts/install-hooks.ts",
-    "test:shader-files": "bun tests/shader-files-browser.ts"
+    "test:shader-files": "bun tests/shader-files-browser.ts",
+    "test:unified-sources-native": "xvfb-run -a bun tests/unified-sources-native.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

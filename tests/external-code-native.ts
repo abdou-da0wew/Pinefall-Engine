@@ -173,7 +173,7 @@ try {
     .getByRole("menuitem", { name: "Project files & external tools…", exact: true })
     .click();
   await page.getByText("Folder archives, repacking and recent folders", { exact: true }).click();
-  await page.getByRole("button", { name: "Open raw folder PIF…", exact: true }).click();
+  await page.getByRole("button", { name: "Open project PIF…", exact: true }).click();
   await expect
     .poll(async () => await readFile(join(unpacked, "shaders", shader), "utf8").catch(() => ""), {
       timeout: 30000,

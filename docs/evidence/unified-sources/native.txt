@@ -1,0 +1,1 @@
+PASS native unified opening: Home legacy PIF, editor raw PIF8, preserved files, TS/GLSL registration, explicit Apply without execution, registered shader selection and staged compilation

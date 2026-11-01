@@ -40,6 +40,11 @@ export interface DiskProjectChange {
 }
 /** Only the native folder picker grants a session. Paths are relative to that grant. */
 export interface DiskProjectAPI {
+  registerSource(
+    id: string,
+    path: string,
+    name: string,
+  ): Promise<{ kind: "script" | "shader" | "material"; path: string; id: string }>;
   recents(): Promise<FolderRecent[]>;
   reopen(id: string): Promise<DiskProjectGrant>;
   openFolderArchive(): Promise<DiskProjectGrant | null>;
