@@ -1,3 +1,4 @@
+import { Button, Input } from "./ui";
 import { useState, useRef, useEffect, useLayoutEffect, useId, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./icons";
@@ -36,7 +37,7 @@ export function ColorPicker({
   }, []);
   return (
     <>
-      <button
+      <Button
         ref={anchor}
         type="button"
         className="color-trigger"
@@ -48,7 +49,7 @@ export function ColorPicker({
       >
         <span style={{ background: value }} />
         <code>{value.toUpperCase()}</code>
-      </button>
+      </Button>
       {open && !disabled && (
         <ColorDialog
           key={value}
@@ -190,9 +191,9 @@ function ColorDialog({
           <small>COLOR STUDIO</small>
           <h3 id={title}>{label}</h3>
         </div>
-        <button aria-label="Close color picker" type="button" onClick={close}>
+        <Button aria-label="Close color picker" type="button" onClick={close}>
           <Icon name="close" />
-        </button>
+        </Button>
       </header>
       <div
         className="color-sv"
@@ -239,7 +240,7 @@ function ColorDialog({
       </div>
       <label className="color-hue-label">
         Hue <span>{Math.round(hsv.h)}°</span>
-        <input
+        <Input
           className="color-hue"
           aria-label="Hue"
           type="range"
@@ -251,7 +252,7 @@ function ColorDialog({
         />
       </label>
       <div className="color-preview">
-        <button
+        <Button
           title="Restore original color"
           aria-label="Restore original color"
           type="button"
@@ -267,7 +268,7 @@ function ColorDialog({
       </div>
       <label className="color-hex">
         HEX
-        <input
+        <Input
           ref={hexInput}
           aria-label="Hex color"
           value={hex}
@@ -303,7 +304,7 @@ function ColorDialog({
         {["R", "G", "B"].map((name, i) => (
           <label key={name}>
             {name}
-            <input
+            <Input
               aria-label={"Color " + name}
               type="number"
               min={0}
@@ -337,7 +338,7 @@ function ColorDialog({
       </div>
       <div className="color-palette" aria-label="Pinefall palette">
         {palette.map((color) => (
-          <button
+          <Button
             key={color}
             aria-label={"Use " + color}
             title={color}
@@ -357,10 +358,10 @@ function ColorDialog({
         </p>
       )}
       <footer>
-        <button type="button" onClick={close}>
+        <Button type="button" onClick={close}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           className="color-apply"
           disabled={!!error}
           type="button"
@@ -368,7 +369,7 @@ function ColorDialog({
         >
           <Icon name="check" />
           Apply color
-        </button>
+        </Button>
       </footer>
     </div>,
     document.body,

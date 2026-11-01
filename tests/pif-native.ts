@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 import { packProject, unpackProject } from "../packages/project/src/pif";
 import { parseScene } from "../packages/runtime/src/schema";
@@ -15,6 +16,7 @@ try {
   const page = await app.firstWindow();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const scene = parseScene(await Bun.file("examples/projects/ui-lab.scene.json").json()),
     bytes = await packProject(scene);

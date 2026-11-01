@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { mkdtemp, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { chromium, expect, _electron } from "@playwright/test";
@@ -56,6 +57,7 @@ try {
     };
   });
   if (app) {
+    await enterEditor(page);
     await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
     await app.evaluate(async ({ BrowserWindow, app }) => {
       await BrowserWindow.getAllWindows()[0].loadFile(app.getAppPath() + "/dist/game.html");

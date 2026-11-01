@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium, expect, _electron } from "@playwright/test";
 import { rootMotionScene } from "./animator-fixtures";
 import { packProject } from "../packages/project/src/pif";
@@ -81,6 +82,7 @@ try {
     console.log("PASS root-motion browser/headless/wall/rollback:", JSON.stringify(result));
     await page.goto(base);
   }
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const { scene } = await rootMotionScene(),
     bytes = await packProject(scene);

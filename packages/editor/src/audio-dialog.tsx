@@ -1,3 +1,5 @@
+import { Panel } from "./ui";
+import { Button, Input, Select, Textarea } from "./ui";
 import { blobs } from "../../assets/src/blobs";
 import { assetMemory } from "../../assets/src/budget";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -27,13 +29,13 @@ function CueEditor({
     ),
     [error, setError] = useState("");
   return (
-    <section>
+    <Panel>
       <h3>Cues and bus definitions</h3>
       <p>
         Use retained asset IDs below. Marker bindings live on an entity’s <code>audioCues</code>{" "}
         map. No code is evaluated here.
       </p>
-      <textarea
+      <Textarea
         aria-label="Audio cue definitions"
         rows={12}
         spellCheck={false}
@@ -41,7 +43,7 @@ function CueEditor({
         disabled={disabled}
         onChange={(e) => setDraft(e.target.value)}
       />
-      <button
+      <Button
         disabled={disabled}
         onClick={() => {
           try {
@@ -56,9 +58,9 @@ function CueEditor({
         }}
       >
         Apply audio definitions
-      </button>
+      </Button>
       {error && <p role="alert">{error}</p>}
-    </section>
+    </Panel>
   );
 }
 function MarkerBindings({
@@ -77,7 +79,7 @@ function MarkerBindings({
     <details>
       <summary>Animation marker bindings</summary>
       <p>Bindings apply to every clip using the same marker ID.</p>
-      <select
+      <Select
         aria-label="Audio marker clip"
         value={clip}
         onChange={(event) => setClip(event.target.value)}
@@ -85,11 +87,11 @@ function MarkerBindings({
         {Object.keys(entity.animator!.clips).map((id) => (
           <option key={id}>{id}</option>
         ))}
-      </select>
+      </Select>
       {(entity.animator!.clips[clip]?.markers ?? []).map((marker) => (
         <label key={marker.id}>
           {marker.id} · {marker.time}s
-          <select
+          <Select
             aria-label={"Audio cue for marker " + marker.id}
             value={entity.audioCues?.[marker.id] ?? ""}
             disabled={disabled}
@@ -107,7 +109,7 @@ function MarkerBindings({
             {audio.cues.map((cue) => (
               <option key={cue.id}>{cue.id}</option>
             ))}
-          </select>
+          </Select>
         </label>
       ))}
     </details>
@@ -181,7 +183,7 @@ export function AudioDialog({
           <small>PROJECT AUDIO</small>
           <h2>Audio studio</h2>
         </div>
-        <button onClick={close}>Close audio studio</button>
+        <Button onClick={close}>Close audio studio</Button>
       </header>
       <p>
         Buffered PCM16 WAV · 16 assets · 8 MB encoded-source budget · 32 MiB decoded PCM · 24 voices
@@ -189,7 +191,7 @@ export function AudioDialog({
         streams.
       </p>
       <label>
-        <input
+        <Input
           type="checkbox"
           checked={streaming}
           onChange={(e) => setStreaming(e.target.checked)}
@@ -199,7 +201,7 @@ export function AudioDialog({
       <div className="audio-actions">
         <label>
           Import WAV
-          <input
+          <Input
             aria-label="Import WAV"
             type="file"
             accept=".wav"
@@ -251,7 +253,7 @@ export function AudioDialog({
             }}
           />
         </label>
-        <button
+        <Button
           disabled={busy || loading}
           onClick={async () => {
             setBusy(true);
@@ -269,8 +271,8 @@ export function AudioDialog({
           }}
         >
           Unlock audio
-        </button>
-        <button
+        </Button>
+        <Button
           disabled={!selected || busy || loading}
           onClick={() => {
             const result = engine.audio.preview(selected);
@@ -278,19 +280,19 @@ export function AudioDialog({
           }}
         >
           Preview selected audio
-        </button>
-        <button onClick={() => engine.audio.stopPreviews()}>Stop all previews</button>
+        </Button>
+        <Button onClick={() => engine.audio.stopPreviews()}>Stop all previews</Button>
       </div>
-      <button disabled={!selected || disabled || busy} onClick={() => setRemove(selected)}>
+      <Button disabled={!selected || disabled || busy} onClick={() => setRemove(selected)}>
         Remove selected asset…
-      </button>
+      </Button>
       {remove && (
-        <section role="alert">
+        <Panel role="alert">
           <p>
             Remove this asset, its cues, and their entity marker bindings? Undo can restore the
             authored project.
           </p>
-          <button
+          <Button
             disabled={disabled || busy}
             onClick={() => {
               commit((s) => {
@@ -310,17 +312,17 @@ export function AudioDialog({
             }}
           >
             Confirm remove audio
-          </button>
-          <button onClick={() => setRemove(undefined)}>Keep asset</button>
-        </section>
+          </Button>
+          <Button onClick={() => setRemove(undefined)}>Keep asset</Button>
+        </Panel>
       )}
       <p role="status">
         {status} · Device: {engine.audio.stats.state}
       </p>
       <div className="audio-columns">
-        <section>
+        <Panel>
           <h3>Assets</h3>
-          <select
+          <Select
             aria-label="Audio asset"
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
@@ -331,7 +333,7 @@ export function AudioDialog({
                 {a.name}
               </option>
             ))}
-          </select>
+          </Select>
           <ul>
             {audio.assets.map((a) => (
               <li key={a.id}>
@@ -357,7 +359,7 @@ export function AudioDialog({
           {audioBuses.map((bus) => (
             <label key={bus}>
               {bus}
-              <input
+              <Input
                 aria-label={"Audio bus " + bus}
                 type="range"
                 min="-80"
@@ -375,23 +377,23 @@ export function AudioDialog({
               />
             </label>
           ))}
-          <button
+          <Button
             onClick={() => {
               for (const bus of audioBuses) engine.audio.setBusGain(bus, -80);
               setStatus("All audition buses muted.");
             }}
           >
             Mute all buses
-          </button>
+          </Button>
           <p>
             Game pause holds game voices at their logical cursor; the UI bus stays responsive.
             Closing this studio stops previews.
           </p>
-        </section>
-        <section>
+        </Panel>
+        <Panel>
           <label>
             Emitter
-            <select
+            <Select
               aria-label="Audio marker entity"
               value={emitter}
               onChange={(e) => setEmitter(e.target.value)}
@@ -404,7 +406,7 @@ export function AudioDialog({
                     {e.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           {actor && (
             <MarkerBindings
@@ -421,7 +423,7 @@ export function AudioDialog({
             disabled={disabled || busy}
             apply={apply}
           />
-        </section>
+        </Panel>
       </div>
     </dialog>,
     document.body,

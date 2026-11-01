@@ -1,3 +1,5 @@
+import { Panel, Dialog } from "./ui";
+import { Button, Input, Select } from "./ui";
 import { useState } from "react";
 import type { AssetImport } from "../../assets/src/record";
 import { reconcileSubassets } from "../../assets/src/record";
@@ -42,29 +44,20 @@ export function ReimportReview({
     duplicate = new Set(ids).size !== ids.length;
   const removed = previous?.subassets.filter((e) => !ids.includes(e.id)) || [];
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Review reimport"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 10000,
-        background: "#000b",
-        display: "grid",
-        placeItems: "center",
-      }}
+    <Dialog
+      title="Review reimport"
+      className="pf-reimport-dialog"
+      onClose={() => finish(undefined)}
     >
-      <section
+      <Panel
         style={{
           background: "#20262b",
           padding: 24,
-          width: "min(700px,90vw)",
+          width: "100%",
           maxHeight: "85vh",
           overflow: "auto",
         }}
       >
-        <h2>Review reimport</h2>
         <p>
           Entity transforms and model ID stay unchanged. Explicitly map renamed or ambiguous nodes,
           meshes, skeletons, materials and clips; nothing is matched by array order.
@@ -82,15 +75,15 @@ export function ReimportReview({
           Identities {page * 8 + 1}–{Math.min(page * 8 + 8, entries.length)} of {entries.length}.
           Choices on other pages are retained.
         </p>
-        <button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+        <Button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
           Previous identities
-        </button>
-        <button disabled={(page + 1) * 8 >= entries.length} onClick={() => setPage((p) => p + 1)}>
+        </Button>
+        <Button disabled={(page + 1) * 8 >= entries.length} onClick={() => setPage((p) => p + 1)}>
           Next identities
-        </button>
+        </Button>
         <label>
           Find previous identity{" "}
-          <input
+          <Input
             aria-label="Find previous identity"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -103,7 +96,7 @@ export function ReimportReview({
         {entries.slice(page * 8, page * 8 + 8).map((e) => (
           <label key={e.kind + e.key} style={{ display: "block", margin: "12px 0" }}>
             {e.kind} · {e.key}
-            <select
+            <Select
               aria-label={e.kind + " " + e.key}
               value={mapping[e.kind + ":" + e.key]}
               onChange={(event) =>
@@ -117,7 +110,7 @@ export function ReimportReview({
                   Retain {old.key} · {old.id.slice(0, 8)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ))}
         <p>
@@ -132,11 +125,11 @@ export function ReimportReview({
         {incoming.report.warnings.map((warning, i) => (
           <p key={i}>{warning}</p>
         ))}
-        <button onClick={() => finish(undefined)}>Cancel reimport</button>{" "}
-        <button disabled={duplicate} onClick={() => finish(mapping)}>
+        <Button onClick={() => finish(undefined)}>Cancel reimport</Button>{" "}
+        <Button disabled={duplicate} onClick={() => finish(mapping)}>
           Apply reimport
-        </button>
-      </section>
-    </div>
+        </Button>
+      </Panel>
+    </Dialog>
   );
 }

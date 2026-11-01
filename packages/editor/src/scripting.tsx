@@ -1,3 +1,5 @@
+import { Panel } from "./ui";
+import { Button, Input, Select, Textarea } from "./ui";
 import { Icon } from "./icons";
 import { useRef, useState } from "react";
 import type { Entity, SceneDocument } from "../../runtime/src/schema";
@@ -56,22 +58,22 @@ export function ScriptPanel({
   return (
     <div className="script-workbench">
       <div className="script-list">
-        <button disabled={disabled} onClick={() => add()}>
+        <Button disabled={disabled} onClick={() => add()}>
           <Icon name="plus" /> New TypeScript
-        </button>
-        <button disabled={disabled} onClick={() => input.current?.click()}>
+        </Button>
+        <Button disabled={disabled} onClick={() => input.current?.click()}>
           <Icon name="upload" /> Import .ts
-        </button>
+        </Button>
         {scene.scripts?.map((s) => (
-          <button
+          <Button
             className={s.id === selectedId ? "active" : ""}
             key={s.id}
             onClick={() => onSelect(s.id)}
           >
             {s.name}
-          </button>
+          </Button>
         ))}
-        <input
+        <Input
           type="file"
           accept=".ts"
           hidden
@@ -92,20 +94,20 @@ export function ScriptPanel({
         {asset ? (
           <>
             <div className="script-toolbar">
-              <input
+              <Input
                 aria-label="Script filename"
                 value={name}
                 disabled={disabled}
                 onChange={(e) => setName(e.target.value)}
               />
-              <button disabled={disabled} onClick={check}>
+              <Button disabled={disabled} onClick={check}>
                 Check syntax
-              </button>
-              <button disabled={disabled} onClick={save}>
+              </Button>
+              <Button disabled={disabled} onClick={save}>
                 Save script
-              </button>
-              <button onClick={() => void exportText(name, draft)}>Export .ts</button>
-              <button
+              </Button>
+              <Button onClick={() => void exportText(name, draft)}>Export .ts</Button>
+              <Button
                 disabled={disabled}
                 onClick={() => {
                   commit((s) => {
@@ -117,9 +119,9 @@ export function ScriptPanel({
                 }}
               >
                 Delete
-              </button>
+              </Button>
             </div>
-            <textarea
+            <Textarea
               aria-label="TypeScript source"
               spellCheck={false}
               disabled={disabled}
@@ -171,11 +173,11 @@ export function ScriptAttachments({
 }) {
   const [message, setMessage] = useState("");
   return (
-    <section>
+    <Panel>
       <h3>
         <Icon name="code" /> Custom scripts
       </h3>
-      <select
+      <Select
         aria-label="Attach script"
         value=""
         disabled={disabled}
@@ -194,12 +196,12 @@ export function ScriptAttachments({
             {s.name}
           </option>
         ))}
-      </select>
+      </Select>
       {entity.scripts?.map((a) => (
         <div className="script-attachment" key={a.id}>
           <div>
             <label>
-              <input
+              <Input
                 aria-label={"Enable script " + a.id}
                 type="checkbox"
                 disabled={disabled}
@@ -213,8 +215,8 @@ export function ScriptAttachments({
               />
               {scene.scripts?.find((s) => s.id === a.script)?.name}
             </label>
-            <button onClick={() => onOpen(a.script)}>Edit code</button>
-            <button
+            <Button onClick={() => onOpen(a.script)}>Edit code</Button>
+            <Button
               disabled={disabled}
               onClick={() =>
                 patch((e) => {
@@ -223,11 +225,11 @@ export function ScriptAttachments({
               }
             >
               Detach
-            </button>
+            </Button>
           </div>
           <label>
             Properties (JSON overrides)
-            <textarea
+            <Textarea
               aria-label={"Script properties " + a.id}
               key={a.id + JSON.stringify(a.props)}
               disabled={disabled}
@@ -254,9 +256,9 @@ export function ScriptAttachments({
         {message ||
           "Add scripts without replacing the built-in behavior. Each attachment gets its own properties, state and lifecycle."}
       </small>
-      <button className="wide-button" onClick={() => onOpen("")}>
+      <Button className="wide-button" onClick={() => onOpen("")}>
         Open script editor
-      </button>
-    </section>
+      </Button>
+    </Panel>
   );
 }

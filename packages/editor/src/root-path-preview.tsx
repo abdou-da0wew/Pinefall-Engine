@@ -1,3 +1,4 @@
+import { Button, Select } from "./ui";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AnimationGraphPlayer } from "../../animation/src/graph-player";
@@ -47,13 +48,13 @@ export function RootPathPreview({
     >
       <header>
         <h2>Root motion path</h2>
-        <button onClick={onClose} aria-label="Close root motion path">
+        <Button onClick={onClose} aria-label="Close root motion path">
           Close
-        </button>
+        </Button>
       </header>
       <label>
         Clip recipe{" "}
-        <select
+        <Select
           aria-label="Root path clip"
           value={clip}
           onChange={(event) => setClip(event.target.value)}
@@ -61,7 +62,7 @@ export function RootPathPreview({
           {Object.keys(player.graph.definition.clips).map((id) => (
             <option key={id}>{id}</option>
           ))}
-        </select>
+        </Select>
       </label>
       <svg viewBox="0 0 400 400" role="img" aria-label="Unobstructed horizontal root trajectory">
         <rect x="1" y="1" width="398" height="398" fill="#101b16" stroke="#40553d" />

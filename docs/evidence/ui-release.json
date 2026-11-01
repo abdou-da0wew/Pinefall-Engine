@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-01",
+  "version": "0.6.1",
+  "publication": "prepared locally; awaiting renewed GitHub authorization",
+  "unit": {
+    "passed": 128,
+    "assertions": 670,
+    "files": 24
+  },
+  "check": {
+    "files": 169,
+    "warnings": 0,
+    "errors": 0
+  },
+  "linuxProduction": [
+    "home",
+    "pif IPC",
+    "UI authoring",
+    "missing-companion FBX repair",
+    "exported animation/audio workshop"
+  ],
+  "windows": "package built; not executed",
+  "externalAcceptance": "owner deferred, not passed",
+  "screenshots": {
+    "ui-home-narrow.png": "a39a31129367302fb5d0c17b0102c4218bb9e6d428062f4fd96085c93ac2db20",
+    "ui-before-desktop.png": "51ae06d0f948f7adfbaf0fd25c9e258c29e18b12a87d7dceeb2ae1000321f09e",
+    "regression-workspace-0.4.png": "f48e2dfed041eee4319902fec08cd71d7b5b653cf14af24829b657720cefd316",
+    "ui-native-home-desktop.png": "6d48c5a834f03b3039bbf81ada7f2248f17c06cd201c75d9255f15d0f6f00a72",
+    "ui-home-small.png": "c9c9e751a7249638a603cb1aa59768fa4e40e3015c0a47ed8e2b37e837c10d7f",
+    "ui-editor-desktop.png": "0947a302726e756a28d7c10690a72e443a30e5a3ff07487f91c85f7718a2506f",
+    "ui-editor-comfortable.png": "40dee5e372d48df038bf102156d24496de1d0b8f0e6310b07306c8adb2ccd38f",
+    "regression-ui-designer.png": "64d3f6615ff8c9579f6b7f53109bcc61d149db62d3a10be4d3792a9f1d357dbe",
+    "ui-import-dialog.png": "bda27d08f40454fb18d34add8abd5671d86e5e7cb209f64705da220abf43fdbb",
+    "ui-editor-narrow.png": "bece579b54b98d762b89ac125e3f2c31b83f7686bb394f3ad61167fdf49ed5fb",
+    "regression-color-picker.png": "ec298aeffca775b6d78a725aa86a5606b1cce1217385cfa6e811847fc7a0bb6c",
+    "ui-settings.png": "9e88d64ba79fb9e1fbafb11b9b64f55508e1e25866b5eae3f08c9d7059b0b28b",
+    "ui-home-recent-projects.png": "4958ed46af66c2be42da11b3ac5445eb53bbd3a0e761954ffbe45d08fdd8c2a3",
+    "regression-script-lab-player.png": "340e8b0210b6a10419d221c2d6e7f60ea1616f9ac57aa842c09fb10bf3a4cb56",
+    "ui-native-editor-comfortable.png": "3ec1b9986ee85674b7f324b50dc2301056e24f06aec0e181bd9a9c45f813fad9",
+    "regression-scripting-editor.png": "1a6c3040ce6ed13949adb61324dc2a68599ab315860f7a8948bb2df778dcc9d2",
+    "ui-native-editor-narrow.png": "178f65dea63114e2f82d8f660acf9e294ae77a76c626d88d94234104e1148ead",
+    "ui-before-narrow.png": "5dac59f9cff4814c799e2e1ead9e390afeb898f09ad3f0dc38750daab8e22dcb",
+    "ui-home-desktop.png": "cdd757a5854ae7633201105418653da151af21e9c1b1230ea28655d62dc8a23e"
+  }
+}

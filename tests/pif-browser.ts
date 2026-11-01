@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import { unpackProject, packProject } from "../packages/project/src/pif";
 import { parseScene } from "../packages/runtime/src/schema";
@@ -10,6 +11,7 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(process.env.TEST_URL || "http://localhost:5173");
+  await enterEditor(page);
   await page.waitForFunction(
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
@@ -31,6 +33,7 @@ try {
   expect(await unpackProject(await Bun.file("build/browser-project.pif").bytes())).toMatchObject({
     ...sample,
   });
+  await expect(page.getByRole("button", { name: "Save project", exact: true })).toBeEnabled();
   await page
     .locator('input[accept=".pif,.json"]')
     .setInputFiles({ name: "same.pif", mimeType: "application/x-xz", buffer: Buffer.from(bytes) });

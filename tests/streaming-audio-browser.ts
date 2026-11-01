@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium, expect, _electron } from "@playwright/test";
@@ -28,6 +29,7 @@ try {
   page.on("pageerror", (e) => errors.push(String(e)));
   const url = (process.env.TEST_BASE_URL ?? "http://localhost:5173") + "/tests/runtime.html";
   if (app) {
+    await enterEditor(page);
     await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
     await app.evaluate(
       async ({ BrowserWindow }, url) => BrowserWindow.getAllWindows()[0].loadURL(url),

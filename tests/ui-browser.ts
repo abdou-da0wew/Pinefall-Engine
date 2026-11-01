@@ -1,3 +1,4 @@
+import { enterEditor, newEditorGame } from "./editor-navigation";
 import { chromium, _electron, expect } from "@playwright/test";
 const native = process.env.NATIVE_UI === "1";
 const app = native
@@ -19,10 +20,11 @@ const errors: string[] = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 try {
   if (!app) await page.goto("http://localhost:5173");
+  await enterEditor(page);
   await page.waitForFunction(
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
-  await page.getByRole("button", { name: "New game", exact: true }).click();
+  await newEditorGame(page);
   await page.getByLabel("Game name", { exact: true }).fill("UI Workshop");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await page.getByRole("button", { name: "UI designer", exact: true }).click();

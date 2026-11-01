@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { resolve } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { chromium, expect, _electron } from "@playwright/test";
@@ -178,6 +179,7 @@ try {
     );
     await page.goto(base);
   }
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Audio studio", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Audio studio" });

@@ -1,3 +1,4 @@
+import { enterEditor, newEditorGame } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 import { triangle, binaryFbx } from "./asset-fixtures";
 import { unpackProject, inspectProject } from "../packages/project/src/pif";
@@ -15,8 +16,9 @@ try {
   const page = await app.firstWindow();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "New game", exact: true }).click();
+  await newEditorGame(page);
   await page.getByLabel("Game name", { exact: true }).fill("Native assets");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]').setInputFiles({

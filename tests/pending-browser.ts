@@ -1,3 +1,4 @@
+import { enterEditor, openAssetActions } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import { texturedFbx } from "./asset-fixtures";
 const browser = await chromium.launch({
@@ -9,6 +10,7 @@ try {
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto((process.env.TEST_BASE_URL || "http://localhost:5173") + "/");
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const input = page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]');
   await input.setInputFiles({
@@ -16,6 +18,7 @@ try {
     mimeType: "application/octet-stream",
     buffer: Buffer.from(texturedFbx),
   });
+  await openAssetActions(page);
   await expect(
     page.getByRole("button", { name: "Repair repair.fbx: missing albedo.png", exact: true }),
   ).toBeVisible();
@@ -27,6 +30,8 @@ try {
   });
   expect(persisted).toBeTruthy();
   await page.reload();
+  await enterEditor(page);
+  await openAssetActions(page);
   await expect(
     page.getByRole("button", { name: "Repair repair.fbx: missing albedo.png", exact: true }),
   ).toBeVisible();
@@ -39,6 +44,7 @@ try {
     buffer: Buffer.from("invalid image"),
   });
   await expect(page.locator(".statusbar")).toContainText("Error");
+  await openAssetActions(page);
   await expect(
     page.getByRole("button", { name: "Repair repair.fbx: missing albedo.png", exact: true }),
   ).toBeEnabled();
@@ -64,10 +70,12 @@ try {
     buffer: Buffer.from(png),
   });
   await expect(page.locator(".statusbar")).toContainText("Imported repair.fbx");
+  await openAssetActions(page);
   await expect(
     page.getByRole("button", { name: "Repair repair.fbx: missing albedo.png", exact: true }),
   ).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
+  await page.keyboard.press("Escape");
   // An edited source that introduces a missing companion must keep the old asset/revision.
   await page.getByRole("button", { name: "Reimport repair.fbx", exact: true }).click();
   await input.setInputFiles({
@@ -79,6 +87,7 @@ try {
     name: "Repair repair.fbx: missing replacement.png",
     exact: true,
   });
+  await openAssetActions(page);
   await expect(retryReimport).toBeVisible();
   const pendingTarget = await page.evaluate(async () => {
     const path = "/packages/assets/src/database.ts",
@@ -99,6 +108,7 @@ try {
     buffer: Buffer.from(png),
   });
   await expect(page.locator(".statusbar")).toContainText("target changed");
+  await openAssetActions(page);
   await expect(retryReimport).toBeEnabled();
   await expect(page.getByRole("dialog", { name: "Review reimport" })).toHaveCount(0);
   await page.evaluate(async ({ id, target }) => {

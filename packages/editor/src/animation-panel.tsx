@@ -1,3 +1,5 @@
+import { Panel } from "./ui";
+import { Button, Input, Select, Textarea } from "./ui";
 import { RootMotion } from "../../animation/src/root-motion";
 import { RootPathPreview } from "./root-path-preview";
 import { useEffect, useState } from "react";
@@ -45,7 +47,7 @@ function Draft({
         <div>
           <label>
             Source clip
-            <select
+            <Select
               aria-label="Animation bound clip"
               value={parsed.clips[first].subasset}
               disabled={disabled}
@@ -62,11 +64,11 @@ function Draft({
                     {s.key}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           <label>
             Trim start
-            <input
+            <Input
               aria-label="Animation trim start"
               type="number"
               step="0.01"
@@ -81,7 +83,7 @@ function Draft({
           </label>
           <label>
             Trim end
-            <input
+            <Input
               aria-label="Animation trim end"
               type="number"
               step="0.01"
@@ -96,7 +98,7 @@ function Draft({
           </label>
         </div>
       )}
-      <textarea
+      <Textarea
         aria-label="Animator definition"
         value={draft}
         disabled={disabled}
@@ -105,7 +107,7 @@ function Draft({
         spellCheck={false}
         style={{ width: "100%", fontFamily: "monospace" }}
       />
-      <button
+      <Button
         disabled={disabled || !root}
         onClick={() => {
           try {
@@ -120,7 +122,7 @@ function Draft({
         }}
       >
         Apply animator
-      </button>
+      </Button>
       {error && <p role="alert">{error}</p>}
     </div>
   );
@@ -186,11 +188,11 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
     });
   const snapshot = player?.graph.snapshot;
   return (
-    <section className="animation-inspector" aria-label="Animation inspector">
+    <Panel className="animation-inspector" aria-label="Animation inspector">
       <h3>Animation</h3>
       {!entity.animator && (
         <>
-          <select
+          <Select
             aria-label="Animation source clip"
             value={clip}
             disabled={disabled}
@@ -201,11 +203,11 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
                 {c.key.startsWith("name:") ? c.key.slice(5) : c.key}
               </option>
             ))}
-          </select>
+          </Select>
         </>
       )}
       {!entity.animator && (
-        <button
+        <Button
           disabled={disabled || !root}
           onClick={() => {
             try {
@@ -228,7 +230,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
           }}
         >
           Add animator
-        </button>
+        </Button>
       )}
       {entity.animator && (
         <>
@@ -240,7 +242,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
             onApply={apply}
             disabled={disabled}
           />
-          <button
+          <Button
             disabled={disabled}
             onClick={() =>
               commit((scene) => {
@@ -249,24 +251,24 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
             }
           >
             Remove animator
-          </button>
+          </Button>
           <label>
-            <input
+            <Input
               type="checkbox"
               checked={skeleton}
               onChange={(event) => setSkeleton(event.target.checked)}
             />
             Skeleton overlay
           </label>
-          <button
+          <Button
             disabled={!player || engine?.playing}
             onClick={() => setPreview((value) => !value)}
           >
             {preview ? "Pause preview" : "Play preview"}
-          </button>
+          </Button>
           <label>
             Preview speed
-            <input
+            <Input
               aria-label="Animation preview speed"
               type="number"
               min="-8"
@@ -286,7 +288,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
           </label>
           <label>
             Preview position
-            <input
+            <Input
               aria-label="Animation preview position"
               type="range"
               min="0"
@@ -308,7 +310,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
           </small>
           <label>
             Fade seconds
-            <input
+            <Input
               aria-label="Animation fade seconds"
               type="number"
               min="0"
@@ -320,7 +322,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
           </label>
           <div>
             {Object.keys(entity.animator.states).map((state) => (
-              <button
+              <Button
                 key={state}
                 disabled={!player}
                 onClick={() => {
@@ -334,13 +336,13 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
                 }}
               >
                 Preview state {state}
-              </button>
+              </Button>
             ))}
           </div>
           {Object.entries(snapshot?.parameters || {}).map(([name, value]) => (
             <label key={name}>
               {name}
-              <input
+              <Input
                 aria-label={"Animation parameter " + name}
                 type={typeof value === "boolean" ? "checkbox" : "number"}
                 checked={typeof value === "boolean" ? value : undefined}
@@ -369,7 +371,7 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
       )}
       {player?.rootMotion && (
         <>
-          <button onClick={() => setPathOpen(true)}>Inspect root path</button>
+          <Button onClick={() => setPathOpen(true)}>Inspect root path</Button>
           {pathOpen && (
             <RootPathPreview
               key={player.root.uuid}
@@ -380,6 +382,6 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
         </>
       )}
       {error && <p role="alert">{error}</p>}
-    </section>
+    </Panel>
   );
 }

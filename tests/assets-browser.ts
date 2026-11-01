@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import {
   triangle,
@@ -334,6 +335,7 @@ try {
   console.log("PASS asset worker/cache/race/cancellation/FBX:", JSON.stringify(result));
   // User-visible import and reimport, not only service API calls.
   await page.goto(base + "/");
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const chooser = page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]');
   await chooser.setInputFiles({

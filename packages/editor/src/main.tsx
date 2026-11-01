@@ -1,3 +1,8 @@
+import { Home, SettingsDialog } from "./home";
+import { rememberProject } from "./recent-projects";
+import { readPreferences, applyPreferences, panelDefinitions } from "./preferences";
+import { Dialog, ActionMenu, MenuItem, Panel, ConfirmationProvider, useConfirm } from "./ui";
+import { Button, Input, Select } from "./ui";
 import { AudioDialog } from "./audio-dialog";
 import { AnimationPanel } from "./animation-panel";
 import {
@@ -34,6 +39,7 @@ import "@fontsource/dm-sans/500.css";
 import "@fontsource/dm-sans/700.css";
 import "@fontsource/space-grotesk/500.css";
 import "./style.css";
+import "./ui.css";
 import {
   Engine,
   LOW,
@@ -56,11 +62,16 @@ const templateNames: Record<Template, string> = {
 let bootScene: SceneDocument | undefined;
 let bootNotice = "";
 let recoveryBlocked = false;
+let hasRecovery = false;
 function initialScene() {
   if (bootScene) return bootScene;
   try {
     const saved = localStorage.getItem("pinefall-engine.scene.v1");
-    if (saved) return parseScene(JSON.parse(saved));
+    if (saved) {
+      const scene = parseScene(JSON.parse(saved));
+      hasRecovery = true;
+      return scene;
+    }
   } catch {}
   return createTemplate("adventure");
 }
@@ -76,7 +87,31 @@ async function download(name: string, text: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function App() {
+function App({
+  onHome,
+}: {
+  onHome: (
+    scene: SceneDocument,
+    skipSnapshot?: boolean,
+    isCurrent?: () => boolean,
+  ) => Promise<void>;
+}) {
+  const confirm = useConfirm();
+  const [newGameError, setNewGameError] = useState("");
+  const [homeError, setHomeError] = useState("");
+  const [assetActionsOpen, setAssetActionsOpen] = useState(false);
+  const [homeBusy, setHomeBusy] = useState(false),
+    [preferencesOpen, setPreferencesOpen] = useState(false),
+    [importSettingsOpen, setImportSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (!homeBusy) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [homeBusy]);
   const [recipe, setRecipe] = useState<ImportRecipe>(defaultRecipe);
   const [overrideRecipe, setOverrideRecipe] = useState(false);
   const [review, setReview] = useState<React.ComponentProps<typeof ReimportReview> | null>(null);
@@ -112,7 +147,9 @@ function App() {
     [selected, setSelected] = useState<string | null>(null),
     [playing, setPlaying] = useState(false),
     [paused, setPaused] = useState(false),
-    [settings, setSettings] = useState<RenderSettings>({ ...LOW }),
+    [settings, setSettings] = useState<RenderSettings>(() => ({
+      ...(readPreferences().quality === "high" ? HIGH : LOW),
+    })),
     [tab, setTab] = useState<"assets" | "console" | "guide" | "scripts" | "ui">("assets"),
     [inspector, setInspector] = useState<"entity" | "render">("entity"),
     [logs, setLogs] = useState<EngineEvent[]>([]),
@@ -154,14 +191,15 @@ function App() {
     };
   }, []);
   projectCommands.current = (e) => {
+    if (document.querySelector("dialog[open]")) return;
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     if (e.key.toLowerCase() === "s") {
       e.preventDefault();
-      if (!projectBusy) void saveProject();
+      if (!projectBusy && !homeBusy) void saveProject();
     }
     if (e.key.toLowerCase() === "o") {
       e.preventDefault();
-      if (!projectBusy && !playing) file.current?.click();
+      if (!projectBusy && !homeBusy && !playing) file.current?.click();
     }
   };
   async function saveProject() {
@@ -182,6 +220,12 @@ function App() {
       if (window.engineDesktop) {
         const saved = await window.engineDesktop.save(name + ".pif", bytes);
         setStatus(saved ? "PIF project saved" : "Save cancelled");
+        if (saved)
+          try {
+            await rememberProject(snapshot, bytes);
+          } catch (error) {
+            setStatus("PIF saved; recent snapshot failed: " + String(error));
+          }
       } else {
         const url = URL.createObjectURL(
           new Blob([new Uint8Array(bytes)], { type: "application/x-xz" }),
@@ -192,6 +236,11 @@ function App() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         setStatus("PIF project exported");
+        try {
+          await rememberProject(snapshot, bytes);
+        } catch (error) {
+          setStatus("PIF exported; recent snapshot failed: " + String(error));
+        }
       }
     } catch (error) {
       setStatus(String(error));
@@ -201,10 +250,19 @@ function App() {
     }
   }
 
-  function createNewGame() {
+  async function createNewGame() {
+    if (projectAbort.current || playing) return;
+    const controller = new AbortController(),
+      before = current.current;
+    projectAbort.current = controller;
+    setProjectBusy(true);
+    setNewGameError("");
     recoveryBlocked = false;
     importAbort.current?.abort();
     try {
+      await rememberProject(before, undefined, controller.signal);
+      if (controller.signal.aborted || current.current !== before || engine.current?.playing)
+        throw Error("Project changed or operation cancelled; no replacement was made.");
       const next =
         gameStarter === "blank" ? createGame(gameName) : createTemplate(gameStarter as Template);
       next.name = gameName;
@@ -219,6 +277,10 @@ function App() {
       setNewGameOpen(false);
     } catch (e) {
       setStatus(String(e));
+      setNewGameError(String(e));
+    } finally {
+      if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
     }
   }
 
@@ -390,18 +452,33 @@ function App() {
       setRevision((r) => r + 1);
     }
   }
-  function newScene(template: Template) {
-    recoveryBlocked = false;
-    if (playing) return;
+  async function newScene(template: Template) {
+    if (playing || projectAbort.current) return;
+    const controller = new AbortController(),
+      before = current.current;
+    projectAbort.current = controller;
+    setProjectBusy(true);
     importAbort.current?.abort();
-    history.current.commit(scene);
-    const next = createTemplate(template);
-    next.project = newProjectMetadata(next.name);
-    current.current = next;
-    setScene(next);
-    setSelected(null);
-    setRevision((r) => r + 1);
+    try {
+      await rememberProject(before, undefined, controller.signal);
+      if (controller.signal.aborted || current.current !== before || engine.current?.playing)
+        throw Error("Project changed or operation cancelled; no replacement was made.");
+      recoveryBlocked = false;
+      history.current.commit(before);
+      const next = createTemplate(template);
+      next.project = newProjectMetadata(next.name);
+      current.current = next;
+      setScene(next);
+      setSelected(null);
+      setRevision((r) => r + 1);
+    } catch (error) {
+      setStatus(String(error) + ". Current project kept open; save a PIF backup.");
+    } finally {
+      if (projectAbort.current === controller) projectAbort.current = null;
+      setProjectBusy(false);
+    }
   }
+
   async function run() {
     if (!engine.current || !ready || loadedScene !== scene) return;
     if (playing) {
@@ -437,6 +514,9 @@ function App() {
       const controller = new AbortController();
       projectAbort.current = controller;
       setProjectBusy(true);
+      setStatus("Saving current project snapshot…");
+      await rememberProject(before, undefined, controller.signal);
+      if (controller.signal.aborted) throw Error("Project operation cancelled");
       setStatus(isPif ? "Opening PIF in worker…" : "Opening legacy JSON…");
       const next = isPif
         ? await projectJob("unpack", new Uint8Array(await f.arrayBuffer()), controller.signal)
@@ -685,7 +765,7 @@ function App() {
     return (
       <label className="number-field" key={label}>
         <span>{label}</span>
-        <input
+        <Input
           aria-label={label}
           key={selected + label + revision}
           type="number"
@@ -733,6 +813,187 @@ function App() {
       style={workspace.style}
       className={"workbench " + workspace.className + (tab === "scripts" ? " scripting-open" : "")}
     >
+      {homeError && (
+        <Dialog
+          title="Project stayed open"
+          description="The recent snapshot could not be saved. Keep editing, or export a PIF backup before leaving. Returning without a snapshot keeps this session in memory but does not back it up."
+          onClose={() => setHomeError("")}
+        >
+          <p role="alert">{homeError}</p>
+          <footer>
+            <Button autoFocus onClick={() => setHomeError("")}>
+              Keep editing
+            </Button>
+            <Button disabled={projectBusy} onClick={() => void saveProject()}>
+              Save PIF backup
+            </Button>
+            <Button
+              variant="danger"
+              disabled={projectBusy}
+              onClick={() => void onHome(current.current, true)}
+            >
+              Return without snapshot
+            </Button>
+          </footer>
+        </Dialog>
+      )}
+      {assetActionsOpen && (
+        <Dialog
+          title="Asset actions"
+          description="Import resources or manage the local conversion cache."
+          onClose={() => setAssetActionsOpen(false)}
+        >
+          <div className="pf-asset-actions">
+            {" "}
+            <>
+              <Button
+                disabled={playing || importBusy}
+                onClick={() => {
+                  setAssetActionsOpen(false);
+                  pendingRepair.current = null;
+                  reimportTarget.current = undefined;
+                  glb.current?.click();
+                }}
+              >
+                <Icon name="upload" /> Import model
+              </Button>
+              {pendingImports.map((attempt) => (
+                <React.Fragment key={attempt.id}>
+                  <Button
+                    disabled={importBusy || playing}
+                    onClick={() => {
+                      setAssetActionsOpen(false);
+                      pendingRepair.current = attempt.id;
+                      glb.current?.click();
+                    }}
+                  >
+                    Repair {attempt.name}: missing {attempt.missing}
+                  </Button>
+                  <Button
+                    disabled={importBusy}
+                    onClick={() =>
+                      void assetDatabase
+                        .deletePending(attempt.id)
+                        .then(() => refreshPending())
+                        .catch((e) => setStatus(String(e)))
+                    }
+                  >
+                    Discard failed import {attempt.name}
+                  </Button>
+                </React.Fragment>
+              ))}
+              <label>
+                <Input
+                  type="checkbox"
+                  checked={importOnly}
+                  onChange={(e) => setImportOnly(e.target.checked)}
+                />{" "}
+                Import only
+              </label>
+              {importBusy && (
+                <Button onClick={() => importAbort.current?.abort()}>Cancel import</Button>
+              )}
+              <Button
+                disabled={playing}
+                onClick={() => {
+                  setAssetActionsOpen(false);
+                  prefabFile.current?.click();
+                }}
+              >
+                <Icon name="upload" /> Import prefab
+              </Button>
+              <Button
+                disabled={playing || importBusy || loadBusy || projectBusy}
+                onClick={async () => {
+                  if (
+                    !(await confirm(
+                      "Clear undo history and regenerable conversion cache? The active project and recovery checkpoints stay intact.",
+                    ))
+                  )
+                    return;
+                  history.current.reset();
+                  const refs = new Set(sceneReferences(current.current));
+                  if (engine.current?.document)
+                    for (const ref of sceneReferences(engine.current.document)) refs.add(ref);
+                  blobs.retain(refs);
+                  void assetDatabase
+                    .clearArtifacts()
+                    .then(() =>
+                      setStatus("Conversion cache and undo cleared; active project retained."),
+                    )
+                    .catch((e) => setStatus(String(e)));
+                  setRevision((r) => r + 1);
+                }}
+              >
+                Clear cache / undo
+              </Button>
+            </>
+          </div>
+        </Dialog>
+      )}
+      {preferencesOpen && <SettingsDialog onClose={() => setPreferencesOpen(false)} />}
+      {importSettingsOpen && (
+        <Dialog
+          title="Import settings"
+          description="Normalization for the next import. Saved recipes remain unchanged unless explicitly overridden."
+          onClose={() => setImportSettingsOpen(false)}
+        >
+          <Panel style={{ gridColumn: "1 / -1", padding: 12 }}>
+            <strong>Import normalization</strong>
+            <label>
+              {" "}
+              Unit multiplier{" "}
+              <Input
+                aria-label="Import unit multiplier"
+                type="number"
+                min="0.000001"
+                max="1000000"
+                step="any"
+                value={recipe.settings!.unitScale}
+                onChange={(e) =>
+                  setRecipe({
+                    ...recipe,
+                    settings: { ...recipe.settings!, unitScale: Number(e.target.value) },
+                  })
+                }
+              />
+            </label>
+            <label>
+              {" "}
+              Converter output up axis{" "}
+              <Select
+                aria-label="Converter output up axis"
+                value={recipe.settings!.outputUp}
+                onChange={(e) =>
+                  setRecipe({
+                    ...recipe,
+                    settings: {
+                      ...recipe.settings!,
+                      outputUp: e.target.value as "X" | "Y" | "Z",
+                    },
+                  })
+                }
+              >
+                <option>Y</option>
+                <option>Z</option>
+                <option>X</option>
+              </Select>
+            </label>
+            <label>
+              <Input
+                type="checkbox"
+                checked={overrideRecipe}
+                onChange={(e) => setOverrideRecipe(e.target.checked)}
+              />{" "}
+              Override saved recipe on reimport
+            </label>
+            <small>
+              1 preserves units; 0.01 converts centimeters to meters. FBXLoader already corrects
+              Z-up: normally leave output axis Y. Original source bytes are retained.
+            </small>
+          </Panel>
+        </Dialog>
+      )}
       {audioOpen && engine.current && (
         <AudioDialog
           loading={loadBusy || projectBusy || loadedScene !== scene}
@@ -746,19 +1007,27 @@ function App() {
       {workspace.handles}
       {workspace.dockTargets}
       {newGameOpen && (
-        <div className="project-modal" role="dialog" aria-modal="true" aria-label="New game">
+        <Dialog
+          title="New game"
+          onClose={() => {
+            projectAbort.current?.abort();
+            setNewGameOpen(false);
+          }}
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
               createNewGame();
             }}
           >
+            {newGameError && <p role="alert">{newGameError}</p>}
             <small>PINEFALL / CREATE</small>
             <h2>Your next game starts here.</h2>
             <label>
               Game name
-              <input
+              <Input
                 aria-label="Game name"
+                disabled={projectBusy}
                 required
                 maxLength={100}
                 value={gameName}
@@ -767,8 +1036,9 @@ function App() {
             </label>
             <label>
               Starting scene
-              <select
+              <Select
                 aria-label="Starting scene"
+                disabled={projectBusy}
                 value={gameStarter}
                 onChange={(e) => setGameStarter(e.target.value)}
               >
@@ -778,21 +1048,29 @@ function App() {
                     {name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <p>
               Import your GLB models, place them, add colliders and press Play. Export your current
-              scene before creating another game if you want to keep it permanently. New games
-              replace the local autosave; Undo restores the previous scene during this session.
+              scene for a portable backup. The current project is saved to Recent projects before
+              creating another game. Undo also restores it during this session.
             </p>
             <footer>
-              <button type="button" onClick={() => setNewGameOpen(false)}>
+              <Button
+                type="button"
+                onClick={() => {
+                  projectAbort.current?.abort();
+                  setNewGameOpen(false);
+                }}
+              >
                 Cancel
-              </button>
-              <button type="submit">Create game</button>
+              </Button>
+              <Button type="submit" disabled={projectBusy}>
+                {projectBusy ? "Creating…" : "Create game"}
+              </Button>
             </footer>
           </form>
-        </div>
+        </Dialog>
       )}
 
       <header className="topbar">
@@ -809,31 +1087,61 @@ function App() {
           Projects <span>/</span> {scene.name} <i>LOCAL</i>
         </div>
         <div className="top-actions">
-          {workspace.toolbar}
-          <button disabled={playing} onClick={() => setNewGameOpen(true)}>
-            <Icon name="plus" /> New game
-          </button>
-          <button
-            disabled={playing || projectBusy}
-            title="Open project · Ctrl/⌘+O"
-            onClick={() => file.current?.click()}
+          <Button
+            aria-label="Back to home"
+            disabled={playing || projectBusy || loadBusy || importBusy || homeBusy}
+            onClick={() => {
+              setHomeBusy(true);
+              const before = current.current;
+              void onHome(
+                before,
+                false,
+                () => current.current === before && !engine.current?.playing,
+              ).catch((e) => {
+                setHomeError(String(e));
+                setStatus(String(e) + ". Project kept open; export a PIF backup.");
+                setHomeBusy(false);
+              });
+            }}
           >
-            <Icon name="upload" /> Open project
-          </button>
-          <button
+            <Icon name="home" />
+            {homeBusy ? "Saving…" : "Home"}
+          </Button>
+          {workspace.toolbar}
+          <ActionMenu label="Project">
+            <MenuItem
+              disabled={playing || projectBusy || homeBusy}
+              onSelect={() => {
+                setNewGameError("");
+                setNewGameOpen(true);
+              }}
+            >
+              New game
+            </MenuItem>
+            <MenuItem
+              disabled={playing || projectBusy || homeBusy}
+              onSelect={() => file.current?.click()}
+            >
+              Open project…
+            </MenuItem>
+            <MenuItem
+              onSelect={() => void download(scene.name + ".scene.json", serializeScene(scene))}
+            >
+              Export scene JSON
+            </MenuItem>
+            <MenuItem onSelect={() => setPreferencesOpen(true)}>Editor settings</MenuItem>
+          </ActionMenu>
+          <Button
             disabled={projectBusy}
             title="Save PIF project · Ctrl/⌘+S"
             onClick={() => void saveProject()}
           >
             <Icon name="save" />
             Save project
-          </button>
+          </Button>
           {projectBusy && (
-            <button onClick={() => projectAbort.current?.abort()}>Cancel project operation</button>
+            <Button onClick={() => projectAbort.current?.abort()}>Cancel project operation</Button>
           )}
-          <button onClick={() => void download(scene.name + ".scene.json", serializeScene(scene))}>
-            <Icon name="download" /> Export scene
-          </button>
           <a href={`./game.html?template=${scene.template}`} target="_blank" rel="noreferrer">
             <Icon name="external" /> Player
           </a>
@@ -849,7 +1157,7 @@ function App() {
               className="script-trust"
               title="Trusted code runs with host privileges. Not a sandbox."
             >
-              <input
+              <Input
                 type="checkbox"
                 aria-label="Allow trusted scripts"
                 checked={scriptsTrusted}
@@ -859,10 +1167,12 @@ function App() {
               Allow trusted scripts
             </label>
           ) : null}
-          <button
+          <Button
             aria-label={playing ? "Stop scene" : "Play scene"}
             className={playing ? "stop" : "play"}
-            disabled={!ready || importBusy || loadBusy || loadedScene !== scene}
+            disabled={
+              !ready || importBusy || loadBusy || projectBusy || homeBusy || loadedScene !== scene
+            }
             onClick={() => void run()}
           >
             {playing ? (
@@ -874,11 +1184,11 @@ function App() {
                 <Icon name="play" /> Play
               </>
             )}
-          </button>
+          </Button>
           {ready && loadedScene !== scene && !loadBusy ? (
-            <button onClick={() => setLoadAttempt((n) => n + 1)}>Retry scene load</button>
+            <Button onClick={() => setLoadAttempt((n) => n + 1)}>Retry scene load</Button>
           ) : null}
-          <button
+          <Button
             aria-label="Pause simulation"
             disabled={!playing}
             className={paused ? "active" : ""}
@@ -890,15 +1200,15 @@ function App() {
             }}
           >
             <Icon name="pause" />
-          </button>
+          </Button>
         </div>
         <div className="history-controls">
-          <button disabled={playing || !history.current.canUndo} onClick={() => undo()}>
+          <Button disabled={playing || !history.current.canUndo} onClick={() => undo()}>
             <Icon name="undo" /> Undo
-          </button>
-          <button disabled={playing || !history.current.canRedo} onClick={() => undo(true)}>
+          </Button>
+          <Button disabled={playing || !history.current.canRedo} onClick={() => undo(true)}>
             <Icon name="redo" /> Redo
-          </button>
+          </Button>
           <span className="saved-dot" /> {playing ? "Runtime isolated" : "Local autosave"}
         </div>
       </div>
@@ -923,15 +1233,15 @@ function App() {
             <span className="dim">{playing ? templateNames[scene.template] : "Perspective"}</span>
           </div>
           <div className="tools">
-            <button
+            <Button
               aria-label="Toggle viewport focus"
               title="Maximize / restore viewport"
               onClick={workspace.toggleFocus}
             >
               <Icon name="maximize" />
-            </button>
+            </Button>
             {(["translate", "rotate", "scale"] as const).map((t, i) => (
-              <button
+              <Button
                 key={t}
                 disabled={playing}
                 title={t}
@@ -942,17 +1252,17 @@ function App() {
                 }}
               >
                 <Icon name={(["move", "rotate", "scale"] as const)[i]} />
-              </button>
+              </Button>
             ))}
-            <button
+            <Button
               disabled={!chosen || playing}
               onClick={() => selected && engine.current?.focus(selected)}
             >
               Frame
-            </button>
-            <button onClick={() => setInspector("render")}>
+            </Button>
+            <Button onClick={() => setInspector("render")}>
               <Icon name="settings" /> Render
-            </button>
+            </Button>
           </div>
         </div>
         <div
@@ -985,12 +1295,12 @@ function App() {
           </div>
           {!playing && ready && !scene.ui?.elements.length && (
             <div className="scene-caption">
-              <div>THE LAST LIGHT COLLECTION</div>
+              <div>PINEFALL WORKSPACE</div>
               <h1>{scene.name}</h1>
               <p>A small world. A reusable foundation.</p>
-              <button onClick={() => void run()}>
+              <Button onClick={() => void run()}>
                 <Icon name="play" /> Explore in play mode
-              </button>
+              </Button>
             </div>
           )}
           {playing && !scene.ui?.elements.length && (
@@ -1018,12 +1328,12 @@ function App() {
               </p>
               {scene.template === "sandbox" && (
                 <div>
-                  <button onClick={() => engine.current?.spawnBox()}>
+                  <Button onClick={() => engine.current?.spawnBox()}>
                     <Icon name="plus" /> Spawn crate
-                  </button>
-                  <button onClick={() => engine.current?.impulse()}>
+                  </Button>
+                  <Button onClick={() => engine.current?.impulse()}>
                     <Icon name="up" /> Apply impulse
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1056,23 +1366,23 @@ function App() {
           <span>{stats ? stats.width + " × " + stats.height : "—"}</span>
         </div>
       </main>
-      <aside className="inspector">
+      <Panel as="aside" className="inspector">
         <div className="inspector-tabs">
-          <button
+          <Button
             className={inspector === "entity" ? "active" : ""}
             onClick={() => setInspector("entity")}
           >
             Inspector
-          </button>
-          <button
+          </Button>
+          <Button
             className={inspector === "render" ? "active" : ""}
             onClick={() => setInspector("render")}
           >
             Rendering
-          </button>
-          <button aria-label="Audio studio" onClick={() => setAudioOpen(true)}>
+          </Button>
+          <Button aria-label="Audio studio" onClick={() => setAudioOpen(true)}>
             Audio
-          </button>
+          </Button>
         </div>
         <div className="inspector-content">
           {inspector === "entity" ? (
@@ -1083,7 +1393,7 @@ function App() {
                     <Icon name="cube" size={25} />
                   </span>
                   <div>
-                    <input
+                    <Input
                       aria-label="Entity name"
                       disabled={playing}
                       key={chosen.id + revision}
@@ -1097,7 +1407,7 @@ function App() {
                     />
                     <small>{chosen.id.slice(0, 8)} · ENTITY</small>
                   </div>
-                  <input
+                  <Input
                     aria-label="Entity enabled"
                     type="checkbox"
                     checked={chosen.enabled}
@@ -1109,7 +1419,7 @@ function App() {
                     }
                   />
                 </div>
-                <section>
+                <Panel>
                   <h3>
                     <Icon name="move" /> Transform
                   </h3>
@@ -1119,15 +1429,15 @@ function App() {
                   <small className="hint">
                     Rotation in degrees. Commit a numeric edit with Enter or by leaving the field.
                   </small>
-                </section>
+                </Panel>
                 {chosen.mesh && (
-                  <section>
+                  <Panel>
                     <h3>
                       <Icon name="cube" /> Mesh renderer
                     </h3>
                     <label className="row-field">
                       Library model
-                      <select
+                      <Select
                         aria-label="Library model"
                         disabled={playing}
                         value={chosen.mesh.asset || ""}
@@ -1146,7 +1456,7 @@ function App() {
                             {a.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <small className="hint">
                       Swap visuals without removing physics or behaviors. Scale the model to match
@@ -1172,9 +1482,9 @@ function App() {
                     <small className="hint">
                       Shared geometry & materials · standard lit shading
                     </small>
-                  </section>
+                  </Panel>
                 )}
-                <section>
+                <Panel>
                   <h3>
                     <Icon name="physics" /> Physics body
                   </h3>
@@ -1182,7 +1492,7 @@ function App() {
                     <>
                       <label className="row-field">
                         Type
-                        <select
+                        <Select
                           aria-label="Body type"
                           value={chosen.physics.type}
                           disabled={playing}
@@ -1199,11 +1509,11 @@ function App() {
                           {["fixed", "dynamic", "kinematic"].map((v) => (
                             <option key={v}>{v}</option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                       <label className="row-field">
                         Collider
-                        <select
+                        <Select
                           aria-label="Collider shape"
                           value={chosen.physics.shape}
                           disabled={playing}
@@ -1217,7 +1527,7 @@ function App() {
                           {["box", "sphere", "capsule"].map((v) => (
                             <option key={v}>{v}</option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                       {num(
                         "Mass",
@@ -1251,7 +1561,7 @@ function App() {
                       )}
                       <label className="row-field">
                         Sensor / trigger
-                        <input
+                        <Input
                           aria-label="Sensor"
                           type="checkbox"
                           checked={chosen.physics.sensor}
@@ -1263,7 +1573,7 @@ function App() {
                           }
                         />
                       </label>
-                      <button
+                      <Button
                         className="subtle"
                         disabled={playing}
                         onClick={() =>
@@ -1273,12 +1583,12 @@ function App() {
                         }
                       >
                         Remove physics
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
                       <p>Primitive proxy colliders. Physics bodies must be root entities.</p>
-                      <button
+                      <Button
                         disabled={playing || !!chosen.parent}
                         onClick={() =>
                           patchEntity((e) => {
@@ -1294,15 +1604,15 @@ function App() {
                         }
                       >
                         <Icon name="plus" /> Add rigid body
-                      </button>
+                      </Button>
                     </>
                   )}
-                </section>
-                <section>
+                </Panel>
+                <Panel>
                   <h3>
                     <Icon name="code" /> Behavior
                   </h3>
-                  <select
+                  <Select
                     aria-label="Behavior"
                     value={chosen.behavior || ""}
                     disabled={playing}
@@ -1337,11 +1647,11 @@ function App() {
                         {v || "None"}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <small className="hint">
                     Built-in behaviors run in Play. Attach custom TypeScript below to extend them.
                   </small>
-                </section>
+                </Panel>
                 {chosen.mesh?.asset &&
                   scene.assets.find((a) => a.id === chosen.mesh?.asset)?.import && (
                     <AnimationPanel
@@ -1364,7 +1674,7 @@ function App() {
                   }}
                 />
                 {chosen.light && (
-                  <section>
+                  <Panel>
                     <h3>
                       <Icon name="light" /> Light
                     </h3>
@@ -1402,15 +1712,15 @@ function App() {
                         }
                       />
                     </label>
-                  </section>
+                  </Panel>
                 )}
-                <button
+                <Button
                   className="wide-button"
                   disabled={playing}
                   onClick={() => void exportPrefab()}
                 >
                   <Icon name="download" /> Export selected prefab
-                </button>
+                </Button>
               </>
             ) : (
               <div className="empty-inspector">
@@ -1425,7 +1735,7 @@ function App() {
                     ? "Organizational collection. Drag objects or nested collections here; transforms and physics remain unchanged. Double-click to collapse. Rename with F2."
                     : "Select an object in the scene or hierarchy to inspect its components."}
                 </p>
-                <button
+                <Button
                   onClick={() =>
                     setSelected(
                       scene.entities.find((e) => e.tag === "player")?.id ||
@@ -1435,7 +1745,7 @@ function App() {
                   }
                 >
                   Select main actor
-                </button>
+                </Button>
               </div>
             )
           ) : (
@@ -1446,20 +1756,20 @@ function App() {
                 <p>Low-cost defaults. Optional effects. No hidden Vulkan requirement.</p>
               </div>
               <div className="preset-buttons">
-                <button
+                <Button
                   className={settings.preset === "low" ? "active" : ""}
                   onClick={() => setSettings({ ...LOW })}
                 >
                   LOW / CEDAR
-                </button>
-                <button
+                </Button>
+                <Button
                   className={settings.preset === "high" ? "active" : ""}
                   onClick={() => setSettings({ ...HIGH })}
                 >
                   HIGH / FX
-                </button>
+                </Button>
               </div>
-              <section>
+              <Panel>
                 <h3>Budget & lighting</h3>
                 <p>
                   {settings.preset === "low"
@@ -1468,7 +1778,7 @@ function App() {
                 </p>
                 <label>
                   View distance <b>{settings.viewDistance}</b>
-                  <input
+                  <Input
                     aria-label="View distance"
                     type="range"
                     min="35"
@@ -1484,8 +1794,8 @@ function App() {
                   Frustum culling stays active. Counter is distance-enabled entities, not exact
                   GPU-visible meshes.
                 </small>
-              </section>
-              <section>
+              </Panel>
+              <Panel>
                 <h3>Post-processing</h3>
                 {(["post", "glow", "volumetrics"] as const).map((key) => (
                   <label className="row-field" key={key}>
@@ -1494,7 +1804,7 @@ function App() {
                       : key === "glow"
                         ? "Threshold glow"
                         : "Volumetric-style beams"}
-                    <input
+                    <Input
                       aria-label={key}
                       type="checkbox"
                       checked={settings[key]}
@@ -1513,7 +1823,7 @@ function App() {
                   <label key={key}>
                     {label}
                     <b>{settings[key].toFixed(2)}</b>
-                    <input
+                    <Input
                       aria-label={label}
                       type="range"
                       min={min}
@@ -1530,8 +1840,8 @@ function App() {
                   Beams are translucent cone approximations—not ray-marched volumetrics. Glow is a
                   five-tap effect, not full bloom. Effects cost GPU time.
                 </p>
-              </section>
-              <section>
+              </Panel>
+              <Panel>
                 <h3>Adapter</h3>
                 <code>{stats?.adapter || "Not available"}</code>
                 <small>
@@ -1542,17 +1852,31 @@ function App() {
                 <p className="hint">
                   SwiftShader / llvmpipe means CPU software rendering, not your physical GPU.
                 </p>
-              </section>
+              </Panel>
             </>
           )}
         </div>
-      </aside>
-      <section className="bottom-panel">
+      </Panel>
+      <Panel className="bottom-panel">
         <div className="bottom-tabs">
           {workspace.dockGrip}
-          <div>
+          <Select
+            className="pf-panel-select"
+            aria-label="Workspace panel"
+            value={tab}
+            onChange={(e) => setTab(e.target.value as typeof tab)}
+          >
+            {panelDefinitions
+              .filter((p) => p.side === "bottom")
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+          </Select>
+          <div className="pf-shelf-tabs">
             {(["assets", "console", "ui", "scripts", "guide"] as const).map((t) => (
-              <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
+              <Button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
                 {t === "assets" ? (
                   <>
                     <Icon name="assets" /> Asset library
@@ -1575,103 +1899,47 @@ function App() {
                     <Icon name="guide" /> Quick start
                   </>
                 )}
-              </button>
+              </Button>
             ))}
           </div>
           <div>
             {tab === "assets" ? (
-              <>
-                <button
+              <ActionMenu label="Assets" badge={pendingImports.length}>
+                {!!pendingImports.length && (
+                  <MenuItem onSelect={() => setAssetActionsOpen(true)}>
+                    Resolve {pendingImports.length} import issue(s)…
+                  </MenuItem>
+                )}
+                <MenuItem
                   disabled={playing || importBusy}
-                  onClick={() => {
+                  onSelect={() => {
                     pendingRepair.current = null;
                     reimportTarget.current = undefined;
                     glb.current?.click();
                   }}
                 >
-                  <Icon name="upload" /> Import model
-                </button>
-                {pendingImports.map((attempt) => (
-                  <React.Fragment key={attempt.id}>
-                    <button
-                      disabled={importBusy || playing}
-                      onClick={() => {
-                        pendingRepair.current = attempt.id;
-                        glb.current?.click();
-                      }}
-                    >
-                      Repair {attempt.name}: missing {attempt.missing}
-                    </button>
-                    <button
-                      disabled={importBusy}
-                      onClick={() =>
-                        void assetDatabase
-                          .deletePending(attempt.id)
-                          .then(() => refreshPending())
-                          .catch((e) => setStatus(String(e)))
-                      }
-                    >
-                      Discard failed import {attempt.name}
-                    </button>
-                  </React.Fragment>
-                ))}
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={importOnly}
-                    onChange={(e) => setImportOnly(e.target.checked)}
-                  />{" "}
-                  Import only
-                </label>
-                {importBusy && (
-                  <button onClick={() => importAbort.current?.abort()}>Cancel import</button>
-                )}
-                <button disabled={playing} onClick={() => prefabFile.current?.click()}>
-                  <Icon name="upload" /> Import prefab
-                </button>
-                <button
-                  disabled={playing || importBusy || loadBusy || projectBusy}
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        "Clear undo history and regenerable conversion cache? The active project and recovery checkpoints stay intact.",
-                      )
-                    )
-                      return;
-                    history.current.reset();
-                    const refs = new Set(sceneReferences(current.current));
-                    if (engine.current?.document)
-                      for (const ref of sceneReferences(engine.current.document)) refs.add(ref);
-                    blobs.retain(refs);
-                    void assetDatabase
-                      .clearArtifacts()
-                      .then(() =>
-                        setStatus("Conversion cache and undo cleared; active project retained."),
-                      )
-                      .catch((e) => setStatus(String(e)));
-                    setRevision((r) => r + 1);
-                  }}
-                >
-                  Clear cache / undo
-                </button>
-              </>
+                  Import model…
+                </MenuItem>
+                <MenuItem onSelect={() => setImportSettingsOpen(true)}>Import settings</MenuItem>
+                <MenuItem onSelect={() => setAssetActionsOpen(true)}>More asset actions…</MenuItem>
+              </ActionMenu>
             ) : tab === "console" ? (
               <>
-                <button
+                <Button
                   onClick={() => {
                     engine.current?.events.clear();
                     setLogs([]);
                   }}
                 >
                   Clear
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() =>
                     void download("engine-session.jsonl", engine.current?.events.jsonl() || "")
                   }
                 >
                   Export log
-                </button>
+                </Button>
               </>
             ) : null}
           </div>
@@ -1709,62 +1977,8 @@ function App() {
               </small>
             </div>
             <div className="asset-grid">
-              <section style={{ gridColumn: "1 / -1", padding: 12 }}>
-                <strong>Import normalization</strong>
-                <label>
-                  {" "}
-                  Unit multiplier{" "}
-                  <input
-                    aria-label="Import unit multiplier"
-                    type="number"
-                    min="0.000001"
-                    max="1000000"
-                    step="any"
-                    value={recipe.settings!.unitScale}
-                    onChange={(e) =>
-                      setRecipe({
-                        ...recipe,
-                        settings: { ...recipe.settings!, unitScale: Number(e.target.value) },
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  {" "}
-                  Converter output up axis{" "}
-                  <select
-                    aria-label="Converter output up axis"
-                    value={recipe.settings!.outputUp}
-                    onChange={(e) =>
-                      setRecipe({
-                        ...recipe,
-                        settings: {
-                          ...recipe.settings!,
-                          outputUp: e.target.value as "X" | "Y" | "Z",
-                        },
-                      })
-                    }
-                  >
-                    <option>Y</option>
-                    <option>Z</option>
-                    <option>X</option>
-                  </select>
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={overrideRecipe}
-                    onChange={(e) => setOverrideRecipe(e.target.checked)}
-                  />{" "}
-                  Override saved recipe on reimport
-                </label>
-                <small>
-                  1 preserves units; 0.01 converts centimeters to meters. FBXLoader already corrects
-                  Z-up: normally leave output axis Y. Original source bytes are retained.
-                </small>
-              </section>
               {(["box", "sphere", "capsule", "cylinder", "cone"] as const).map((p, i) => (
-                <button className="asset-card" disabled={playing} key={p} onClick={() => add(p)}>
+                <Button className="asset-card" disabled={playing} key={p} onClick={() => add(p)}>
                   <span className={"asset-icon shape-" + p}>
                     <Icon
                       name={(["cube", "sphere", "capsule", "cylinder", "cone"] as const)[i]}
@@ -1773,9 +1987,9 @@ function App() {
                   </span>
                   <strong>{p}</strong>
                   <small>PRIMITIVE · ADD</small>
-                </button>
+                </Button>
               ))}
-              <button
+              <Button
                 className="asset-card"
                 disabled={playing}
                 onClick={() => {
@@ -1790,10 +2004,10 @@ function App() {
                 </span>
                 <strong>Spot light</strong>
                 <small>LIGHT · ADD</small>
-              </button>
+              </Button>
               {scene.assets.map((a) => (
                 <div key={a.id}>
-                  <button
+                  <Button
                     className="asset-card"
                     disabled={playing}
                     key={a.id}
@@ -1812,8 +2026,8 @@ function App() {
                       {a.import?.format.toUpperCase() || "GLB"} · INSTANCE{" "}
                       {a.import ? `· r${a.import.revision}` : ""}
                     </small>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     disabled={playing || importBusy}
                     aria-label={`Reimport ${a.name}`}
                     onClick={() => {
@@ -1827,7 +2041,7 @@ function App() {
                     }}
                   >
                     Reimport…
-                  </button>
+                  </Button>
                   {a.import && (
                     <details>
                       <summary>Import report</summary>
@@ -1885,40 +2099,40 @@ function App() {
             </div>
           </div>
         )}
-      </section>
+      </Panel>
       <footer className="statusbar">
-        <span className={error ? "error" : ""}>
+        <span role="status" aria-live="polite" title={status} className={error ? "error" : ""}>
           <span className="dot" />
           {status}
         </span>
         <div>
           <label>
             Starter{" "}
-            <select
+            <Select
               aria-label="Game template"
-              disabled={playing}
+              disabled={playing || projectBusy || homeBusy}
               value={scene.template}
-              onChange={(e) => newScene(e.target.value as Template)}
+              onChange={(e) => void newScene(e.target.value as Template)}
             >
               {Object.entries(templateNames).map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <span>Rapier · fixed 60 Hz</span>
           <span>WebGL 2</span>
         </div>
       </footer>
-      <input
+      <Input
         ref={file}
         hidden
         type="file"
         accept=".pif,.json"
         onChange={(e) => void loadScene(e)}
       />
-      <input
+      <Input
         ref={glb}
         hidden
         type="file"
@@ -1927,7 +2141,7 @@ function App() {
         onChange={(e) => void importGlb(e)}
       />
       {review && <ReimportReview {...review} />}
-      <input
+      <Input
         ref={prefabFile}
         hidden
         type="file"
@@ -1937,12 +2151,47 @@ function App() {
     </div>
   );
 }
+function ApplicationShell() {
+  const [editing, setEditing] = useState(() => new URLSearchParams(location.search).has("editor"));
+  const [recovery, setRecovery] = useState(() => (hasRecovery ? bootScene : undefined));
+  useEffect(() => applyPreferences(readPreferences()), []);
+  return editing ? (
+    <App
+      onHome={async (scene, skipSnapshot, isCurrent) => {
+        if (!skipSnapshot) await rememberProject(scene);
+        if (isCurrent && !isCurrent())
+          throw Error(
+            "Project changed while saving. Return home again after finishing your edits.",
+          );
+        bootScene = scene;
+        setRecovery(scene);
+        setEditing(false);
+      }}
+    />
+  ) : (
+    <Home
+      recovery={recovery}
+      onOpen={async (scene) => {
+        scene.project ??= newProjectMetadata(scene.name);
+        try {
+          await rememberProject(scene);
+        } catch (error) {
+          bootNotice = "Recent snapshot unavailable: " + String(error) + ". Save a PIF backup.";
+        }
+        bootScene = scene;
+        recoveryBlocked = false;
+        setEditing(true);
+      }}
+    />
+  );
+}
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing editor root");
 async function boot() {
   root!.textContent = "Opening asset database…";
   try {
     const restored = await assetDatabase.restoreCheckpoint();
+    hasRecovery = !!restored;
     bootScene = restored?.scene || (await referenceScene(initialScene()));
     if (restored?.recovered)
       bootNotice =
@@ -1959,6 +2208,10 @@ async function boot() {
       bootScene = createTemplate("adventure");
     }
   }
-  createRoot(root!).render(<App />);
+  createRoot(root!).render(
+    <ConfirmationProvider>
+      <ApplicationShell />
+    </ConfirmationProvider>,
+  );
 }
 void boot();

@@ -1,3 +1,4 @@
+import { Button, Input, useConfirm } from "./ui";
 import { useState, useEffect, useRef } from "react";
 import type { SceneDocument } from "../../runtime/src/schema";
 import { Icon } from "./icons";
@@ -22,6 +23,7 @@ export function Hierarchy({
   add,
   notify,
 }: Props) {
+  const confirm = useConfirm();
   const storageKey = "pinefall.tree.v1:" + scene.name;
   function savedTree() {
     try {
@@ -131,12 +133,12 @@ export function Hierarchy({
     setRenaming(id);
     setRootCollapsed(false);
   }
-  function remove() {
+  async function remove() {
     if (!selectedIds.length) return;
     const count = descendants(scene, selectedIds).size;
     if (
       count > 1 &&
-      !window.confirm(`Delete ${count} items, including descendants? Undo can restore them.`)
+      !(await confirm(`Delete ${count} items, including descendants? Undo can restore them.`))
     )
       return;
     commit((s) => deleteNodes(s, selectedIds));
@@ -175,7 +177,7 @@ export function Hierarchy({
         </span>
         <span>{scene.entities.length}</span>
       </div>
-      <input
+      <Input
         className="search"
         aria-label="Search entities"
         placeholder="Find objects and collections…"
@@ -186,7 +188,7 @@ export function Hierarchy({
         }}
       />
       <div className="tree-tools">
-        <button
+        <Button
           title="New collection / group selection (Ctrl+G)"
           aria-label="New collection"
           disabled={disabled}
@@ -194,8 +196,8 @@ export function Hierarchy({
         >
           <Icon name="folder" />
           <Icon name="plus" size={11} />
-        </button>
-        <button
+        </Button>
+        <Button
           title="Expand all"
           aria-label="Expand all"
           onClick={() => {
@@ -204,14 +206,14 @@ export function Hierarchy({
           }}
         >
           <Icon name="maximize" />
-        </button>
-        <button
+        </Button>
+        <Button
           title="Collapse all"
           aria-label="Collapse all"
           onClick={() => setCollapsed(new Set(nodes.map((n) => n.id)))}
         >
           <Icon name="minimize" />
-        </button>
+        </Button>
         <span>{selectedIds.length} selected</span>
       </div>
       <div
@@ -222,22 +224,22 @@ export function Hierarchy({
         }}
         onDrop={(e) => drop(e, null)}
       >
-        <button
+        <Button
           aria-label={rootCollapsed ? "Expand scene" : "Collapse scene"}
           onClick={() => setRootCollapsed(!rootCollapsed)}
         >
           <Icon name={rootCollapsed ? "right" : "down"} />
-        </button>
+        </Button>
         <Icon name="stack" />
         <span>{scene.name}</span>
-        <button
+        <Button
           aria-label="Move selection to root"
           title="Move selection to root"
           disabled={disabled || !selectedIds.length}
           onClick={() => move(selectedIds, null)}
         >
           <Icon name="unlink" />
-        </button>
+        </Button>
       </div>
       <div
         className="entity-list"
@@ -349,7 +351,7 @@ export function Hierarchy({
               onClick={(event) => choose(id, event.ctrlKey || event.metaKey, event.shiftKey)}
               onDoubleClick={() => (node.folder ? toggle(id) : focus(id))}
             >
-              <button
+              <Button
                 className="tree-caret"
                 tabIndex={-1}
                 aria-label={(open ? "Collapse " : "Expand ") + node.name}
@@ -360,7 +362,7 @@ export function Hierarchy({
                 }}
               >
                 <Icon name={open ? "down" : "right"} size={12} />
-              </button>
+              </Button>
               <Icon
                 name={
                   node.folder
@@ -378,7 +380,7 @@ export function Hierarchy({
                 size={14}
               />
               {renaming === id ? (
-                <input
+                <Input
                   autoFocus
                   aria-label="Rename item"
                   defaultValue={node.name}
@@ -410,7 +412,7 @@ export function Hierarchy({
                 </small>
               )}
               {!disabled && (
-                <button
+                <Button
                   className="tree-hover"
                   title="Rename (F2)"
                   aria-label={"Rename " + node.name}
@@ -420,10 +422,10 @@ export function Hierarchy({
                   }}
                 >
                   <Icon name="rename" size={12} />
-                </button>
+                </Button>
               )}
               {e && (
-                <button
+                <Button
                   className="tree-hover"
                   disabled={disabled}
                   aria-label={(e.enabled ? "Hide " : "Show ") + node.name}
@@ -436,7 +438,7 @@ export function Hierarchy({
                   }}
                 >
                   <Icon name={e.enabled ? "eye" : "eyeOff"} size={13} />
-                </button>
+                </Button>
               )}
             </div>
           );
@@ -448,25 +450,25 @@ export function Hierarchy({
         )}
       </div>
       <div className="hierarchy-footer">
-        <button disabled={disabled} onClick={add}>
+        <Button disabled={disabled} onClick={add}>
           <Icon name="plus" /> Object
-        </button>
-        <button
+        </Button>
+        <Button
           aria-label="Duplicate selection"
           title="Duplicate subtree (Ctrl+D)"
           disabled={disabled || !selectedIds.length}
           onClick={duplicate}
         >
           <Icon name="copy" />
-        </button>
-        <button
+        </Button>
+        <Button
           aria-label="Delete selection"
           title="Delete selection and descendants"
           disabled={disabled || !selectedIds.length}
           onClick={remove}
         >
           <Icon name="trash" />
-        </button>
+        </Button>
       </div>
       <p className="tree-hint">Drag to nest · Ctrl/⌘ multi-select · F to frame</p>
     </aside>

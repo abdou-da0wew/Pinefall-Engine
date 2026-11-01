@@ -1,3 +1,4 @@
+import { enterEditor, openImportSettings } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import { triangle } from "./asset-fixtures";
 import { unpackProject } from "../packages/project/src/pif";
@@ -10,8 +11,11 @@ try {
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(process.env.TEST_BASE_URL || "http://localhost:5173");
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
+  await openImportSettings(page);
   await page.getByLabel("Import unit multiplier", { exact: true }).fill("2");
+  await page.keyboard.press("Escape");
   const chooser = page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]');
   const select = async (n: number) =>
     chooser.setInputFiles({
@@ -32,7 +36,9 @@ try {
   };
   const first = await save("first");
   expect(first.assets[0].import!.recipe.settings!.unitScale).toBe(2);
+  await openImportSettings(page);
   await page.getByLabel("Import unit multiplier", { exact: true }).fill("3");
+  await page.keyboard.press("Escape");
   const replace = async (n: number) => {
     await page.getByRole("button", { name: "Reimport recipe.glb", exact: true }).click();
     await select(n);
@@ -42,7 +48,9 @@ try {
   };
   await replace(1);
   expect((await save("retained")).assets[0].import!.recipe.settings!.unitScale).toBe(2);
+  await openImportSettings(page);
   await page.getByLabel("Override saved recipe on reimport").check();
+  await page.keyboard.press("Escape");
   await replace(2);
   const changed = await save("changed");
   expect(changed.assets[0].import!.recipe.settings!.unitScale).toBe(3);

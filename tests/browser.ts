@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium } from "@playwright/test";
 const browser = await chromium.launch({
   headless: true,
@@ -7,6 +8,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors: string[] = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 await page.goto("http://localhost:5173");
+await enterEditor(page);
 await page.getByRole("button", { name: "Play scene", exact: true }).waitFor();
 await page.waitForFunction(
   () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,

@@ -1,3 +1,5 @@
+import { panelDefaults } from "./preferences";
+import { Button, Select } from "./ui";
 import { useState, useRef } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import { Icon } from "./icons";
@@ -8,7 +10,7 @@ interface Layout {
   dock: "bottom" | "right";
   focus: boolean;
 }
-const defaults: Layout = { left: 248, right: 286, bottom: 220, dock: "bottom", focus: false };
+const defaults: Layout = panelDefaults;
 function load(): Layout {
   try {
     const d = JSON.parse(localStorage.getItem("pinefall.layout.v1") || "null");
@@ -75,7 +77,7 @@ export function useWorkspaceLayout(scripts: boolean) {
     <div className="layout-toolbar">
       <label>
         <Icon name="columns" />
-        <select
+        <Select
           aria-label="Workspace layout"
           value={layout.focus ? "focus" : layout.dock === "right" ? "right" : "balanced"}
           onChange={(e) => {
@@ -94,15 +96,15 @@ export function useWorkspaceLayout(scripts: boolean) {
           <option value="balanced">Balanced layout</option>
           <option value="right">Shelf docked right</option>
           <option value="focus">Focus viewport</option>
-        </select>
+        </Select>
       </label>
-      <button
+      <Button
         aria-label="Reset workspace layout"
         title="Reset panel sizes"
         onClick={() => update({ ...defaults })}
       >
         <Icon name="undo" />
-      </button>
+      </Button>
     </div>
   );
   const handles = (["left", "right", "bottom"] as const).map((kind) => (
@@ -141,7 +143,7 @@ export function useWorkspaceLayout(scripts: boolean) {
     </div>
   ));
   const dockGrip = (
-    <button
+    <Button
       className="dock-grip"
       title="Drag shelf to dock"
       aria-label="Drag shelf to dock"
@@ -154,7 +156,7 @@ export function useWorkspaceLayout(scripts: boolean) {
       onDragEnd={() => setDockDragging(false)}
     >
       <Icon name="rows" />
-    </button>
+    </Button>
   );
   const dockTargets = dockDragging ? (
     <div className="dock-targets">

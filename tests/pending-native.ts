@@ -1,3 +1,4 @@
+import { enterEditor, openAssetActions } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 import { texturedFbx } from "./asset-fixtures";
 const app = await _electron.launch({
@@ -14,6 +15,7 @@ try {
   const page = await app.firstWindow(),
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   const chooser = page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]');
   await chooser.setInputFiles({
@@ -25,6 +27,7 @@ try {
     name: "Repair native-repair.fbx: missing albedo.png",
     exact: true,
   });
+  await openAssetActions(page);
   await expect(repair).toBeVisible();
   await page.waitForFunction(
     () =>
@@ -48,6 +51,8 @@ try {
       }),
   );
   await page.reload();
+  await enterEditor(page);
+  await openAssetActions(page);
   await expect(repair).toBeVisible();
   const png = await page.evaluate(async () => {
     const canvas = document.createElement("canvas");

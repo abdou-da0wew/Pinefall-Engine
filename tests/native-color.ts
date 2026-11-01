@@ -1,3 +1,4 @@
+import { enterEditor, newEditorGame } from "./editor-navigation";
 import { _electron, expect } from "@playwright/test";
 const app = await _electron.launch({
   executablePath:
@@ -8,10 +9,11 @@ const app = await _electron.launch({
 });
 try {
   const page = await app.firstWindow();
+  await enterEditor(page);
   await page.waitForFunction(
     () => !(document.querySelector('[aria-label="Play scene"]') as HTMLButtonElement)?.disabled,
   );
-  await page.getByRole("button", { name: "New game", exact: true }).click();
+  await newEditorGame(page);
   await page.getByLabel("Game name", { exact: true }).fill("Desktop Color Test");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await page.getByRole("treeitem").filter({ hasText: "Ground" }).click();

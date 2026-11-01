@@ -1,3 +1,4 @@
+import { Button, Input, Select, Textarea, useConfirm } from "./ui";
 import { useState } from "react";
 import { Icon } from "./icons";
 import { ColorPicker } from "./color-picker";
@@ -19,6 +20,7 @@ export function UIEditor({
   commit: (fn: (s: SceneDocument) => void) => void;
   disabled: boolean;
 }) {
+  const confirm = useConfirm();
   const [kind, setKind] = useState<UIKind>("text");
   const ui = scene.ui || emptyUI(),
     chosen = ui.elements.find((e) => e.id === selected);
@@ -56,12 +58,12 @@ export function UIEditor({
     });
     onSelect("");
   }
-  function sample() {
+  async function sample() {
     if (
       ui.elements.length &&
-      !window.confirm(
+      !(await confirm(
         "Replace the current HUD? Undo restores it. Existing UI scripts may reference replaced elements.",
-      )
+      ))
     )
       return;
     commit((s) => {
@@ -103,7 +105,7 @@ export function UIEditor({
     return (
       <label className="ui-field">
         {label}
-        <input
+        <Input
           aria-label={"UI " + label}
           key={selected + label + value}
           type="number"
@@ -137,7 +139,7 @@ export function UIEditor({
     <div className="ui-editor">
       <aside>
         <div className="ui-add">
-          <select
+          <Select
             aria-label="UI element type"
             value={kind}
             disabled={disabled}
@@ -157,17 +159,17 @@ export function UIEditor({
             ).map((k) => (
               <option key={k}>{k}</option>
             ))}
-          </select>
-          <button aria-label="Add UI element" disabled={disabled} onClick={add}>
+          </Select>
+          <Button aria-label="Add UI element" disabled={disabled} onClick={add}>
             <Icon name="plus" />
-          </button>
+          </Button>
         </div>
-        <button className="wide-button" disabled={disabled} onClick={sample}>
+        <Button className="wide-button" disabled={disabled} onClick={sample}>
           Add sample HUD + script
-        </button>
+        </Button>
         <div className="ui-tree">
           {ui.elements.map((e) => (
-            <button
+            <Button
               key={e.id}
               className={selected === e.id ? "active" : ""}
               style={{ paddingLeft: 8 + depth(e) * 12 }}
@@ -175,7 +177,7 @@ export function UIEditor({
             >
               <Icon name={e.kind === "panel" ? "folder" : "assets"} />
               {e.name}
-            </button>
+            </Button>
           ))}
         </div>
       </aside>
@@ -187,7 +189,7 @@ export function UIEditor({
           <span>
             {ui.width} × {ui.height} design canvas · click a widget in the viewport to select
           </span>
-          <button
+          <Button
             disabled={disabled}
             onClick={() =>
               commit((s) => {
@@ -198,7 +200,7 @@ export function UIEditor({
             }
           >
             Reset canvas size
-          </button>
+          </Button>
         </div>
         <div className="ui-fields">
           {number(
@@ -229,7 +231,7 @@ export function UIEditor({
             <div className="ui-fields">
               <label className="ui-field">
                 Name
-                <input
+                <Input
                   aria-label="UI Name"
                   key={chosen.id + chosen.name}
                   defaultValue={chosen.name}
@@ -244,7 +246,7 @@ export function UIEditor({
               <label className="ui-field">
                 SDK ID<code>{chosen.id}</code>
               </label>
-              <button
+              <Button
                 disabled={disabled}
                 onClick={() => {
                   const e = structuredClone(chosen);
@@ -258,16 +260,16 @@ export function UIEditor({
               >
                 <Icon name="copy" />
                 Duplicate
-              </button>
-              <button disabled={disabled} onClick={remove}>
+              </Button>
+              <Button disabled={disabled} onClick={remove}>
                 <Icon name="trash" />
                 Delete subtree
-              </button>
+              </Button>
             </div>
             <div className="ui-fields">
               <label className="ui-field">
                 Parent panel
-                <select
+                <Select
                   aria-label="UI Parent"
                   value={chosen.parent || ""}
                   disabled={disabled}
@@ -285,11 +287,11 @@ export function UIEditor({
                         {e.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
               <label className="ui-field">
                 Anchor
-                <select
+                <Select
                   aria-label="UI Anchor"
                   value={chosen.anchor}
                   disabled={disabled}
@@ -302,7 +304,7 @@ export function UIEditor({
                   {["top-left", "top-right", "bottom-left", "bottom-right", "center"].map((v) => (
                     <option key={v}>{v}</option>
                   ))}
-                </select>
+                </Select>
               </label>
               {number("X", chosen.x, (n) =>
                 patch((e) => {
@@ -338,7 +340,7 @@ export function UIEditor({
             <div className="ui-fields">
               <label className="ui-field ui-text">
                 Text / label
-                <input
+                <Input
                   aria-label="UI Text"
                   key={chosen.id + chosen.text}
                   defaultValue={chosen.text}
@@ -352,7 +354,7 @@ export function UIEditor({
               </label>
               <label className="ui-field">
                 Action name
-                <input
+                <Input
                   aria-label="UI Action"
                   key={chosen.id + chosen.action}
                   defaultValue={chosen.action}
@@ -366,7 +368,7 @@ export function UIEditor({
               </label>
               {(["visible", "enabled"] as const).map((k) => (
                 <label key={k}>
-                  <input
+                  <Input
                     aria-label={"UI " + k}
                     type="checkbox"
                     checked={chosen[k]}
@@ -471,7 +473,7 @@ export function UIEditor({
               )}
               <label className="ui-field">
                 Align
-                <select
+                <Select
                   aria-label="UI Align"
                   value={chosen.style.align}
                   disabled={disabled}
@@ -484,7 +486,7 @@ export function UIEditor({
                   {["left", "center", "right"].map((v) => (
                     <option key={v}>{v}</option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
             {["progress", "slider"].includes(chosen.kind) && (
@@ -534,7 +536,7 @@ export function UIEditor({
             )}
             {chosen.kind === "toggle" && (
               <label>
-                <input
+                <Input
                   aria-label="UI Checked"
                   disabled={disabled}
                   type="checkbox"
@@ -551,7 +553,7 @@ export function UIEditor({
             {["input", "select"].includes(chosen.kind) && (
               <label className="ui-field">
                 Initial value
-                <input
+                <Input
                   aria-label="UI Initial value"
                   key={chosen.id + String(chosen.value)}
                   disabled={disabled}
@@ -567,7 +569,7 @@ export function UIEditor({
             {chosen.kind === "select" && (
               <label className="ui-field">
                 Options, one per line
-                <textarea
+                <Textarea
                   aria-label="UI Options"
                   disabled={disabled}
                   key={chosen.id + chosen.options.join("|")}
@@ -585,7 +587,7 @@ export function UIEditor({
               <div className="ui-fields">
                 <label className="ui-field">
                   Child layout
-                  <select
+                  <Select
                     aria-label="UI Layout"
                     disabled={disabled}
                     value={chosen.layout}
@@ -598,7 +600,7 @@ export function UIEditor({
                     {["absolute", "row", "column"].map((v) => (
                       <option key={v}>{v}</option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 {number(
                   "Gap",

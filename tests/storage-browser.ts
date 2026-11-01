@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import { triangle } from "./asset-fixtures";
 const browser = await chromium.launch({
@@ -109,9 +110,11 @@ try {
     raw.close();
   }, Array.from(triangle()));
   await page.goto((process.env.TEST_BASE_URL || "http://localhost:5173") + "/");
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Reimport sample.glb" })).toBeVisible();
   await page.reload();
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Reimport sample.glb" })).toBeVisible();
   expect(errors).toEqual([]);
   console.log(

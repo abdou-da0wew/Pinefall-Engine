@@ -1,8 +1,10 @@
-# Pinefall Engine 0.6.0
+# Pinefall Engine 0.6.1
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
+
+**0.6.1 UI update prepared locally:** Home, verified recent snapshots, five starters, shared editor controls/dialogs and persistent preferences. Marketplace remains TODO. [Release notes and screenshots](docs/RELEASE-0.6.1.md). Remote publication awaits renewed authorization; the stable published download below remains 0.6.0.
 
 **Plan02 implemented and released:** [0.6.0 downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.0) include authored animation/root motion, PIF6 audio, bounded streaming/persistent music and the original combined workshop. The owner has deferred hardware/listening acceptance to their own testing; these checks are **not claimed as passed**. See [the gate ledger](docs/PLAN02-ACCEPTANCE.md).
 
@@ -18,9 +20,9 @@ Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three
 
 Current source writes portable project/editor metadata and a verified SHA-256 resource inventory. Strict verification and an optional trusted external digest are supported. These are integrity checks, not signatures. Published 0.5.1 reads only PIF v1; see [format compatibility and verification](docs/PIF.md).
 
-## Work in progress: 0.6
+## Historical first milestone (0.5.1)
 
-The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first milestone adds real XZ `.pif` project containers with separate resources, cancellable worker open/save, and project keyboard shortcuts. See [PIF format and current limitations](docs/PIF.md). FBX, custom shaders and the expanded graphics pipeline are still pending. The 0.5.1 packages include this milestone; 0.5.0 packages contain the UI toolkit but not PIF support.
+The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first milestone adds real XZ `.pif` project containers with separate resources, cancellable worker open/save, and project keyboard shortcuts. See [PIF format and current limitations](docs/PIF.md). At that milestone FBX, custom shaders and the expanded graphics pipeline were pending; see newer release notes above for subsequent FBX work. The 0.5.1 packages include this milestone; 0.5.0 packages contain the UI toolkit but not PIF support.
 
 ## Downloads
 

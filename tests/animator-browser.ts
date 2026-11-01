@@ -1,3 +1,4 @@
+import { enterEditor } from "./editor-navigation";
 import { chromium, expect } from "@playwright/test";
 import { skinnedTriangle } from "./asset-fixtures";
 const base = process.env.TEST_BASE_URL || "http://localhost:5173";
@@ -122,14 +123,13 @@ try {
     JSON.stringify(result),
   );
   await page.goto(base);
+  await enterEditor(page);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
-  await page
-    .locator('input[type="file"][accept*=".glb"]')
-    .setInputFiles({
-      name: "rig.glb",
-      mimeType: "model/gltf-binary",
-      buffer: Buffer.from(skinnedTriangle()),
-    });
+  await page.locator('input[type="file"][accept*=".glb"]').setInputFiles({
+    name: "rig.glb",
+    mimeType: "model/gltf-binary",
+    buffer: Buffer.from(skinnedTriangle()),
+  });
   await expect(page.getByRole("button", { name: "Add animator", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Add animator", exact: true }).click();
   await expect(page.getByRole("button", { name: "Apply animator", exact: true })).toBeEnabled();
