@@ -1,12 +1,5 @@
 export type UIKind =
-  | "panel"
-  | "text"
-  | "button"
-  | "progress"
-  | "toggle"
-  | "slider"
-  | "input"
-  | "select";
+  "panel" | "text" | "button" | "progress" | "toggle" | "slider" | "input" | "select";
 export type UIAnchor = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
 export type UIValue = string | number | boolean;
 export interface UIStyle {

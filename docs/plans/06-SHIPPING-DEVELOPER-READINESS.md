@@ -90,7 +90,7 @@ Godot's saving guide deliberately identifies persistent objects and serializable
 ```ts
 // Proposed game-save envelope; payload validated by the game's schema.
 interface SaveEnvelope {
-  format: 'pinefall-save';
+  format: "pinefall-save";
   envelopeVersion: 1;
   gameId: string;
   gameVersion: string;
@@ -133,14 +133,14 @@ Require remappable controls, keyboard-only menus, visible focus, scalable/readab
 
 Ship four maintained starters with the same public runtime/editor contracts, plus a polished 15–30 minute sample proving import, animation, materials, audio, input, prefab reuse, two-scene transitions, saves and standalone export. Have at least two external developers build a small game from documentation without private fixes. Record blockers and reproduce them before calling the engine 1.0-ready.
 
-| Gate | Required evidence |
-|---|---|
-| SR0 | Profile schema, dependency closure and deterministic manifest tests |
-| SR1 | Action/rebinding tests on keyboard and real controllers |
-| SR2 | Save migration/corruption/quota/power-loss recovery matrix |
-| SR3 | Clean Linux and Windows packaged player launches, settings/save persistence |
-| SR4 | Security/IPC/navigation/license audit and final artifact verification |
-| SR5 | Four starter exports, sample completion and external developer feedback |
+| Gate | Required evidence                                                           |
+| ---- | --------------------------------------------------------------------------- |
+| SR0  | Profile schema, dependency closure and deterministic manifest tests         |
+| SR1  | Action/rebinding tests on keyboard and real controllers                     |
+| SR2  | Save migration/corruption/quota/power-loss recovery matrix                  |
+| SR3  | Clean Linux and Windows packaged player launches, settings/save persistence |
+| SR4  | Security/IPC/navigation/license audit and final artifact verification       |
+| SR5  | Four starter exports, sample completion and external developer feedback     |
 
 Proposed sequencing: 0.6 assets/materials/lights; 0.7 animation/audio/input; 0.8 prefab/persistence/gameplay; 0.9 debugging/recovery/export; 1.0 candidate only after the evidence above. Shared identity, lifecycle, diagnostics and validation foundations must begin earlier than the visible feature releases. No calendar commitment or publication authorization is implied.
 
@@ -172,13 +172,13 @@ Test keyboard layouts, simultaneous opposite movement keys, analog diagonals, st
 
 ### Release evidence matrix and distribution policy
 
-| Environment | Required evidence | What does not count |
-|---|---|---|
-| Linux physical CEDAR | Effective renderer, settings, sample play, import responsiveness, save/relaunch | SwiftShader/Xvfb-only run |
-| Linux modern GPU | Correct visuals, timers if supported, profile switching/context recovery | FPS number without scene/profile |
-| Windows physical system | Packaged launch, paths, audio/controller, save/replace and clean exit | Successful cross-build ZIP |
-| Browser target | Origin/CSP/storage fallback, supported controls and loading | Electron-only test |
-| Headless | No DOM dependency; lifecycle/events/save schema tests | Merely importing a module successfully |
+| Environment             | Required evidence                                                               | What does not count                    |
+| ----------------------- | ------------------------------------------------------------------------------- | -------------------------------------- |
+| Linux physical CEDAR    | Effective renderer, settings, sample play, import responsiveness, save/relaunch | SwiftShader/Xvfb-only run              |
+| Linux modern GPU        | Correct visuals, timers if supported, profile switching/context recovery        | FPS number without scene/profile       |
+| Windows physical system | Packaged launch, paths, audio/controller, save/replace and clean exit           | Successful cross-build ZIP             |
+| Browser target          | Origin/CSP/storage fallback, supported controls and loading                     | Electron-only test                     |
+| Headless                | No DOM dependency; lifecycle/events/save schema tests                           | Merely importing a module successfully |
 
 For every row record OS, driver, Electron/Chromium/Three/Rapier versions, build hash, resolution/profile, fixture hash, p50/p95/p99 CPU/frame times and GPU availability. Store hardware reports as consented artifacts with private paths redacted. An unsupported configuration remains explicitly unsupported instead of being relabelled passed.
 
@@ -191,7 +191,6 @@ Refactor `scripts/game.ts` into reusable build/export services; keep CLI entrypo
 Dependencies that block release: Plan 01 asset closure/cooking/PIF migration, Plan 02 audio unlock and lifetime, Plan 03 effective quality settings, Plan 04 scene identities/lifecycle, and Plan 05 recovery/diagnostics. Input can start early behind the raw-input adapter; save envelopes can be tested before prefab persistence is complete.
 
 Record decisions on application IDs/user-data paths, supported Windows/Linux versions, signing provider/key custody, codec distribution, protocol scheme and game-save migration ownership. Signing certificates and physical hardware remain external resources to obtain; neither is assumed available. The final readiness review must distinguish implemented, tested, unsupported and deferred items, with release gates taking precedence over the proposed version numbers.
-
 
 ## R3 — Final integration check
 

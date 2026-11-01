@@ -357,7 +357,7 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
       throw Error("PIF assets must reference files");
     const bytes = get(a.file);
     validateGlb(bytes);
-    let provenance;
+    let provenance: ReturnType<typeof parseImport> | undefined;
     if (a.import !== undefined) {
       if (manifest.version < 3) throw Error("Import provenance requires PIF v3");
       const info = a.import as Record<string, unknown>;

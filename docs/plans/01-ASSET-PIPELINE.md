@@ -48,20 +48,32 @@ Godot's import settings survive reimport and source changes trigger regeneration
 ```ts
 // Proposed contracts, not existing SDK.
 interface AssetRecord {
-  id: string;                  // permanent project identity, never a content hash
-  kind: 'model' | 'texture' | 'material' | 'audio' | 'shader' | 'prefab' | 'animation' | 'scene';
+  id: string; // permanent project identity, never a content hash
+  kind: "model" | "texture" | "material" | "audio" | "shader" | "prefab" | "animation" | "scene";
   displayName: string;
   source: { blobHash: string; relativeName: string; mime: string };
-  dependencies: { assetId: string; mode: 'source' | 'artifact' }[];
+  dependencies: { assetId: string; mode: "source" | "artifact" }[];
   recipe: { importer: string; version: number; settings: unknown };
   artifactHash?: string;
   subassets: { id: string; sourceKey: string; kind: string }[];
 }
 interface ImportJob {
-  id: string; projectId: string; sourceRevision: number;
-  stage: 'queued' | 'read' | 'inspect' | 'convert' | 'validate' |
-         'stageGPU' | 'commit' | 'complete' | 'failed' | 'cancelled';
-  bytesRead: number; totalBytes?: number;
+  id: string;
+  projectId: string;
+  sourceRevision: number;
+  stage:
+    | "queued"
+    | "read"
+    | "inspect"
+    | "convert"
+    | "validate"
+    | "stageGPU"
+    | "commit"
+    | "complete"
+    | "failed"
+    | "cancelled";
+  bytesRead: number;
+  totalBytes?: number;
 }
 ```
 
@@ -92,13 +104,13 @@ Cancellation means **no later adoption**, not necessarily instant interruption o
 
 ### 4. Import formats and feature policy
 
-| Input | Initial support contract | Explicit rejection/warning |
-|---|---|---|
-| GLB 2.0 | Meshes, transforms, UV sets, normals, materials; retain skin/clip data for Plan 02 | Required extension without a bundled compatible decoder |
-| FBX | Static meshes first; then skinned/animated fixtures and companion textures | Unsupported shader graphs, constraints or animation conversions listed individually |
-| PNG/JPEG | Colour or data texture role selected explicitly | Oversized decoded dimensions, not only compressed file size |
-| Height/depth maps | Preserve original numeric meaning and declared range | Do not reinterpret camera depth as mesh displacement automatically |
-| Compressed textures | Separate capability-gated milestone | No assumption that every GPU supports the same compressed format |
+| Input               | Initial support contract                                                           | Explicit rejection/warning                                                          |
+| ------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| GLB 2.0             | Meshes, transforms, UV sets, normals, materials; retain skin/clip data for Plan 02 | Required extension without a bundled compatible decoder                             |
+| FBX                 | Static meshes first; then skinned/animated fixtures and companion textures         | Unsupported shader graphs, constraints or animation conversions listed individually |
+| PNG/JPEG            | Colour or data texture role selected explicitly                                    | Oversized decoded dimensions, not only compressed file size                         |
+| Height/depth maps   | Preserve original numeric meaning and declared range                               | Do not reinterpret camera depth as mesh displacement automatically                  |
+| Compressed textures | Separate capability-gated milestone                                                | No assumption that every GPU supports the same compressed format                    |
 
 FBX import is a conversion boundary, not a promise to reproduce every DCC feature. Retain source bytes and the conversion report. Normalize units/up-axis once at the model boundary, preserving animation/skeleton consistency; do not bake the same conversion into both root transform and vertices.
 
@@ -120,15 +132,15 @@ PIF v2 currently allows a narrow path/type set and small fixed budgets. Adding n
 
 ### 7. Work packages and release gates
 
-| Package | Deliverable | Gate |
-|---|---|---|
-| A0 | Timing/memory instrumentation and representative fixtures | Baseline report separates read/parse/decode/upload/compile |
-| A1 | Registry, blob store, recipes and migration adapter | Identity/dependency/round-trip tests pass |
-| A2 | Cancellable queue and transactional adoption | Cancel/race/retry never replaces a newer scene |
-| A3 | Cached GLB import and cloned instances | 100 instances do not parse the same artifact 100 times |
-| A4 | FBX converter and companion texture resolver | Fixture matrix passes, losses reported |
-| A5 | Reimport diff, remapping and undo | Overrides remain correct after source reorder/delete |
-| A6 | Editor polish, CLI import and export integration | Same artifact hash for equivalent supported recipes |
+| Package | Deliverable                                               | Gate                                                       |
+| ------- | --------------------------------------------------------- | ---------------------------------------------------------- |
+| A0      | Timing/memory instrumentation and representative fixtures | Baseline report separates read/parse/decode/upload/compile |
+| A1      | Registry, blob store, recipes and migration adapter       | Identity/dependency/round-trip tests pass                  |
+| A2      | Cancellable queue and transactional adoption              | Cancel/race/retry never replaces a newer scene             |
+| A3      | Cached GLB import and cloned instances                    | 100 instances do not parse the same artifact 100 times     |
+| A4      | FBX converter and companion texture resolver              | Fixture matrix passes, losses reported                     |
+| A5      | Reimport diff, remapping and undo                         | Overrides remain correct after source reorder/delete       |
+| A6      | Editor polish, CLI import and export integration          | Same artifact hash for equivalent supported recipes        |
 
 Start with one active heavy conversion on the low profile and two on a stronger profile. These are policy defaults to benchmark, not claims about optimal worker counts. Proposed UI target: input feedback under 100 ms p95 during supported imports; record worst tasks over 50 ms. Main-thread adoption slices target 2–4 ms, but a driver upload is not preemptible. Reject or downsample oversized resources before they enter that stage.
 
@@ -183,7 +195,6 @@ Implementation sequence in current code: add blob/asset references alongside `pa
 
 A1–A3 must land before material/audio import makes the archive schema wider. Decide parser backend, source-retention policy, texture codecs and low-memory limits from the spike report. Build a fixture manifest with author/license, expected feature count, expected conversion warnings and expected failure code. Required fault injection: worker crash, stale completion after project close, cancelled GPU staging, full cache disk, dependency deletion and schema downgrade. Preserve the original and last good artifact in every failed replacement. Exported players consume cooked artifacts; they do not parse FBX on their first gameplay frame.
 
-
 ## R3 — Final integration check
 
 The asset registry explicitly includes material and scene asset kinds so Plans 03/04 do not require untyped side channels. The importer owns source conversion, not simulation or renderer settings. Before coding, freeze the normalized artifact schema, lease interface, job cancellation protocol and PIF migration fixtures together. Start with one GLB fixture through the complete pipeline before widening supported formats.
@@ -195,7 +206,6 @@ The asset registry explicitly includes material and scene asset kinds so Plans 0
 - [Reusable gameplay, prefabs, components and scene lifecycle](04-GAMEPLAY-AUTHORING.md)
 - [Debugging, profiling, recovery and editor quality of life](05-DEBUGGING-RELIABILITY.md)
 - [Game export, input, save games, security and production readiness](06-SHIPPING-DEVELOPER-READINESS.md)
-
 
 ## Implementation checkpoint — 2026-10-31 (unreleased)
 

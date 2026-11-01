@@ -1,0 +1,1 @@
+PASS native graphics authoring: disk-backed PNG/HDR resources, per-slot map/UV authoring, invalid UV transaction retention, HDR environment, advanced scattering controls, raw PIF backup and native PIF9-to-folder opening

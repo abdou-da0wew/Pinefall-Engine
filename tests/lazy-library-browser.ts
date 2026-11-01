@@ -58,13 +58,11 @@ try {
   await expect(page.locator(".statusbar")).toContainText("Import selection cancelled");
   await page.getByLabel("3D scene viewport", { exact: true }).focus();
   await page.keyboard.press("Control+i");
-  await page
-    .locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]')
-    .setInputFiles({
-      name: "another.glb",
-      mimeType: "model/gltf-binary",
-      buffer: Buffer.from(triangle(1)),
-    });
+  await page.locator('input[accept=".glb,.fbx,.png,.jpg,.jpeg"]').setInputFiles({
+    name: "another.glb",
+    mimeType: "model/gltf-binary",
+    buffer: Buffer.from(triangle(1)),
+  });
   await expect(page.locator(".statusbar")).toContainText("Imported another.glb");
   await expect(page.getByRole("dialog", { name: "Review reimport", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();

@@ -2,7 +2,7 @@ import { needsPIF9 } from "./graphics-format";
 import { unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { DiskWorkspace } from "./disk-workspace";
+import type { DiskWorkspace } from "./disk-workspace";
 import { projectRelativePath } from "./disk-path";
 import { readFolder } from "./folder-format";
 import { newProjectMetadata, parseProjectMetadata } from "./metadata";

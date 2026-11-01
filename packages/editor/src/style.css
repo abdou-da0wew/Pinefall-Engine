@@ -388,7 +388,7 @@ code {
   letter-spacing: 2.7px;
 }
 .scene-caption h1 {
-  font-family: "Space Grotesk";
+  font-family: "Space Grotesk", sans-serif;
   font-weight: 500;
   color: #f2edce;
   font-size: 35px;
@@ -491,7 +491,7 @@ code {
   color: #d1c68e;
 }
 .game-hud h2 {
-  font-family: "Space Grotesk";
+  font-family: "Space Grotesk", sans-serif;
   font-size: 22px;
   font-weight: 500;
   margin: 7px 0;
@@ -687,7 +687,9 @@ code {
   color: #b9bd8f;
 }
 .render-heading h2 {
-  font: 22px/1.3 "Space Grotesk";
+  font:
+    22px/1.3 "Space Grotesk",
+    sans-serif;
   font-weight: 500;
   color: #e0e1c5;
 }
@@ -1008,7 +1010,9 @@ code {
   color: #c0c999;
 }
 .project-modal h2 {
-  font: 26px "Space Grotesk";
+  font:
+    26px "Space Grotesk",
+    sans-serif;
 }
 .project-modal label {
   display: block;
@@ -1124,7 +1128,9 @@ code {
   overflow: auto;
 }
 .script-help h3 {
-  font: 20px "Space Grotesk";
+  font:
+    20px "Space Grotesk",
+    sans-serif;
 }
 .script-help p {
   font-size: 11px;
@@ -1976,7 +1982,9 @@ button:active:not(:disabled) {
   padding: 20px 10px;
 }
 .ui-empty h3 {
-  font: 23px "Space Grotesk";
+  font:
+    23px "Space Grotesk",
+    sans-serif;
 }
 .ui-field textarea {
   background: #102016;

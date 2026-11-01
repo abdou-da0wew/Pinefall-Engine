@@ -1,0 +1,13 @@
+# Dependencies and generated output, never authored sources.
+node_modules/
+dist/
+build/
+build-desktop/
+artifacts/
+.cache/
+coverage/
+# Bun owns its lockfile. Preserve historical logs and third-party license text.
+bun.lock
+docs/evidence/**/*.txt
+docs/evidence/**/*.json
+docs/licenses/

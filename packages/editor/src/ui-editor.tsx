@@ -360,9 +360,9 @@ export function UIEditor({
                   }
                 />
               </label>
-              <label className="ui-field">
+              <div className="ui-field">
                 SDK ID<code>{chosen.id}</code>
-              </label>
+              </div>
               <Button
                 disabled={disabled}
                 onClick={() => {

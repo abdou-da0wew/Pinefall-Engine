@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1 — repository formatting and lint cleanup
+
+- Replace Oxfmt with pinned Prettier; run it across every supported authored file.
+- Add pinned Biome with formatter/assist disabled, retaining strict Oxlint; formatting and both linters gate `check`, builds and CI.
+- Clean up lint findings, add editor configuration and document deliberate rule exceptions/exclusions.
+- Preserve third-party license texts, recorded evidence and generated/binary resources.
+
 ## Unreleased
 
 - Unified native PIF1–8 opening with streamed legacy extraction, pre-conversion integrity checks, editable metadata migration, rollback and cancellation checks.

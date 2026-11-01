@@ -4,7 +4,8 @@ import { Quaternion, Euler, MathUtils, Vector3 } from "three";
 import type { Entity } from "./schema";
 let ready: Promise<void> | undefined;
 export function initPhysics() {
-  return (ready ??= RAPIER.init());
+  ready ??= RAPIER.init();
+  return ready;
 }
 export { RAPIER };
 export class PhysicsSystem {

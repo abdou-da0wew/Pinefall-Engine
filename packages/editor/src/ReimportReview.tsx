@@ -122,8 +122,8 @@ export function ReimportReview({
           {removed.length > 25 ? " (additional removals omitted from this summary)" : ""}.
         </p>
         {duplicate && <p role="alert">Each previous identity may be mapped only once.</p>}
-        {incoming.report.warnings.map((warning, i) => (
-          <p key={i}>{warning}</p>
+        {[...new Set(incoming.report.warnings)].map((warning) => (
+          <p key={warning}>{warning}</p>
         ))}
         <Button onClick={() => finish(undefined)}>Cancel reimport</Button>{" "}
         <Button disabled={duplicate} onClick={() => finish(mapping)}>

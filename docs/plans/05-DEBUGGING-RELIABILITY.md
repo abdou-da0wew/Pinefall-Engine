@@ -47,8 +47,8 @@ The current behavior wrapper catches synchronous exceptions and rejects asynchro
 // Proposed internal diagnostic; not a serialized scene component.
 interface Diagnostic {
   version: 1;
-  severity: 'info' | 'warning' | 'error';
-  subsystem: 'script' | 'asset' | 'physics' | 'render' | 'project' | 'platform';
+  severity: "info" | "warning" | "error";
+  subsystem: "script" | "asset" | "physics" | "render" | "project" | "platform";
   code: string;
   message: string;
   operationId?: string;
@@ -117,14 +117,14 @@ Project open/close, Play/Stop and crash recovery should ask only when genuinely 
 
 ### 9. Implementation and acceptance
 
-| Stage | Delivery | Failure injection |
-|---|---|---|
-| DR0 | Diagnostic envelope/source maps | Syntax error, runtime throw, stale source revision |
-| DR1 | Live inspector/pause/step | Mutation during physics/event dispatch |
-| DR2 | CPU frame tree and GPU query adapter | Missing extension, disjoint, context loss |
-| DR3 | Ownership ledger and resource scopes | 100 open/play/stop/reimport cycles |
-| DR4 | Transaction commands and byte-bounded history | Partial failure, undo after source deletion |
-| DR5 | Journal/checkpoint/recovery/migrations | Truncation, disk full, process kill at each save phase |
+| Stage | Delivery                                      | Failure injection                                      |
+| ----- | --------------------------------------------- | ------------------------------------------------------ |
+| DR0   | Diagnostic envelope/source maps               | Syntax error, runtime throw, stale source revision     |
+| DR1   | Live inspector/pause/step                     | Mutation during physics/event dispatch                 |
+| DR2   | CPU frame tree and GPU query adapter          | Missing extension, disjoint, context loss              |
+| DR3   | Ownership ledger and resource scopes          | 100 open/play/stop/reimport cycles                     |
+| DR4   | Transaction commands and byte-bounded history | Partial failure, undo after source deletion            |
+| DR5   | Journal/checkpoint/recovery/migrations        | Truncation, disk full, process kill at each save phase |
 
 Completion requires a developer to locate a seeded script error, identify a GPU-heavy versus CPU-heavy scene correctly, find a deliberately leaked resource, undo an import, and recover an interrupted edit session. Headless tests cover transaction/migration/simulation order; graphical/native tests cover inspector/source links/GPU and disk behavior. Avoid claiming that a passing browser-only test proves Windows file durability.
 
@@ -170,7 +170,6 @@ First land diagnostics/ownership primitives needed by every other plan; visible 
 Add tests for astral Unicode byte accounting, huge error messages, repeated identical failures, clipboard/shortcut focus, journal sequence gaps, checksum-valid but schema-invalid data, out-of-order save completions, renderer hang, missing GPU timer support and disjoint invalidation. Privacy tests seed fake credentials/paths into diagnostics and verify redacted support export. No logs or source files are uploaded automatically.
 
 Unresolved implementation choices: source-map library and wrapper mapping strategy, Play process isolation cost, native checkpoint replacement protocol and default trace retention. Each needs an architecture decision and measured prototype before the corresponding gate is marked complete.
-
 
 ## R3 — Final integration check
 

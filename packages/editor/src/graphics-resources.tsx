@@ -119,7 +119,7 @@ export function GraphicsResources({
           </Select>
         </label>
         {channels.map((channel, index) => (
-          <fieldset key={index}>
+          <fieldset key={["red", "green", "blue", "alpha"][index]}>
             <legend>
               {["Red / AO", "Green / roughness / alpha", "Blue / metalness", "Alpha"][index]}
             </legend>

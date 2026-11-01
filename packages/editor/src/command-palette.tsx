@@ -49,7 +49,9 @@ export function CommandPalette({
           }
         }}
       />
+      {/* biome-ignore lint/a11y/useSemanticElements: ARIA group describes non-form editor controls; a fieldset would change existing layout semantics. */}
       <div
+        role="group"
         className="pf-command-list"
         aria-label="Available commands"
         onKeyDown={(e) => {

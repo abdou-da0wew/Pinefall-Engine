@@ -69,8 +69,8 @@ export function encodeModel(root: T.Object3D): ModelWire {
       );
       const index = g.index ? attribute(g.index, true) : undefined;
       const position = attributes.position;
-      if (!position || position.itemSize !== 3) throw Error("Missing position");
-      if (index && index.array.some((x) => x >= position.array.length / 3))
+      if (position?.itemSize !== 3) throw Error("Missing position");
+      if (index?.array.some((x) => x >= position.array.length / 3))
         throw Error("Geometry index out of bounds");
       const morph = Object.fromEntries(
         Object.entries(g.morphAttributes).map(([key, attrs]) => [

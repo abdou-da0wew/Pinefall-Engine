@@ -229,21 +229,21 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       for (const index of Object.values(attrs))
         if (!accessors[integer(index)]) throw Error("Missing GLB attribute");
       const position = accessors[integer(attrs.POSITION)];
-      if (!position || position.type !== "VEC3") throw Error("GLB requires VEC3 positions");
+      if (position?.type !== "VEC3") throw Error("GLB requires VEC3 positions");
       for (const index of Object.values(attrs))
         if (accessors[integer(index)].count !== position.count)
           throw Error("Vertex attribute counts differ");
       for (const target of list(p.targets, 128))
         for (const index of Object.values(target)) {
           const accessor = accessors[integer(index)];
-          if (!accessor || accessor.type !== "VEC3" || accessor.count !== position.count)
+          if (accessor?.type !== "VEC3" || accessor.count !== position.count)
             throw Error("Invalid morph target accessor");
         }
       vertices += position.count;
       if (vertices > LIMITS.vertices) throw Error("GLB vertex budget");
       if (p.indices !== undefined) {
         const a = accessors[integer(p.indices)];
-        if (!a || a.type !== "SCALAR" || ![5121, 5123, 5125].includes(Number(a.componentType)))
+        if (a?.type !== "SCALAR" || ![5121, 5123, 5125].includes(Number(a.componentType)))
           throw Error("Invalid index accessor");
         for (let i = 0; i < a.count; i++)
           if (a.read(i) >= position.count) throw Error("Index exceeds vertex count");
@@ -328,8 +328,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
     if (skin.inverseBindMatrices !== undefined) {
       const accessor = accessors[integer(skin.inverseBindMatrices)];
       if (
-        !accessor ||
-        accessor.type !== "MAT4" ||
+        accessor?.type !== "MAT4" ||
         accessor.componentType !== 5126 ||
         accessor.count !== skin.joints.length
       )
@@ -367,7 +366,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
       channels = list(animation.channels, 4096);
     for (const sampler of samplers) {
       const input = accessors[integer(sampler.input)];
-      if (!input || input.type !== "SCALAR" || input.componentType !== 5126)
+      if (input?.type !== "SCALAR" || input.componentType !== 5126)
         throw Error("Invalid animation times");
       for (let i = 0; i < input.count; i++)
         if (input.read(i) < 0 || (i > 0 && input.read(i) <= input.read(i - 1)))
@@ -389,7 +388,7 @@ export function inspectGlb(bytes: Uint8Array): ModelInspection {
         throw Error("Invalid animation target");
       const input = accessors[integer(sampler.input)],
         output = accessors[integer(sampler.output)];
-      if (!output || output.componentType !== 5126) throw Error("Invalid animation values");
+      if (output?.componentType !== 5126) throw Error("Invalid animation values");
       const multiplier = sampler.interpolation === "CUBICSPLINE" ? 3 : 1;
       if (target.path === "weights") {
         const mesh = meshes[integer(nodes[integer(target.node)].mesh)];

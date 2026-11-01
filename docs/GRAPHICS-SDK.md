@@ -93,7 +93,6 @@ WebGL context loss stops frame submission/simulation advancement while retaining
 
 Physical CEDAR/Windows performance, maximum scene complexity and full Plan 03 acceptance are not claimed passed.
 
-
 ## Custom unlit shaders (0.6.3-dev.1)
 
 Mesh renderer → **Custom shader…** opens Project files. Source/uniform JSON is edited externally; the embedded GLSL editor was removed. Create files, edit them in your IDE, validate and explicitly Apply. GPU code is disabled by default. Explicit session consent is required; scripts cannot grant that consent through `setPreview`. Rendering also offers trust/reload and disable controls. Standalone exports have a separate shader-consent button, retain permission across quality changes, and revoke permission when a different project file is opened.
@@ -124,7 +123,6 @@ Shader evidence: `tests/shader.test.ts` covers schema bounds, archive separation
 Select a mesh → **Custom shader…**. Import a `.glsl` fragment and optionally a uniform `.json` object. Export buttons provide external-editor starting files. Files must be UTF-8: fragment at most 16,384 characters / 65,536 bytes; uniform JSON at most 4,096 characters / 16,384 bytes, with at most 16 typed uniforms. The fragment defines `vec4 shade(vec2 uv, vec3 worldPosition)`, not a standalone `main()`.
 
 Import only reads and schema-checks files. Enable **Rendering → Trust and reload authored shaders**, then explicitly **Compile and apply imported shader**. All authored shader instances are staged before the world is replaced. A compilation failure retains the previous runtime and authored source; import a corrected file to retry. Updating a shared shader updates its users. No arbitrary file watcher or external-process launcher is available in browsers. Successful imports are stored in the project; unapplied candidates are discarded when the dialog closes. Exports from this dialog contain the candidate, so reopening after a failed Apply lets you export the last adopted shader.
-
 
 ## PMREM environments and depth-aware scattering
 

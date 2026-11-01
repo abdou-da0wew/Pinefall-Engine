@@ -73,20 +73,19 @@ The first end-to-end implementation is validated as listed below. Remaining Plan
 
 ## Remaining Plan 01 gates — do not mark the full plan complete
 
-| Area | Remaining work |
-|---|---|
-| A0 | Physical CEDAR/Windows and representative maximum-budget latency/peak-memory measurements; no p95/zero-stutter claim from tiny fixtures |
-| A1 | Reference-only authored/runtime documents, persistent content-addressed blob/artifact database, complete source-vs-artifact dependency graph and invalidation |
-| A2 | Strict process-wide memory reservation/admission and rollback after failures during final non-asset world construction; worker heap usage is not OS-capped |
-| A3 | Scene graph/material adoption batching beyond geometry/texture slices; shader/context-loss and cache-pressure stress matrix on physical GPUs |
-| A4 | Two real DCC exporter character fixtures, unit/axis normalization recipes, broad animation/morph fidelity checks, embedded FBX texture corpus and CLI FBX conversion |
-| A5 | Full source-node/mesh/skeleton identity remapping, interactive conflict/diff UI and material overrides (those component systems do not yet exist) |
-| A6 | Desktop file watching, persistent cache invalidation/export cooking keyed by all dependencies, second-developer acceptance |
+| Area | Remaining work                                                                                                                                                       |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A0   | Physical CEDAR/Windows and representative maximum-budget latency/peak-memory measurements; no p95/zero-stutter claim from tiny fixtures                              |
+| A1   | Reference-only authored/runtime documents, persistent content-addressed blob/artifact database, complete source-vs-artifact dependency graph and invalidation        |
+| A2   | Strict process-wide memory reservation/admission and rollback after failures during final non-asset world construction; worker heap usage is not OS-capped           |
+| A3   | Scene graph/material adoption batching beyond geometry/texture slices; shader/context-loss and cache-pressure stress matrix on physical GPUs                         |
+| A4   | Two real DCC exporter character fixtures, unit/axis normalization recipes, broad animation/morph fidelity checks, embedded FBX texture corpus and CLI FBX conversion |
+| A5   | Full source-node/mesh/skeleton identity remapping, interactive conflict/diff UI and material overrides (those component systems do not yet exist)                    |
+| A6   | Desktop file watching, persistent cache invalidation/export cooking keyed by all dependencies, second-developer acceptance                                           |
 
 This is a substantial end-to-end first implementation, **not completion of every Plan 01 gate**.
 Keep the feature unreleased until these remaining requirements are resolved. No source push,
 release tag or artifact publication was performed by this implementation task.
-
 
 ## Final verification checkpoint
 

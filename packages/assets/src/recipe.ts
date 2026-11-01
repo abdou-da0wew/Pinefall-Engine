@@ -10,7 +10,7 @@ export interface ImportRecipe {
 }
 export function parseRecipe(value: unknown): ImportRecipe {
   const r = value as ImportRecipe;
-  if (!r || r.importer !== "pinefall-three-185" || ![1, 2].includes(r.version))
+  if (r?.importer !== "pinefall-three-185" || ![1, 2].includes(r.version))
     throw Error("Unsupported importer recipe");
   if (Object.keys(r).some((k) => !["importer", "version", "settings"].includes(k)))
     throw Error("Unknown recipe field");
@@ -64,7 +64,9 @@ export function normalizeGlb(bytes: Uint8Array, recipe: ImportRecipe) {
     if (wrapper === undefined) {
       if (roots.some((i) => parents.has(i)))
         throw Error("Normalization does not support scenes with partially shared roots");
-      roots.forEach((i) => parents.add(i));
+      roots.forEach((i) => {
+        parents.add(i);
+      });
       wrapper = doc.nodes.length;
       const q = Math.SQRT1_2,
         s = checked.settings!;

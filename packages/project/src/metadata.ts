@@ -1,4 +1,4 @@
-export const EDITOR_VERSION = "0.7.0";
+export const EDITOR_VERSION = "0.7.1";
 /** Portable metadata: no usernames, absolute paths, machine identifiers, or saved trust. */
 export interface ProjectMetadata {
   schemaVersion: 1;

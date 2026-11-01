@@ -191,20 +191,18 @@ export function AnimationPanel({ entity, asset, engine, disabled, commit }: Prop
     <Panel className="animation-inspector" aria-label="Animation inspector">
       <h3>Animation</h3>
       {!entity.animator && (
-        <>
-          <Select
-            aria-label="Animation source clip"
-            value={clip}
-            disabled={disabled}
-            onChange={(event) => setClip(event.target.value)}
-          >
-            {choices.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.key.startsWith("name:") ? c.key.slice(5) : c.key}
-              </option>
-            ))}
-          </Select>
-        </>
+        <Select
+          aria-label="Animation source clip"
+          value={clip}
+          disabled={disabled}
+          onChange={(event) => setClip(event.target.value)}
+        >
+          {choices.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.key.startsWith("name:") ? c.key.slice(5) : c.key}
+            </option>
+          ))}
+        </Select>
       )}
       {!entity.animator && (
         <Button

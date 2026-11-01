@@ -54,7 +54,6 @@ Additional checks: forced LDR target selection/bloom/FXAA and cleanup pass in th
 
 User requested completion of all remaining software gates. Implement the custom-shader contract and last-valid compile/apply recovery first, then integrate texture/UV resources and PMREM ownership, shadow update policy, and bounded depth-aware scattering. Each change must reach schema/PIF/SDK/editor/runtime and tests; do not relabel existing approximations. Preserve the theme. Physical hardware and independent-user acceptance remain owner-deferred rather than passed. Record any unfinished gate explicitly if implementation is interrupted.
 
-
 ## Shader continuation — 0.6.3-dev.1
 
 **Plan 03 remains incomplete.** The Stage 1 matrix above is historical. G3 now has bounded unlit GLSL assets, independent applied/source/uniform drafts, staged compile/link/apply, line diagnostics, stable typed uniforms, consent controls, PIF/SDK/headless/editor/standalone integration and last-valid recovery. Skinning/morph/instance pixel fixtures, cancellation/revocation/context recovery, resource cleanup and native editor checkpoint/reopen have been exercised. No custom lit/depth/sampler contract is claimed.

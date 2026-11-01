@@ -54,10 +54,15 @@ interface PrefabInstance {
   overrides: OverrideOperation[];
 }
 type OverrideOperation =
-  | { op: 'set'; nodeId: string; componentId: string; field: string; value: unknown }
-  | { op: 'addComponent'; nodeId: string; component: ComponentData }
-  | { op: 'removeComponent'; nodeId: string; componentId: string };
-interface ComponentData { id: string; type: string; version: number; data: unknown }
+  | { op: "set"; nodeId: string; componentId: string; field: string; value: unknown }
+  | { op: "addComponent"; nodeId: string; component: ComponentData }
+  | { op: "removeComponent"; nodeId: string; componentId: string };
+interface ComponentData {
+  id: string;
+  type: string;
+  version: number;
+  data: unknown;
+}
 ```
 
 `field` is a schema-declared property path, not arbitrary object traversal. Reject prototype-related keys, out-of-range arrays and references to noneditable/internal state. Validate `unknown` against the component's schema. Missing target fields create an unresolved override diagnostic; they never redirect to a similarly named field.
@@ -110,14 +115,14 @@ Use explicit `onAcquire/onRelease` only for pool-aware components; unsupported c
 
 ### 8. Work packages and proof
 
-| Package | Scope | Acceptance gate |
-|---|---|---|
-| GA0 | Entity/component identities and reference validation | No name/index-based reference breakage |
-| GA1 | Property overrides and provenance inspector | Base changes propagate except where overridden |
-| GA2 | Variants/nesting and conflict-aware rebase | Cycle/delete/rename fixtures pass |
-| GA3 | Component adapters and lifecycle command queue | Stable callback trace in graphical/headless hosts |
-| GA4 | Scene transitions and persistence scopes | Cancel/fail leaves old world intact |
-| GA5 | Layers/queries, pooling and examples | Stale handle and repeated spawn/release tests pass |
+| Package | Scope                                                | Acceptance gate                                    |
+| ------- | ---------------------------------------------------- | -------------------------------------------------- |
+| GA0     | Entity/component identities and reference validation | No name/index-based reference breakage             |
+| GA1     | Property overrides and provenance inspector          | Base changes propagate except where overridden     |
+| GA2     | Variants/nesting and conflict-aware rebase           | Cycle/delete/rename fixtures pass                  |
+| GA3     | Component adapters and lifecycle command queue       | Stable callback trace in graphical/headless hosts  |
+| GA4     | Scene transitions and persistence scopes             | Cancel/fail leaves old world intact                |
+| GA5     | Layers/queries, pooling and examples                 | Stale handle and repeated spawn/release tests pass |
 
 Tests include duplicate nested names, deleted override targets, variant cycles, apply to inner versus outer source, undo/redo across reimport, disable during callback, self-destruction in trigger, pooled projectile hit from an old handle, persistent player scene swap and failed scene load. Use scripted traces for ordering, not only screenshots.
 
@@ -162,14 +167,14 @@ For nested instances, qualify IDs by instance path plus stable prefab-local ID t
 
 ### Transaction and lifecycle failure matrix
 
-| Failure | Required behavior |
-|---|---|
-| Component factory throws during staging | Dispose already staged siblings; authored document and active world unchanged |
-| Scene destination exceeds memory reservation | Offer loading/retry/cancel; no partial outgoing teardown |
-| Persistent player/body transfer fails | Roll back ownership transfer before disposing old world |
-| Pool acquire callback throws | Quarantine/destroy instance; do not return it as active |
-| Old asynchronous completion targets recycled handle | Generation check rejects completion and releases its resources |
-| Prefab apply conflicts with concurrent reimport | Retry/rebase against current generation with explicit conflict report |
+| Failure                                             | Required behavior                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Component factory throws during staging             | Dispose already staged siblings; authored document and active world unchanged |
+| Scene destination exceeds memory reservation        | Offer loading/retry/cancel; no partial outgoing teardown                      |
+| Persistent player/body transfer fails               | Roll back ownership transfer before disposing old world                       |
+| Pool acquire callback throws                        | Quarantine/destroy instance; do not return it as active                       |
+| Old asynchronous completion targets recycled handle | Generation check rejects completion and releases its resources                |
+| Prefab apply conflicts with concurrent reimport     | Retry/rebase against current generation with explicit conflict report         |
 
 Disposal errors are aggregated while remaining cleanup proceeds. A single faulty script must not prevent every other resource in the world from being released. Scoped task completion from Plan 06 enters a command queue, not arbitrary mid-tick mutation.
 
@@ -180,7 +185,6 @@ Introduce registry/lifecycle/reference services around `packages/runtime/src/sch
 Provisional responsiveness target: small inspector commands validate/commit under 8 ms p95 in the reference scene; large prefab expansion stages in chunks and commits at a tick boundary. Benchmark 100/1,000 entities and 10/100 pooled projectiles before choosing defaults. Track transition peak memory against Plan 01 reservations rather than setting an unrelated second limit.
 
 Remaining decisions: structural override UX, which component types are pool-safe, persistent physics transfer versus recreation, and whether fixed-update animation pose evaluation cost is acceptable at target scale. These require prototypes, but identity, three-way conflicts and explicit lifetime semantics are mandatory regardless of implementation choice.
-
 
 ## R3 — Final integration check
 

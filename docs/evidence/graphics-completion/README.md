@@ -4,20 +4,20 @@ Recorded 2026-11-01. **Local candidate only; not a GitHub publication receipt.**
 
 ## Executed gates
 
-| Gate | Result |
-|---|---|
-| TypeScript + Oxlint | PASS: 266 files, zero errors/warnings |
-| Unit suite | PASS: 168 tests, 1,024 assertions, 38 files |
-| Production editor/player and desktop bundle | PASS; Vite 7.3.7 via bounded Node heap, Bun TypeScript orchestration |
-| Linux AppImage and Windows ZIP packaging | PASS; unsigned; Windows execution not performed |
-| Packaged Linux graphics authoring | PASS: disk PNG/HDR, UV layout, invalid UV retention, slots, HDR/scattering, raw backup, PIF9 native extraction |
-| Packaged Linux models | PASS: real GLB/FBX worker import, renderer adoption, Play/Stop, portable save |
-| Packaged Linux PIF | PASS: portable worker import → disk folder → raw PIF8 save and integrity-checked extraction |
-| Packaged Linux missing companions | PASS: persisted repair across reload and real textured FBX conversion |
-| Native unified/external/disk workflows | PASS: registration/trust, raw preservation, explicit Apply, restart recents, watchers/conflicts/root confinement |
-| Production standalone reference | PASS: actual bitmap and half-float uploads, GPU draws, no page/console errors; prefab image/material/slot remapping also passes unit coverage |
-| Existing asset browser suite | PASS: worker/cache/cancellation/FBX, import/reimport, admission failure and retry |
-| Graphics/shader completion matrix | PASS: details below; logs retained alongside screenshots |
+| Gate                                        | Result                                                                                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript + Oxlint                         | PASS: 266 files, zero errors/warnings                                                                                                         |
+| Unit suite                                  | PASS: 168 tests, 1,024 assertions, 38 files                                                                                                   |
+| Production editor/player and desktop bundle | PASS; Vite 7.3.7 via bounded Node heap, Bun TypeScript orchestration                                                                          |
+| Linux AppImage and Windows ZIP packaging    | PASS; unsigned; Windows execution not performed                                                                                               |
+| Packaged Linux graphics authoring           | PASS: disk PNG/HDR, UV layout, invalid UV retention, slots, HDR/scattering, raw backup, PIF9 native extraction                                |
+| Packaged Linux models                       | PASS: real GLB/FBX worker import, renderer adoption, Play/Stop, portable save                                                                 |
+| Packaged Linux PIF                          | PASS: portable worker import → disk folder → raw PIF8 save and integrity-checked extraction                                                   |
+| Packaged Linux missing companions           | PASS: persisted repair across reload and real textured FBX conversion                                                                         |
+| Native unified/external/disk workflows      | PASS: registration/trust, raw preservation, explicit Apply, restart recents, watchers/conflicts/root confinement                              |
+| Production standalone reference             | PASS: actual bitmap and half-float uploads, GPU draws, no page/console errors; prefab image/material/slot remapping also passes unit coverage |
+| Existing asset browser suite                | PASS: worker/cache/cancellation/FBX, import/reimport, admission failure and retry                                                             |
+| Graphics/shader completion matrix           | PASS: details below; logs retained alongside screenshots                                                                                      |
 
 ## Pixel and lifetime observations
 

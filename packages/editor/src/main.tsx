@@ -1644,89 +1644,87 @@ function App({
         >
           <div className="pf-asset-actions">
             {" "}
-            <>
-              <Button
-                disabled={playing || importBusy}
-                onClick={() => {
-                  setAssetActionsOpen(false);
-                  pendingRepair.current = null;
-                  reimportTarget.current = undefined;
-                  glb.current?.click();
-                }}
-              >
-                <Icon name="upload" /> Import model
-              </Button>
-              {pendingImports.map((attempt) => (
-                <React.Fragment key={attempt.id}>
-                  <Button
-                    disabled={importBusy || playing}
-                    onClick={() => {
-                      setAssetActionsOpen(false);
-                      pendingRepair.current = attempt.id;
-                      glb.current?.click();
-                    }}
-                  >
-                    Repair {attempt.name}: missing {attempt.missing}
-                  </Button>
-                  <Button
-                    disabled={importBusy}
-                    onClick={() =>
-                      void assetDatabase
-                        .deletePending(attempt.id)
-                        .then(() => refreshPending())
-                        .catch((e) => setStatus(String(e)))
-                    }
-                  >
-                    Discard failed import {attempt.name}
-                  </Button>
-                </React.Fragment>
-              ))}
-              <label>
-                <Input
-                  type="checkbox"
-                  checked={importOnly}
-                  onChange={(e) => setImportOnly(e.target.checked)}
-                />{" "}
-                Import only
-              </label>
-              {importBusy && (
-                <Button onClick={() => importAbort.current?.abort()}>Cancel import</Button>
-              )}
-              <Button
-                disabled={playing}
-                onClick={() => {
-                  setAssetActionsOpen(false);
-                  prefabFile.current?.click();
-                }}
-              >
-                <Icon name="upload" /> Import prefab
-              </Button>
-              <Button
-                disabled={playing || importBusy || loadBusy || projectBusy}
-                onClick={async () => {
-                  if (
-                    !(await confirm(
-                      "Clear undo history and regenerable conversion cache? The active project and recovery checkpoints stay intact.",
-                    ))
+            <Button
+              disabled={playing || importBusy}
+              onClick={() => {
+                setAssetActionsOpen(false);
+                pendingRepair.current = null;
+                reimportTarget.current = undefined;
+                glb.current?.click();
+              }}
+            >
+              <Icon name="upload" /> Import model
+            </Button>
+            {pendingImports.map((attempt) => (
+              <React.Fragment key={attempt.id}>
+                <Button
+                  disabled={importBusy || playing}
+                  onClick={() => {
+                    setAssetActionsOpen(false);
+                    pendingRepair.current = attempt.id;
+                    glb.current?.click();
+                  }}
+                >
+                  Repair {attempt.name}: missing {attempt.missing}
+                </Button>
+                <Button
+                  disabled={importBusy}
+                  onClick={() =>
+                    void assetDatabase
+                      .deletePending(attempt.id)
+                      .then(() => refreshPending())
+                      .catch((e) => setStatus(String(e)))
+                  }
+                >
+                  Discard failed import {attempt.name}
+                </Button>
+              </React.Fragment>
+            ))}
+            <label>
+              <Input
+                type="checkbox"
+                checked={importOnly}
+                onChange={(e) => setImportOnly(e.target.checked)}
+              />{" "}
+              Import only
+            </label>
+            {importBusy && (
+              <Button onClick={() => importAbort.current?.abort()}>Cancel import</Button>
+            )}
+            <Button
+              disabled={playing}
+              onClick={() => {
+                setAssetActionsOpen(false);
+                prefabFile.current?.click();
+              }}
+            >
+              <Icon name="upload" /> Import prefab
+            </Button>
+            <Button
+              disabled={playing || importBusy || loadBusy || projectBusy}
+              onClick={async () => {
+                if (
+                  !(await confirm(
+                    "Clear undo history and regenerable conversion cache? The active project and recovery checkpoints stay intact.",
+                  ))
+                )
+                  return;
+                history.current.reset();
+                const refs = new Set(sceneReferences(current.current));
+                if (engine.current?.document)
+                  for (const ref of sceneReferences(engine.current.document)) refs.add(ref);
+                blobs.retain(refs);
+                void assetDatabase
+                  .clearArtifacts()
+                  .then(() =>
+                    setStatus("Conversion cache and undo cleared; active project retained."),
                   )
-                    return;
-                  history.current.reset();
-                  const refs = new Set(sceneReferences(current.current));
-                  if (engine.current?.document)
-                    for (const ref of sceneReferences(engine.current.document)) refs.add(ref);
-                  blobs.retain(refs);
-                  void assetDatabase
-                    .clearArtifacts()
-                    .then(() =>
-                      setStatus("Conversion cache and undo cleared; active project retained."),
-                    )
-                    .catch((e) => setStatus(String(e)));
-                  setRevision((r) => r + 1);
-                }}
-              >
-                Clear cache / undo
-              </Button>
-            </>
+                  .catch((e) => setStatus(String(e)));
+                setRevision((r) => r + 1);
+              }}
+            >
+              Clear cache / undo
+            </Button>
           </div>
         </Dialog>
       )}
@@ -2218,7 +2216,10 @@ function App({
             </Button>
           </div>
         </div>
+        {/* biome-ignore lint/a11y/useSemanticElements: ARIA group describes non-form editor controls; a fieldset would change existing layout semantics. */}
         <div
+          role="group"
+          aria-label="Viewport import area"
           className="canvas-wrap"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -2417,9 +2418,9 @@ function App({
                       Swap visuals without removing physics or behaviors. Scale the model to match
                       its collision proxy. Drop GLB files into the viewport to import.
                     </small>
-                    <label className="row-field">
+                    <div className="row-field">
                       Geometry <span>{chosen.mesh.primitive}</span>
-                    </label>
+                    </div>
                     <label className="row-field">
                       Albedo
                       <ColorPicker
@@ -2582,9 +2583,7 @@ function App({
                             patchEntity((item) => {
                               if (item.physics)
                                 item.physics.type = e.target.value as
-                                  | "fixed"
-                                  | "dynamic"
-                                  | "kinematic";
+                                  "fixed" | "dynamic" | "kinematic";
                             })
                           }
                         >
@@ -2803,9 +2802,7 @@ function App({
                           patchEntity((e) => {
                             if (e.light)
                               e.light.shadowUpdate = event.target.value as
-                                | "every-frame"
-                                | "on-change"
-                                | "manual";
+                                "every-frame" | "on-change" | "manual";
                           })
                         }
                       >
@@ -3140,8 +3137,7 @@ function App({
                           commit((d) => {
                             if (d.graphics?.environment)
                               d.graphics.environment.resolution = Number(event.target.value) as
-                                | 128
-                                | 256;
+                                128 | 256;
                           })
                         }
                       >
@@ -3387,6 +3383,7 @@ function App({
         ) : tab === "console" ? (
           <div className="console">
             {logs.map((e, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: Bounded diagnostic rows are stateless and may contain identical entries.
               <div className={e.type === "error" ? "error" : ""} key={i}>
                 <time>{e.time.slice(11, 19)}</time>
                 <b>{e.type}</b>

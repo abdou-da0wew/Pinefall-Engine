@@ -21,12 +21,7 @@ export type Vec3 = [number, number, number];
 export type Template = "adventure" | "first-person" | "driving" | "sandbox";
 export type Primitive = "box" | "sphere" | "capsule" | "cylinder" | "cone" | "asset";
 export type ScriptValue =
-  | string
-  | number
-  | boolean
-  | null
-  | ScriptValue[]
-  | { [key: string]: ScriptValue };
+  string | number | boolean | null | ScriptValue[] | { [key: string]: ScriptValue };
 export interface ScriptAsset {
   id: string;
   name: string;
@@ -458,7 +453,7 @@ export function parseScene(value: unknown): SceneDocument {
     }
   if (graphics?.environment?.image) {
     const image = graphics.images?.find((image) => image.id === graphics.environment?.image);
-    if (!image || image.format !== "hdr" || image.width !== image.height * 2)
+    if (image?.format !== "hdr" || image.width !== image.height * 2)
       fail("Environment requires an HDR image resource");
   }
   const env = value.environment;

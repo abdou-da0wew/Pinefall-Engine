@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { open, rename, unlink, lstat, realpath } from "node:fs/promises";
 import { resolve, sep, dirname, basename, join } from "node:path";
-import { DiskWorkspace, projectRelativePath } from "./disk-workspace";
+import { type DiskWorkspace, projectRelativePath } from "./disk-workspace";
 import { xzChunks } from "./xz-stream";
 const LIMIT = 512 * 1024 * 1024;
 const encoder = new TextEncoder(),

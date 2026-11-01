@@ -23,3 +23,7 @@ Git hooks are local configuration: each checkout must install them. Git's `--no-
 ## Production bundling memory
 
 Authored code, orchestration and tests remain TypeScript/Bun. Production Vite/Rollup runs through `scripts/build-vite.ts` using the vendored Vite entry under Node with a 1 GiB JS heap limit. Forcing that dependency tool through Bun exceeded the 2 GiB build sandbox after image workers were added; the bounded Node path builds successfully. Install Node alongside Bun for production builds. This tooling choice does not change Electron/game rendering, graphics settings or production sandbox policy.
+
+## Code quality
+
+Prettier is the sole formatter; Biome and Oxlint are linters. Run `bun run format` for the entire supported authored tree. `bun run check` enforces formatting, types and both linters. See [configuration, exclusions and rule policy](CODE-QUALITY.md). Oxfmt is no longer installed.

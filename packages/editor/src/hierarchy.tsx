@@ -272,7 +272,10 @@ export function Hierarchy({
         </Button>
         <span>{selectedIds.length} selected</span>
       </div>
+      {/* biome-ignore lint/a11y/useSemanticElements: ARIA group describes non-form editor controls; a fieldset would change existing layout semantics. */}
       <div
+        role="group"
+        aria-label="Scene root actions"
         className={"scene-root " + (dragOver === "root" ? "drop-target" : "")}
         onDragOver={(e) => {
           e.preventDefault();
@@ -380,6 +383,7 @@ export function Hierarchy({
             hasChildren = nodes.some((n) => parentOf(scene, n.id) === id),
             open = search || !collapsed.has(id);
           return (
+            // biome-ignore lint/a11y/useKeyWithClickEvents: Keyboard tree navigation is delegated to the enclosing tree onKeyDown handler.
             <div
               title={node.name}
               role="treeitem"

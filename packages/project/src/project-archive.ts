@@ -1,7 +1,7 @@
 import { open, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { DiskWorkspace } from "./disk-workspace";
+import type { DiskWorkspace } from "./disk-workspace";
 import { projectRelativePath } from "./disk-path";
 import { unpackFolder } from "./folder-archive";
 import { xzChunks } from "./xz-stream";

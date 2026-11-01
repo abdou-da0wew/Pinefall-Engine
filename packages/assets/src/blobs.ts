@@ -190,7 +190,7 @@ export class DiskBlobStore extends BlobStore {
     throw Error("Disk asset requires asynchronous read; source bytes are not resident");
   }
   private openDatabase() {
-    return (this.opening ??= new Promise<IDBDatabase>((resolve, reject) => {
+    this.opening ??= new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(this.databaseName, 1);
       request.onupgradeneeded = () => {
         request.result.createObjectStore("bytes");
@@ -217,7 +217,8 @@ export class DiskBlobStore extends BlobStore {
     }).catch((error) => {
       this.opening = undefined;
       throw error;
-    }));
+    });
+    return this.opening;
   }
   private done(tx: IDBTransaction) {
     return new Promise<void>((resolve, reject) => {

@@ -108,6 +108,7 @@ export function useWorkspaceLayout(scripts: boolean) {
     </div>
   );
   const handles = (["left", "right", "bottom"] as const).map((kind) => (
+    // biome-ignore lint/a11y/useSemanticElements: This is a focusable adjustable splitter with arrow-key resizing, not a thematic hr.
     <div
       key={kind}
       role="separator"
@@ -161,7 +162,10 @@ export function useWorkspaceLayout(scripts: boolean) {
   const dockTargets = dockDragging ? (
     <div className="dock-targets">
       {(["bottom", "right"] as const).map((dock) => (
+        // biome-ignore lint/a11y/useSemanticElements: Drag docking target is not a form fieldset; keyboard docking is provided by the toolbar.
         <div
+          role="group"
+          aria-label={"Dock shelf " + dock}
           key={dock}
           className={"dock-target dock-target-" + dock}
           onDragOver={(event) => {

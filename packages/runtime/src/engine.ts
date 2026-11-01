@@ -330,13 +330,8 @@ export class Engine {
   }
   private compileShader(root: T.Object3D, source: ShaderSource, signal: AbortSignal) {
     parseShader(source);
-    return (this.shaderCompiler ??= new ShaderCompiler(this.renderer)).compile(
-      root,
-      this.camera,
-      this.scene,
-      source,
-      signal,
-    );
+    this.shaderCompiler ??= new ShaderCompiler(this.renderer);
+    return this.shaderCompiler.compile(root, this.camera, this.scene, source, signal);
   }
   private async authoredShader(
     e: Entity,
@@ -514,7 +509,8 @@ export class Engine {
         );
       }
     });
-    (this.shadowAllocation ??= assetMemory.reserve(0, "shadow-targets")).resize(this.shadowBytes);
+    this.shadowAllocation ??= assetMemory.reserve(0, "shadow-targets");
+    this.shadowAllocation.resize(this.shadowBytes);
   }
   settings: RenderSettings = { ...LOW };
   loading = false;
@@ -554,7 +550,6 @@ export class Engine {
   private nextFrame = 0;
   private accumulator = 0;
   private dead = false;
-  private steps = 0;
   private frames = 0;
   private elapsed = 0;
   private dragging = false;
@@ -1461,7 +1456,6 @@ export class Engine {
       while (this.accumulator >= 1 / 60 && !this.paused) {
         this.fixed.run(this);
         this.accumulator -= 1 / 60;
-        this.steps++;
       }
       if (!this.paused)
         for (const [id, b] of this.behaviors)

@@ -134,7 +134,7 @@ try {
     manualVisualReview: "pending",
     softwareDetected,
     details,
-    rendererStatsText: await page.locator(".viewport-stats").innerText(),
+    rendererStatsText: await page.locator(".viewport-stats").textContent(),
     fixture: {
       name: basename(model),
       sha256: createHash("sha256").update(bytes).digest("hex"),

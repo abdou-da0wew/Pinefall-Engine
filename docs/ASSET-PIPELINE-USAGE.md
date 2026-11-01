@@ -58,7 +58,6 @@ bun tests/reimport-batch-browser.ts
 
 Browser suites require the development server; `TEST_BASE_URL` selects it. External fixture hashes/URLs are pinned in `tests/fixtures/dcc-manifest.json`. The external binaries are cached, not redistributed. Five DCC-exported OBJ poses independently check skinned vertices from Blender and Maya; the Blender morph-character regression catches the numeric-to-named morph binding mismatch fixed in this implementation. These are numerical/functional tests, not independent human visual approval of every material or exporter feature.
 
-
 ## Persistent missing-companion repair
 
 If FBX conversion reports a missing local texture, the editor stores a failed-attempt record separately from accepted assets. After reload, **Repair MODEL: missing FILE** accepts the missing companion, merges it with retained source files, and reruns the same conversion/review pipeline. A failed repair leaves the pending record and last-good asset intact. Successful adoption removes the record; **Discard failed import** explicitly deletes it. This is repair on user-supplied file arrival, not an unrestricted filesystem watcher or network fetch.

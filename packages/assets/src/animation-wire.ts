@@ -80,7 +80,7 @@ class CubicInterpolant extends T.Interpolant {
   }
 }
 export function decodeTrack(wire: WireClip["tracks"][number]) {
-  const constructor = (
+  const TrackConstructor = (
     {
       number: T.NumberKeyframeTrack,
       vector: T.VectorKeyframeTrack,
@@ -88,8 +88,8 @@ export function decodeTrack(wire: WireClip["tracks"][number]) {
       color: T.ColorKeyframeTrack,
     } as Record<string, typeof T.KeyframeTrack>
   )[wire.type];
-  if (!constructor) throw Error("Unsupported animation wire type");
-  const track = new constructor(
+  if (!TrackConstructor) throw Error("Unsupported animation wire type");
+  const track = new TrackConstructor(
     wire.name,
     wire.times,
     wire.values,

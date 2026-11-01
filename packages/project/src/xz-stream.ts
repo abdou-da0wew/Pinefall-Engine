@@ -47,6 +47,7 @@ export async function* xzChunks(
           }
           if (!finish && !stream.availIn && stream.availOut) break;
           if (!count && !stream.availIn && finish) throw Error("Truncated XZ stream");
+          // biome-ignore lint/correctness/noConstantCondition: Streaming decoder exits on end-of-stream or explicit bounded progress checks above.
         } while (true);
       } finally {
         if (pointer) module._free(pointer);

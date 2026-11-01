@@ -25,13 +25,15 @@ try {
     twin.transform.position[0] = 3;
     scene.entities.push(twin);
     const engine = await Engine.create(document.querySelector("canvas"));
-    let headless;
+    let headless: import("../packages/headless/src").HeadlessEngine | undefined;
     const check = (ok: boolean, message: string) => {
       if (!ok) throw Error(message);
     };
     try {
       await engine.load(scene);
-      headless = await HeadlessEngine.create(scene);
+      headless = (await HeadlessEngine.create(
+        scene,
+      )) as import("../packages/headless/src").HeadlessEngine;
       const first = engine.animators.get(id),
         second = engine.animators.get("twin");
       first.seek(0.25);
@@ -66,7 +68,7 @@ try {
       engine.play();
       headless.play();
       engine.animators.get(id).graph.setParameter("attack", true);
-      headless.animators.get(id).graph.setParameter("attack", true);
+      headless.animators.get(id)!.graph.setParameter("attack", true);
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           off();
@@ -87,7 +89,7 @@ try {
         check(
           Math.abs(
             engine.animators.get(key).root.getObjectByName("Bone").position.y -
-              headless.animators.get(key).root.getObjectByName("Bone").position.y,
+              headless.animators.get(key)!.root.getObjectByName("Bone")!.position.y,
           ) < 1e-6,
           "graphical/headless pose parity",
         );

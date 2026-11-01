@@ -18,13 +18,11 @@ try {
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await page.getByRole("button", { name: "Scripts", exact: true }).click();
   const importSource = async (source: string) => {
-    await page
-      .locator('input[accept=".ts"]')
-      .setInputFiles({
-        name: "CustomScript.ts",
-        mimeType: "text/plain",
-        buffer: Buffer.from(source),
-      });
+    await page.locator('input[accept=".ts"]').setInputFiles({
+      name: "CustomScript.ts",
+      mimeType: "text/plain",
+      buffer: Buffer.from(source),
+    });
   };
   await importSource(
     `import {Script} from '@pinefall/sdk'; export const defaults={speed:2}; export default class Test extends Script {start(){this.ctx.log('script-browser-ok');} update(dt:number){this.ctx.object.rotation.y+=Number(this.ctx.props.speed)*dt;}}`,

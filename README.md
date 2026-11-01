@@ -1,10 +1,10 @@
-# Pinefall Engine 0.7.0
+# Pinefall Engine 0.7.1
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**[Pinefall Engine 0.7.0](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.0)** contains texture maps, UV inspection/transforms, channel packing, source-guarded material slots, external HDR and advanced depth-aware scattering alongside the folder-first external-code workflow. See [current status](docs/CURRENT-STATUS.md), [graphics authoring](docs/GRAPHICS-AUTHORING.md), and [release notes](docs/RELEASE-0.7.0.md).
+**[Pinefall Engine 0.7.1](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.1)** contains texture maps, UV inspection/transforms, channel packing, source-guarded material slots, external HDR and advanced depth-aware scattering alongside the folder-first external-code workflow. See [current status](docs/CURRENT-STATUS.md), [graphics authoring](docs/GRAPHICS-AUTHORING.md), and [release notes](docs/RELEASE-0.7.1.md).
 
 **0.6.2 published:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). [Published downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.2).
 
@@ -30,25 +30,29 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 ## Downloads
 
-The current development pre-release contains unsigned desktop packages, source, release notes and checksums. It does not declare Plan03 complete.
+The release contains unsigned desktop packages, source, release notes and checksums. Physical acceptance remains owner-deferred.
 
-- [Linux x64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-linux-x64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-windows-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-source.zip)
-- [SHA-256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/SHA256SUMS-0.7.0.txt)
+- [Linux x64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.1/Pinefall-Engine-0.7.1-linux-x64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.1/Pinefall-Engine-0.7.1-windows-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.1/Pinefall-Engine-0.7.1-source.zip)
+- [SHA-256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.1/SHA256SUMS-0.7.1.txt)
 
-Linux: `chmod +x Pinefall-Engine-0.7.0-linux-x64.AppImage`, then launch normally (FUSE or the supported extraction route). Windows: extract the complete ZIP and run `Pinefall Engine.exe`. Verify checksums. Packaged Linux passed the workflow suite; Windows execution and physical CEDAR performance remain unverified. Historical workshop downloads remain on their historical release pages.
+Linux: `chmod +x Pinefall-Engine-0.7.1-linux-x64.AppImage`, then launch normally (FUSE or the supported extraction route). Windows: extract the complete ZIP and run `Pinefall Engine.exe`. Verify checksums. Packaged Linux passed the workflow suite; Windows execution and physical CEDAR performance remain unverified. Historical workshop downloads remain on their historical release pages.
+
+## Repository code quality
+
+Prettier is the sole formatter; Biome and Oxlint are linters. Run `bun run format` across the entire supported authored tree, then `bun run check` and `bun test tests`. See [tool ownership, exclusions and lint policy](docs/CODE-QUALITY.md).
 
 ## Documentation
 
-| Guide                                        | Contents                                                                            |
-| -------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                     |
+| Guide                                        | Contents                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                |
 | [Scripting and SDK](docs/SCRIPTING.md)       | External TypeScript workflow, semantic diagnostics, attachments, SDK and trust |
-| [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts                 |
-| [Release notes](docs/RELEASE-0.7.0.md)       | Features, download contents, validation and known limitations                       |
-| [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                                 |
-| [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                                   |
+| [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts            |
+| [Release notes](docs/RELEASE-0.7.1.md)       | Features, download contents, validation and known limitations                  |
+| [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                            |
+| [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                              |
 
 ## What's included
 
@@ -149,7 +153,7 @@ bun run game export-web examples/projects/beacon-run.scene.json build/beacon-run
 bun run game export-web examples/projects/script-lab.scene.json build/script-lab-web
 ```
 
-Output directories must not already exist. Serve the exported directory with an **HTTP static server**, then open `index.html`; do not launch it directly as `file://`. Build the examples from source when needed; the latest pre-release assets are listed above.
+Output directories must not already exist. Serve the exported directory with an **HTTP static server**, then open `index.html`; do not launch it directly as `file://`. Build the examples from source when needed; the latest release assets are listed above.
 
 The editor's Player command checkpoints the actual authored project and opens it in the standalone player. Runtime-only mutations and unapplied external edits are not silently adopted. Use `export-web` for a portable web build; trusted script/shader permissions remain separate.
 
@@ -163,13 +167,13 @@ Linux packaged smoke tests use Xvfb/SwiftShader. **CEDAR/Wayland hardware and Wi
 
 ## Tests and current limits
 
-The published v0.6.3-dev.2 checkpoint passed 153 unit tests / 852 assertions plus typecheck/lint, native external-workflow and editor regressions. Additional tests added after that tag are working-tree evidence, not claims about the immutable release. See [current status](docs/CURRENT-STATUS.md) and the evidence directory for detailed scope. No physical-hardware or long-duration performance certification is claimed.
+The 0.7.1 verification passed 169 unit tests / 1,036 assertions, Prettier formatting, TypeScript, Biome and Oxlint, the graphics/shader matrix, representative browser UI suites and packaged Linux workflows. See [current status](docs/CURRENT-STATUS.md) and [release notes](docs/RELEASE-0.7.1.md). No physical-hardware or long-duration performance certification is claimed.
 
 For browser tests, start the dev server, install Chromium with `bun x playwright install --with-deps chromium`, build/export the two examples above, then run `test:browser`, `test:runtime-browser`, `test:scripting-browser`, `test:workspace`, and `bun tests/creation-browser.ts`. They explicitly use SwiftShader for repeatability.
 
 Limits: 500 entities, 100 collections, eight lights, 16 model assets (200 MB combined model/companion import, 480 MB encoded model/source project capacity; separate decoded/GPU ceilings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
 
-Not implemented: multilayer volumetric transparency, point/spot volumetric shadow integration, UV unwrapping, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects,  automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, embedded IDE/debugger or silent script hot reload. External IDE typings are available. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
+Not implemented: multilayer volumetric transparency, point/spot volumetric shadow integration, UV unwrapping, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects, automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, embedded IDE/debugger or silent script hot reload. External IDE typings are available. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
 
 ### Historical asset pipeline introduction in 0.5.3
 

@@ -232,8 +232,7 @@ export function createBehaviorSession(
               cue,
               scope,
               host.objects.get(entity.id)?.getWorldPosition(new THREE.Vector3()).toArray() as
-                | [number, number, number]
-                | undefined,
+                [number, number, number] | undefined,
               entity.id,
             );
           },

@@ -1,0 +1,1 @@
+PASS custom material/light picker: edge bounds, resize, hex/RGB validation, swatches, keyboard, cancel and one-step undo

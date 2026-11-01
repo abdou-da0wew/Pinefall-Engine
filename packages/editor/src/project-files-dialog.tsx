@@ -485,6 +485,7 @@ export function ProjectFilesDialog({
                   : "Schema and TypeScript checked — pending explicit Apply"}
               </strong>
               {pending.diagnostics.map((d, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: This immutable validation snapshot can contain duplicate diagnostics; rows have no local state.
                 <div key={i}>
                   <Button
                     onClick={() =>

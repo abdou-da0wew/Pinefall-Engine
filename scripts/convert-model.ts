@@ -59,7 +59,7 @@ export async function convertModel(
       return new Response("Not found", { status: 404 });
     },
   });
-  let browser;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   try {
     if (allowUnsandboxed)
       console.error(

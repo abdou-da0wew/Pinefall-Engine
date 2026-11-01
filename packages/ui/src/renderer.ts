@@ -75,8 +75,7 @@ export class UIRenderer {
     const node: Node = { root, control, kind: e.kind, handle };
     root.append(handle);
     let drag:
-      | { x: number; y: number; original: UIElement; resize: boolean; moved: boolean }
-      | undefined;
+      { x: number; y: number; original: UIElement; resize: boolean; moved: boolean } | undefined;
     root.addEventListener("pointerdown", (event) => {
       if (this.store.interactive || !this.edit || event.button !== 0) return;
       event.preventDefault();

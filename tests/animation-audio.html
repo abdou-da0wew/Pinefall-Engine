@@ -1,4 +1,73 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><title>Plan02 · Animation and audio lab</title><style>
-body{margin:32px;background:#111b19;color:#dce5dc;font:16px system-ui}h1{font-weight:500}canvas{display:block;width:720px;max-width:100%;height:400px;border:1px solid #456054;border-radius:12px;margin:20px 0}button{background:#accdab;color:#112317;border:0;border-radius:6px;padding:10px 16px;margin:4px;cursor:pointer}pre{white-space:pre-wrap;color:#b9c8bf;max-width:750px}small{color:#9eafa7}
-</style></head><body><small>PINEFALL / PLAN02 / EXECUTABLE FIXTURE</small><h1>Independent poses. Explicit audio.</h1><p>Two instances share one imported model and immutable clip, but own their skeletons and mixer bindings.</p><p><a style="color:#accdab" href="/tests/animation-audio.html">Synthetic rig</a> · <a style="color:#accdab" href="/tests/animation-audio.html?character=1">External Blender character (cached fixture)</a></p><canvas width="720" height="400"></canvas><div><button id="run" disabled>Run animation</button><button id="step" disabled>Step animation</button><button id="audio" disabled>Enable audio</button><button id="cue" disabled>Play cue</button><button id="stress" disabled>100 lifecycle cycles</button><button id="dispose" disabled>Dispose fixture</button></div><pre id="status">Loading validated skinned fixture…</pre><small>PCM16 WAV first slice. The output meter verifies the Web Audio graph, not audible device quality or timing acceptance.</small><script type="module" src="./animation-audio-lab.ts"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Plan02 · Animation and audio lab</title>
+    <style>
+      body {
+        margin: 32px;
+        background: #111b19;
+        color: #dce5dc;
+        font: 16px system-ui;
+      }
+      h1 {
+        font-weight: 500;
+      }
+      canvas {
+        display: block;
+        width: 720px;
+        max-width: 100%;
+        height: 400px;
+        border: 1px solid #456054;
+        border-radius: 12px;
+        margin: 20px 0;
+      }
+      button {
+        background: #accdab;
+        color: #112317;
+        border: 0;
+        border-radius: 6px;
+        padding: 10px 16px;
+        margin: 4px;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+        color: #b9c8bf;
+        max-width: 750px;
+      }
+      small {
+        color: #9eafa7;
+      }
+    </style>
+  </head>
+  <body>
+    <small>PINEFALL / PLAN02 / EXECUTABLE FIXTURE</small>
+    <h1>Independent poses. Explicit audio.</h1>
+    <p>
+      Two instances share one imported model and immutable clip, but own their skeletons and mixer
+      bindings.
+    </p>
+    <p>
+      <a style="color: #accdab" href="/tests/animation-audio.html">Synthetic rig</a> ·
+      <a style="color: #accdab" href="/tests/animation-audio.html?character=1"
+        >External Blender character (cached fixture)</a
+      >
+    </p>
+    <canvas width="720" height="400"></canvas>
+    <div>
+      <button type="button" id="run" disabled>Run animation</button
+      ><button type="button" id="step" disabled>Step animation</button
+      ><button type="button" id="audio" disabled>Enable audio</button
+      ><button type="button" id="cue" disabled>Play cue</button
+      ><button type="button" id="stress" disabled>100 lifecycle cycles</button
+      ><button type="button" id="dispose" disabled>Dispose fixture</button>
+    </div>
+    <pre id="status">Loading validated skinned fixture…</pre>
+    <small
+      >PCM16 WAV first slice. The output meter verifies the Web Audio graph, not audible device
+      quality or timing acceptance.</small
+    >
+    <script type="module" src="./animation-audio-lab.ts"></script>
+  </body>
+</html>

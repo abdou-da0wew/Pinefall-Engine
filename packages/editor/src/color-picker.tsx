@@ -340,7 +340,8 @@ function ColorDialog({
           </label>
         ))}
       </div>
-      <div className="color-palette" aria-label="Pinefall palette">
+      {/* biome-ignore lint/a11y/useSemanticElements: ARIA group describes non-form editor controls; a fieldset would change existing layout semantics. */}
+      <div role="group" className="color-palette" aria-label="Pinefall palette">
         {palette.map((color) => (
           <Button
             key={color}

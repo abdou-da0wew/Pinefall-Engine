@@ -452,7 +452,7 @@ export function Home({
             </div>
           </div>
           <div className="pf-world-art" aria-hidden="true">
-            <svg viewBox="0 0 320 240">
+            <svg aria-hidden="true" viewBox="0 0 320 240">
               <path d="M20 165 160 85 300 165 160 245Z" fill="#283d37" />
               <path d="M20 145 160 65 300 145 160 225Z" fill="#3e5c4c" />
               <path

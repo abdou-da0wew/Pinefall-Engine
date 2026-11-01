@@ -52,6 +52,7 @@
 ## Original design plans
 
 These specify intended scope, not completed features.
+
 - [01-ASSET-PIPELINE](plans/01-ASSET-PIPELINE.md)
 - [02-ANIMATION-AUDIO](plans/02-ANIMATION-AUDIO.md)
 - [03-MATERIALS-GRAPHICS](plans/03-MATERIALS-GRAPHICS.md)

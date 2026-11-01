@@ -35,9 +35,9 @@ export function materialSlots(root: T.Object3D, entityId: string) {
           index,
         });
     }
-    object.children.forEach((child, index) =>
-      visit(child, path ? path + "/" + index : String(index)),
-    );
+    object.children.forEach((child, index) => {
+      visit(child, path ? path + "/" + index : String(index));
+    });
   };
   visit(root, "");
   return slots;

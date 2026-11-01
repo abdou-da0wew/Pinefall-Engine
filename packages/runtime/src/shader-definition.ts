@@ -1,8 +1,5 @@
 export type UniformValue =
-  | number
-  | [number, number]
-  | [number, number, number]
-  | [number, number, number, number];
+  number | [number, number] | [number, number, number] | [number, number, number, number];
 export interface ShaderUniform {
   type: "float" | "vec2" | "vec3" | "vec4";
   value: UniformValue;

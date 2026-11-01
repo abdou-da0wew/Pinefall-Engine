@@ -30,16 +30,16 @@ Reference-only scene v2 working documents; immutable SHA-256 blobs; persistent I
 
 ## Remaining Plan 01 gates, explicitly not finished
 
-| Gate | Remaining evidence or implementation |
-|---|---|
-| A0 | Representative source/DCC fixtures, physical low/high profile latency distributions, real decoder/process/GPU peak-memory measurements |
-| A1 | Complete future cross-asset dependency scheduling/registry beyond the current model/source/entity graph |
-| A2 | Calibration/coverage of allocation estimates across PIF/decoder/driver paths; no hard process heap isolation claim |
-| A3 | Granular intra-model material/scene adoption and physical shader/context-loss/pressure stress matrix |
-| A4 | Explicit normalized unit/axis recipe controls and independent-exporter character/morph/embedded-texture fidelity corpus |
-| A5 | Stable mesh/node/skeleton identities and conflict mapping beyond current materials/clips |
-| A6 | CLI FBX conversion and equivalent normalized recipes between CLI/editor |
-| Acceptance | A second developer's edited textured-character reimport, overrides/PIF/export check, plus Windows/CEDAR owner testing |
+| Gate       | Remaining evidence or implementation                                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| A0         | Representative source/DCC fixtures, physical low/high profile latency distributions, real decoder/process/GPU peak-memory measurements |
+| A1         | Complete future cross-asset dependency scheduling/registry beyond the current model/source/entity graph                                |
+| A2         | Calibration/coverage of allocation estimates across PIF/decoder/driver paths; no hard process heap isolation claim                     |
+| A3         | Granular intra-model material/scene adoption and physical shader/context-loss/pressure stress matrix                                   |
+| A4         | Explicit normalized unit/axis recipe controls and independent-exporter character/morph/embedded-texture fidelity corpus                |
+| A5         | Stable mesh/node/skeleton identities and conflict mapping beyond current materials/clips                                               |
+| A6         | CLI FBX conversion and equivalent normalized recipes between CLI/editor                                                                |
+| Acceptance | A second developer's edited textured-character reimport, overrides/PIF/export check, plus Windows/CEDAR owner testing                  |
 
 ## Compatibility / owner test
 

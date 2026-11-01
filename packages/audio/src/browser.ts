@@ -41,7 +41,9 @@ export class BrowserAudioBackend implements VoiceBackend {
       l.upX,
       l.upY,
       l.upZ,
-    ].forEach((p, i) => p.setValueAtTime([...position, ...forward, ...up][i], t));
+    ].forEach((p, i) => {
+      p.setValueAtTime([...position, ...forward, ...up][i], t);
+    });
   }
   get ready() {
     return !this.dead && this.context?.state === "running";

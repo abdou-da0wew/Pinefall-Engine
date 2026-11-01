@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -8,9 +8,9 @@
     "dev": "bun scripts/prepare-language-service.ts && bun --bun vite --host 0.0.0.0",
     "build": "bun run check && bun scripts/prepare-language-service.ts && bun scripts/build-vite.ts",
     "typecheck": "bun node_modules/typescript/bin/tsc --noEmit",
-    "lint": "oxlint --deny-warnings",
-    "format": "oxfmt --write .",
-    "check": "bun run typecheck && bun run lint",
+    "lint": "bun run lint:oxlint && bun run lint:biome",
+    "format": "prettier --write .",
+    "check": "bun run format:check && bun run typecheck && bun run lint",
     "test": "bun test tests",
     "preview": "bun --bun vite preview --host 0.0.0.0",
     "desktop:build": "bun run build && bun scripts/desktop.ts",
@@ -50,7 +50,11 @@
     "test:shader-files": "bun tests/shader-files-browser.ts",
     "test:unified-sources-native": "xvfb-run -a bun tests/unified-sources-native.ts",
     "test:graphics-completion": "bun tests/graphics-images-browser.ts && bun tests/material-slots-browser.ts && bun tests/material-maps-browser.ts && bun tests/scattering-browser.ts && bun tests/scattering-advanced-browser.ts && bun tests/graphics-failures-browser.ts && bun tests/environment-browser.ts && bun tests/plan03-browser.ts && bun tests/shader-browser.ts",
-    "test:graphics-authoring-native": "xvfb-run -a bun tests/graphics-authoring-native.ts"
+    "test:graphics-authoring-native": "xvfb-run -a bun tests/graphics-authoring-native.ts",
+    "format:check": "prettier --check .",
+    "lint:oxlint": "oxlint --deny-warnings",
+    "lint:biome": "biome lint --error-on-warnings .",
+    "lint:fix": "oxlint --fix && biome lint --write ."
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
@@ -68,6 +72,7 @@
     "typescript-language-service": "npm:typescript@5.9.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.4",
     "@playwright/test": "^1.64.1",
     "@types/bun": "^1.4.4",
     "@types/react": "^19.3.0",
@@ -75,8 +80,8 @@
     "@types/three": "0.185.0",
     "electron": "45.2.1",
     "electron-builder": "26.18.0",
-    "oxfmt": "^0.75.0",
     "oxlint": "^1.90.0",
+    "prettier": "3.9.10",
     "typescript": "^7.0.2",
     "vite": "^7.3.7"
   },

@@ -57,15 +57,15 @@ Proposed `MaterialAsset` includes version, stable ID, shader family, scalar para
 
 Lighting calculations use linear colour. Albedo and emissive PNG/JPEG colour maps require sRGB interpretation; normal/roughness/metalness/AO/height data must not be passed through an sRGB transfer function. HDR environments/light data need an explicit linear interpretation appropriate to their file encoding. Three warns that missing or duplicate output conversion changes the whole scene; increasing a light intensity is not a correct repair. [1](https://threejs.org/manual/en/color-management.html)
 
-| Slot | Meaning | Controls and validation |
-|---|---|---|
-| Base colour | Surface reflectance/tint | sRGB input for ordinary colour images; alpha mode explicit |
-| Normal | Tangent/object-space direction | Strength, green-channel convention, declared coordinate basis |
-| Roughness/metalness/AO | Scalar data | Channel selection, linear sampling, finite multiplier |
-| Emissive | Visible emitted colour | Colour-space tag and HDR intensity, no automatic light creation |
-| Height/displacement | Scalar displacement field | Units, zero point, amplitude, sufficient tessellation |
-| Depth | Distance from a camera/projection | Encoding/near/far/convention metadata; never guessed as height |
-| Lightmap | Authored lighting data | UV channel and encoding; no assertion that Pinefall baked it |
+| Slot                   | Meaning                           | Controls and validation                                         |
+| ---------------------- | --------------------------------- | --------------------------------------------------------------- |
+| Base colour            | Surface reflectance/tint          | sRGB input for ordinary colour images; alpha mode explicit      |
+| Normal                 | Tangent/object-space direction    | Strength, green-channel convention, declared coordinate basis   |
+| Roughness/metalness/AO | Scalar data                       | Channel selection, linear sampling, finite multiplier           |
+| Emissive               | Visible emitted colour            | Colour-space tag and HDR intensity, no automatic light creation |
+| Height/displacement    | Scalar displacement field         | Units, zero point, amplitude, sufficient tessellation           |
+| Depth                  | Distance from a camera/projection | Encoding/near/far/convention metadata; never guessed as height  |
+| Lightmap               | Authored lighting data            | UV channel and encoding; no assertion that Pinefall baked it    |
 
 Expose packed-map channels explicitly; do not assume every image named ORM follows the same packing. A preview must let users inspect R/G/B/A separately and compare imported material interpretation against the raw texture.
 
@@ -115,14 +115,14 @@ Unreal's documentation illustrates that volume resolution, view distance, shadow
 
 ### 9. Work breakdown and validation
 
-| Gate | Implementation | Proof |
-|---|---|---|
-| G0 | Capability report, material/texture schemas, ownership | Headless validation and migrations |
-| G1 | PBR/unlit inspector, maps, UV transforms | Reference material sphere and checker scenes |
-| G2 | Environment and independent light/shadow controls | Correct effective settings and no allocation growth |
-| G3 | Custom shader draft/compile/apply and uniform SDK | Broken shader preserves last valid image |
-| G4 | Ordered post stack and HDR/LDR fallback | Colour regression, disabled-pass cleanup |
-| G5 | Experimental depth-aware scattering | Occlusion, sample stability and hardware timing evidence |
+| Gate | Implementation                                         | Proof                                                    |
+| ---- | ------------------------------------------------------ | -------------------------------------------------------- |
+| G0   | Capability report, material/texture schemas, ownership | Headless validation and migrations                       |
+| G1   | PBR/unlit inspector, maps, UV transforms               | Reference material sphere and checker scenes             |
+| G2   | Environment and independent light/shadow controls      | Correct effective settings and no allocation growth      |
+| G3   | Custom shader draft/compile/apply and uniform SDK      | Broken shader preserves last valid image                 |
+| G4   | Ordered post stack and HDR/LDR fallback                | Colour regression, disabled-pass cleanup                 |
+| G5   | Experimental depth-aware scattering                    | Occlusion, sample stability and hardware timing evidence |
 
 Propose a low-profile goal of maintaining the existing 30 FPS target on an agreed small reference scene, not arbitrary projects. Record CPU and GPU separately through Plan 05. Test known colour patches, normal-map polarity, UV channels, mirrored geometry, skinned shadows, alpha cutout, displacement bounds, missing extensions, resize, context loss and 100 quality toggles. No pass is accepted from screenshots alone: validate ownership/resource counts and actual render errors.
 
@@ -171,7 +171,6 @@ Keep authored schemas in `packages/runtime/src/schema.ts`, render-resource adapt
 New fixtures: an ORM map with distinct constant channels; alpha stored differently in alphaMap versus base-colour alpha; emissive without bloom; bloom without real light contribution; static shadow invalidation after a cutout edit; near/far depth reconstruction; fog behind an opaque wall; temporal reset on teleport; 100 resize/profile/context-loss cycles. Capture profile/resolution/exposure with golden images. Tolerate justified driver variation, but do not accept huge pixel thresholds that conceal colour-space defects.
 
 Unresolved decisions requiring recorded experiments: HDR target availability on physical CEDAR, supported antialiasing sequence, low-profile texture/render-target cap, local-probe update scheme and whether the first scattering prototype is worth shipping. A failed volumetric experiment must not delay correct PBR/lights/custom shader recovery or be marketed as completed volumetrics.
-
 
 ## R3 — Final integration check
 

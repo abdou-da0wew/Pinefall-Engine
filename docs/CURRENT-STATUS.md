@@ -1,10 +1,10 @@
 # Current implementation and release status
 
-Reviewed 2026-11-01. Current source version: **0.7.0**. This page supersedes historical checkpoint inventories.
+Reviewed 2026-11-02. Current source version: **0.7.1**. This page supersedes historical checkpoint inventories.
 
 ## Publication
 
-The 0.7.0 release contains the verified implementation and packaged assets described below. The authoritative publication location is [v0.7.0](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.0). Publication verifies asset sizes and SHA-256 digests before making the release public. Earlier local-candidate evidence records preparation status, not a publication receipt. Credentials are used transiently and are not stored in repository files or Git configuration.
+The 0.7.1 release adds Prettier-only formatting, Biome plus Oxlint lint gates and repository-wide cleanup to the verified implementation and packaged assets described below. The authoritative publication location is [v0.7.1](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.1). Publication verifies asset sizes and SHA-256 digests before making the release public. Earlier local-candidate evidence records preparation status, not a publication receipt. Credentials are used transiently and are not stored in repository files or Git configuration.
 
 ## Implemented software scope
 
@@ -30,3 +30,7 @@ Actual Linux Electron authoring covers disk-backed PNG/HDR imports, UV inspectio
 ## Delivery boundary
 
 Release packaging and physical acceptance are separate: Windows is packaged but execution-untested, and physical CEDAR/independent acceptance remains owner-deferred. Historical release notes and evidence retain the results of their own checkpoints.
+
+## Code-quality update
+
+Prettier formats supported authored files repo-wide; Biome formatter/assist are disabled. Both linters reject warnings. `bun run check` now includes the formatting gate. Oxfmt has been removed. [Configuration and rule policy](CODE-QUALITY.md) · [0.7.1 notes](RELEASE-0.7.1.md).

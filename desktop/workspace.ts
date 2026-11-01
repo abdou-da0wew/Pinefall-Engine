@@ -4,7 +4,7 @@ import { Worker } from "node:worker_threads";
 import type { FolderRecent, RepackSettings } from "../packages/project/src/disk-api";
 import { installIdeKit } from "../packages/project/src/ide-kit";
 import {
-  BrowserWindow,
+  type BrowserWindow,
   dialog,
   ipcMain,
   shell,

@@ -1,0 +1,2 @@
+PASS integrated animator parity, rollback, independence, 100 Play/Stop: {"ticks":30,"cycles":100,"leases":2,"animators":2,"parses":1}
+PASS editor animator creation, trim, skeleton, preview and invalid-draft isolation
