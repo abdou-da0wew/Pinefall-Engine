@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.6.3-dev.0",
+  "version": "0.6.3-dev.1",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -42,7 +42,8 @@
     "test:player-handoff": "bun tests/player-handoff-browser.ts",
     "test:graphics-native": "xvfb-run -a bun tests/graphics-native.ts",
     "test:large-model": "bun tests/large-model-browser.ts",
-    "test:plan03": "bun tests/plan03-browser.ts && bun tests/plan03-editor.ts",
+    "test:plan03": "bun tests/plan03-browser.ts && bun tests/shader-browser.ts && bun tests/plan03-editor.ts",
+    "generate:shader-reference": "bun scripts/generate-shader-reference.ts",
     "generate:materials-reference": "bun scripts/generate-materials-reference.ts"
   },
   "dependencies": {

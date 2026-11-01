@@ -1,3 +1,4 @@
+import { parseShader } from "./shader-definition";
 import {
   DEFAULT_POST,
   DEFAULT_SURFACE,
@@ -14,7 +15,16 @@ import type { SceneDocument } from "./schema";
 export function headlessGraphics(scene: () => SceneDocument): GraphicsAPI {
   let post: PostSettings | undefined;
   const materials = new Map<string, Surface>();
+  const lights = new Map<string, ReturnType<typeof parseLight>>();
   return {
+    async compileShader(id, source) {
+      parseShader(source);
+      if (!scene().entities.some((e) => e.id === id)) throw Error("Shader target missing");
+      throw Error("Headless runtime cannot compile GPU shaders");
+    },
+    setUniform() {
+      throw Error("Headless runtime has no compiled GPU shader");
+    },
     get snapshot(): GraphicsSnapshot {
       const requested = post ?? scene().graphics?.post ?? DEFAULT_POST;
       return {
@@ -63,9 +73,12 @@ export function headlessGraphics(scene: () => SceneDocument): GraphicsAPI {
     setLight(id, patch) {
       const e = scene().entities.find((e) => e.id === id);
       if (!e?.light) throw Error("Light target missing");
-      const next = parseLight({ ...e.light, ...patch });
+      for (const key of lights.keys())
+        if (!scene().entities.some((e) => e.id === key)) lights.delete(key);
+      const next = parseLight({ ...(lights.get(id) ?? e.light), ...patch });
       if (next.type !== e.light.type)
         throw Error("Changing runtime light type requires an authored scene edit");
+      lights.set(id, next);
     },
     invalidateShadows() {},
   };

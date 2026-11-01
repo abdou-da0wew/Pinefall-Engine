@@ -57,6 +57,7 @@ export interface Entity {
     color: string;
     asset?: string;
     material?: string;
+    shader?: string;
     surface?: Surface;
     castShadow?: boolean;
     receiveShadow?: boolean;
@@ -102,6 +103,7 @@ export interface SceneDocument {
 }
 export interface RenderSettings {
   previewPost?: PostSettings;
+  allowCustomShaders?: boolean;
   renderScale?: number;
   shadows?: boolean;
   preset: "low" | "high";
@@ -316,6 +318,11 @@ export function parseScene(value: unknown): SceneDocument {
         ]),
         color: color(e.mesh.color),
       };
+      if (e.mesh.shader !== undefined) {
+        out.mesh.shader = text(e.mesh.shader, "shader reference");
+        if (!graphics?.shaders?.some((s) => s.id === out.mesh?.shader))
+          fail("Missing shader asset");
+      }
       if (e.mesh.material !== undefined) {
         out.mesh.material = text(e.mesh.material, "material reference");
         if (!graphics?.materials.some((m) => m.id === out.mesh?.material))
@@ -373,6 +380,7 @@ export function parseScene(value: unknown): SceneDocument {
     }
     return out;
   });
+  if (entities.filter((e) => e.mesh?.shader).length > 16) fail("Maximum 16 custom-shaded entities");
   const audio = value.audio !== undefined ? parseAudio(value.audio) : undefined;
   if (audio && value.version !== 3) fail("Audio requires scene v3");
   for (let i = 0; i < entities.length; i++) {

@@ -856,3 +856,24 @@
   width: 100% !important;
   min-width: 0;
 }
+
+/* Source editor only: preserve the shared theme and make code/diagnostics readable. */
+.pf-shader-dialog {
+  width: min(900px, calc(100vw - 40px));
+}
+.pf-shader-dialog label > .pf-textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-family: monospace;
+}
+.pf-shader-dialog .row-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pf-shader-dialog pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

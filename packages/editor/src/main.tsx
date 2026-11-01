@@ -1,3 +1,4 @@
+import { ShaderDialog } from "./shader-dialog";
 import { PreviewRendering, previewPost, SurfaceDialog } from "./render-controls";
 import { DEFAULT_SURFACE, emptyGraphics } from "../../runtime/src/graphics-definition";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
@@ -150,6 +151,7 @@ function App({
     [scriptId, setScriptId] = useState("");
   const [audioOpen, setAudioOpen] = useState(false);
   const [materialEditor, setMaterialEditor] = useState(false);
+  const [shaderEditor, setShaderEditor] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
@@ -769,6 +771,16 @@ function App({
       commit((d) => {
         d.version = d.version === 3 || prefab.version === 3 ? 3 : 2;
         const materialMap = new Map<string, string>();
+        const shaderMap = new Map<string, string>();
+        if (prefab.graphics?.shaders?.length) {
+          d.graphics ??= emptyGraphics();
+          d.graphics.shaders ??= [];
+          for (const shader of prefab.graphics.shaders) {
+            const id = crypto.randomUUID();
+            shaderMap.set(shader.id, id);
+            d.graphics.shaders.push({ ...shader, id });
+          }
+        }
         if (prefab.graphics?.materials.length) {
           d.graphics ??= emptyGraphics();
           for (const material of prefab.graphics.materials) {
@@ -796,6 +808,7 @@ function App({
         for (const e of prefab.entities) {
           const item = structuredClone(e);
           item.id = mapping.get(e.id)!;
+          if (item.mesh?.shader) item.mesh.shader = shaderMap.get(item.mesh.shader)!;
           if (item.mesh?.material) item.mesh.material = materialMap.get(item.mesh.material)!;
           item.parent = e.parent ? mapping.get(e.parent) : undefined;
           item.collection = e.collection ? collectionMap.get(e.collection) : undefined;
@@ -1340,6 +1353,45 @@ function App({
             </>
           </div>
         </Dialog>
+      )}
+      {shaderEditor && chosen?.mesh && (
+        <ShaderDialog
+          key={chosen.id}
+          asset={scene.graphics?.shaders?.find((s) => s.id === chosen.mesh?.shader)}
+          trusted={!!settings.allowCustomShaders}
+          onClose={() => setShaderEditor(false)}
+          onDraft={(draft, draftUniforms) => {
+            commit((d) => {
+              const shader = d.graphics?.shaders?.find((s) => s.id === chosen.mesh?.shader);
+              if (shader) {
+                shader.draft = draft;
+                shader.draftUniforms = draftUniforms;
+              }
+            });
+            setShaderEditor(false);
+          }}
+          onCompile={async (source, signal) => {
+            const runtime = engine.current;
+            if (!runtime) throw Error("Renderer unavailable");
+            const next = { ...settings, allowCustomShaders: true };
+            runtime.applySettings(next);
+            setSettings(next);
+            await runtime.graphics.compileShader(chosen.id, source, signal);
+            signal.throwIfAborted();
+            commit((d) => {
+              d.graphics ??= emptyGraphics();
+              d.graphics.shaders ??= [];
+              const e = d.entities.find((e) => e.id === chosen.id);
+              if (!e?.mesh) throw Error("Shader target removed");
+              const id = e.mesh.shader ?? crypto.randomUUID();
+              const asset = { ...source, id, name: chosen.name + " shader" };
+              const index = d.graphics.shaders.findIndex((s) => s.id === id);
+              if (index < 0) d.graphics.shaders.push(asset);
+              else d.graphics.shaders[index] = asset;
+              e.mesh.shader = id;
+            });
+          }}
+        />
       )}
       {materialEditor && chosen?.mesh && (
         <SurfaceDialog
@@ -1976,6 +2028,21 @@ function App({
                         Remove instance surface override
                       </Button>
                     )}
+                    <Button disabled={playing} onClick={() => setShaderEditor(true)}>
+                      Custom shader…
+                    </Button>
+                    {chosen.mesh.shader && (
+                      <Button
+                        disabled={playing}
+                        onClick={() =>
+                          patchEntity((e) => {
+                            if (e.mesh) delete e.mesh.shader;
+                          })
+                        }
+                      >
+                        Remove custom shader binding
+                      </Button>
+                    )}
                     <small className="hint">
                       Instance-safe scalar overrides. Imported texture/UV authoring is a later Plan
                       03 gate.
@@ -2394,6 +2461,26 @@ function App({
                   Frustum culling stays active. Counter is distance-enabled entities, not exact
                   GPU-visible meshes.
                 </small>
+              </Panel>
+              <Panel>
+                <h3>Trusted shader preview</h3>
+                <p className="hint">
+                  Custom GLSL can stall a driver. Imported GPU code is disabled by default. This is
+                  not a sandbox.
+                </p>
+                <Button
+                  disabled={playing || loadBusy}
+                  onClick={() => {
+                    const next = { ...settings, allowCustomShaders: !settings.allowCustomShaders };
+                    engine.current?.applySettings(next);
+                    setSettings(next);
+                    setLoadAttempt((n) => n + 1);
+                  }}
+                >
+                  {settings.allowCustomShaders
+                    ? "Disable custom shaders"
+                    : "Trust and reload authored shaders"}
+                </Button>
               </Panel>
               <PreviewRendering
                 settings={settings}

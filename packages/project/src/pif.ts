@@ -16,7 +16,7 @@ export const PIF_EXPANDED_LIMIT = ARCHIVE_BYTES;
 const encoder = new TextEncoder(),
   decoder = new TextDecoder("utf-8", { fatal: true });
 const safePath = (s: string) =>
-  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|audio\/[A-Za-z0-9_-]+\.wav)$/.test(
+  /^(integrity\.json|project\.json|scene\.json|assets\/[A-Za-z0-9_-]+\.glb|sources\/[A-Za-z0-9_-]+\.bin|scripts\/[A-Za-z0-9_-]+\.ts|shaders\/[A-Za-z0-9_-]+\.(glsl|json)|audio\/[A-Za-z0-9_-]+\.wav)$/.test(
     s,
   );
 export function writeTar(files: Map<string, Uint8Array>): Uint8Array {
@@ -168,6 +168,37 @@ export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8
     files.set(path, encoder.encode(script.source));
     return { id: script.id, name: script.name, file: path };
   });
+  const graphics = checked.graphics
+    ? {
+        ...checked.graphics,
+        ...(checked.graphics.shaders
+          ? {
+              shaders: checked.graphics.shaders.map((shader, i) => {
+                const file = `shaders/${i}.glsl`;
+                files.set(file, encoder.encode(shader.fragment));
+                const draftFile =
+                  shader.draft === undefined ? undefined : `shaders/${i}-draft.glsl`;
+                if (draftFile) files.set(draftFile, encoder.encode(shader.draft!));
+                const draftUniformsFile =
+                  shader.draftUniforms === undefined
+                    ? undefined
+                    : `shaders/${i}-uniforms-draft.json`;
+                if (draftUniformsFile)
+                  files.set(draftUniformsFile, encoder.encode(shader.draftUniforms!));
+                return {
+                  ...shader,
+                  fragment: undefined,
+                  draft: undefined,
+                  draftUniforms: undefined,
+                  ...(draftUniformsFile ? { draftUniformsFile } : {}),
+                  file,
+                  ...(draftFile ? { draftFile } : {}),
+                };
+              }),
+            }
+          : {}),
+      }
+    : undefined;
   files.set(
     "project.json",
     encoder.encode(
@@ -208,6 +239,7 @@ export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8
           ...checked,
           project: undefined,
           assets,
+          ...(graphics ? { graphics } : {}),
           ...(audio ? { audio } : {}),
           ...(scripts ? { scripts } : {}),
         },
@@ -338,6 +370,57 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
       ...(provenance ? { import: provenance } : {}),
     };
   });
+  if (scene.graphics?.shaders) {
+    if (
+      manifest.version < 7 ||
+      !Array.isArray(scene.graphics.shaders) ||
+      scene.graphics.shaders.length > 16
+    )
+      throw Error("Invalid shader archive inventory");
+    scene.graphics.shaders = scene.graphics.shaders.map((s: Record<string, unknown>) => {
+      if (
+        !s ||
+        typeof s !== "object" ||
+        Array.isArray(s) ||
+        "fragment" in s ||
+        "draft" in s ||
+        "draftUniforms" in s ||
+        typeof s.file !== "string" ||
+        !/^shaders\/[A-Za-z0-9_-]+\.glsl$/.test(s.file)
+      )
+        throw Error("Shader source must reference a safe archive file");
+      const bytes = get(s.file);
+      if (bytes.length > 65536) throw Error("Shader source budget");
+      let draft: string | undefined;
+      if (s.draftFile !== undefined) {
+        if (typeof s.draftFile !== "string" || !/^shaders\/[A-Za-z0-9_-]+\.glsl$/.test(s.draftFile))
+          throw Error("Unsafe shader draft file");
+        const d = get(s.draftFile);
+        if (d.length > 65536) throw Error("Shader draft budget");
+        draft = decoder.decode(d);
+      }
+      let draftUniforms: string | undefined;
+      if (s.draftUniformsFile !== undefined) {
+        if (
+          typeof s.draftUniformsFile !== "string" ||
+          !/^shaders\/[A-Za-z0-9_-]+\.json$/.test(s.draftUniformsFile)
+        )
+          throw Error("Unsafe shader uniform draft file");
+        const bytes = get(s.draftUniformsFile);
+        if (bytes.length > 16384) throw Error("Shader uniform draft budget");
+        draftUniforms = decoder.decode(bytes);
+      }
+      return {
+        ...(draftUniforms === undefined ? {} : { draftUniforms }),
+        id: s.id,
+        name: s.name,
+        version: s.version,
+        uniforms: s.uniforms,
+        fragment: decoder.decode(bytes),
+        ...(draft === undefined ? {} : { draft }),
+      };
+    });
+  }
   if (scene.scripts)
     scene.scripts = scene.scripts.map((s: Record<string, unknown>) => {
       if (!s || "source" in s || typeof s.file !== "string" || !s.file.startsWith("scripts/"))

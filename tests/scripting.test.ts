@@ -160,3 +160,34 @@ test("async script factories are rejected before execution", async () => {
     e.dispose();
   }
 });
+
+test("disposing a script scope aborts its pending shader compilation", async () => {
+  const scene = createGame("shader scope");
+  attach(
+    scene,
+    `export default (ctx) => ({ start() {
+    void ctx.graphics.compileShader(ctx.entity.id, {
+      version: 1, fragment: 'vec4 shade(vec2 uv, vec3 p) { return vec4(1.0); }', uniforms: {}
+    }).catch(() => {});
+  } });`,
+  );
+  const engine = await HeadlessEngine.create(scene);
+  const signals: AbortSignal[] = [];
+  engine.graphics.compileShader = (_id, _source, signal) => {
+    if (!signal) throw Error("Missing lifetime signal");
+    signals.push(signal);
+    return new Promise<void>((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  };
+  engine.allowSceneScripts = true;
+  try {
+    engine.step();
+    expect(signals.length).toBe(1);
+    expect(signals[0].aborted).toBe(false);
+  } finally {
+    engine.dispose();
+  }
+  expect(signals[0].aborted).toBe(true);
+  await Promise.resolve();
+});

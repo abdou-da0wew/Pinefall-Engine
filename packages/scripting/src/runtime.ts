@@ -122,6 +122,7 @@ export function createBehaviorSession(
         continue;
       }
       const cleanup = new Set<() => void>();
+      const graphicsAbort = new AbortController();
       let inactive = false;
       const time = { elapsed: 0, delta: 0, fixedDelta: 1 / 60, frame: 0 };
       const guardedUI = (listener: (event: UIEvent) => void) => (event: UIEvent) => {
@@ -130,6 +131,7 @@ export function createBehaviorSession(
           listener(event);
         } catch (error) {
           inactive = true;
+          graphicsAbort.abort();
           host.audio.stopOwner(scope);
           report(asset.name, "ui-event", error);
         }
@@ -179,6 +181,18 @@ export function createBehaviorSession(
       };
       const context: ScriptContext = {
         graphics: {
+          compileShader(id, source, signal) {
+            audioLive("Graphics");
+            return host.graphics.compileShader(
+              id,
+              source,
+              signal ? AbortSignal.any([signal, graphicsAbort.signal]) : graphicsAbort.signal,
+            );
+          },
+          setUniform(id, name, value) {
+            audioLive("Graphics");
+            host.graphics.setUniform(id, name, value);
+          },
           get snapshot() {
             return host.graphics.snapshot;
           },
@@ -252,6 +266,7 @@ export function createBehaviorSession(
                 listener(event);
               } catch (error) {
                 inactive = true;
+                graphicsAbort.abort();
                 host.audio.stopOwner(scope);
                 report(asset.name, "animation event", error);
               }
@@ -322,6 +337,7 @@ export function createBehaviorSession(
               listener(event);
             } catch (error) {
               inactive = true;
+              graphicsAbort.abort();
               host.audio.stopOwner(scope);
               report(asset.name, "event", error);
             }
@@ -359,6 +375,7 @@ export function createBehaviorSession(
         { engine: host, entity },
         (hook, error) => {
           inactive = true;
+          graphicsAbort.abort();
           host.audio.stopOwner(scope);
           report(asset.name, hook, error);
         },
@@ -386,6 +403,7 @@ export function createBehaviorSession(
         },
         dispose() {
           inactive = true;
+          graphicsAbort.abort();
           host.audio.stopOwner(scope);
           wrapped.dispose?.();
           for (const off of cleanup) off();

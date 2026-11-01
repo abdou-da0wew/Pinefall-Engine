@@ -1,6 +1,6 @@
-# Graphics authoring, preview and SDK — Plan 03 first stage
+# Graphics authoring, preview and SDK — Plan 03 development
 
-This documents implemented development APIs, not completion of the whole Plan 03. No arbitrary GLSL API, texture-map authoring, PMREM environment or actual volumetric scattering is implemented in this stage.
+This documents implemented development APIs, not completion of the whole Plan 03. The bounded custom-unlit GLSL pipeline is implemented. Texture-map authoring, PMREM environment and actual volumetric scattering remain unimplemented.
 
 ## Three separate kinds of settings
 
@@ -92,3 +92,29 @@ WebGL context loss stops frame submission/simulation advancement while retaining
 - `tests/plan03-editor.ts`: preview/apply distinction, desktop-settings access, material authoring and cold reopening.
 
 Physical CEDAR/Windows performance, maximum scene complexity and full Plan 03 acceptance are not claimed passed.
+
+
+## Custom unlit shaders (0.6.3-dev.1)
+
+Mesh renderer → **Custom shader…** opens a source/uniform dialog without changing the theme. GPU code is disabled by default. Explicit session consent is required; scripts cannot grant that consent through `setPreview`. Rendering also offers trust/reload and disable controls. Standalone exports have a separate shader-consent button, retain permission across quality changes, and revoke permission when a different project file is opened.
+
+```ts
+await ctx.graphics.compileShader(this.ctx.entity.id, {
+  version: 1,
+  fragment: "vec4 shade(vec2 uv, vec3 p) { return vec4(uTint, 1.0); }",
+  uniforms: { uTint: { type: "vec3", value: [0.3, 0.7, 0.5] } },
+});
+ctx.graphics.setUniform(this.ctx.entity.id, "uTint", [1, 0, 0]);
+```
+
+The fragment function returns **linear RGBA**. The fixed engine vertex interface includes skinning, morphs and instancing; the supplied world position includes instance transforms. This interface is unlit, opaque and does **not cast shadows**. Custom lighting, vertex deformation, sampler uniforms, custom depth/shadow variants and arbitrary render passes are not supported. `uTime` is reserved for elapsed rendered seconds. User uniform names begin with `u` and an uppercase letter; supported types are float/vec2/vec3/vec4 with finite components bounded to ±1,000,000.
+
+Limits: 16,384 UTF-16 code units of source, 16 typed uniforms, 16 shader assets and 16 bound entities. Applied source and unfinished source/uniform drafts are distinct PIF entries; invalid draft text is never executed. Save draft only is available after the first successful application. The draft-uniform text is capped at 4,096 code units. Archive paths, sizes, references and integrity are checked. Cold reopening resets consent.
+
+Compile/apply serializes staged compilation of direct/offscreen variants and validates GL link status before adopting the material. Invalid source, cancellation and revoked trust retain the last valid material (revocation explicitly replaces custom materials with a magenta blocked-code surface). Driver logs map to authored lines where supported. Typed uniform updates do not rebuild the material/program. A 30-second polling deadline and AbortSignal govern asynchronous completion waits; **synchronous GPU/driver calls and hostile shader workloads cannot reliably be preempted**. These are resource limits, not a GPU security sandbox. No production sandbox is disabled.
+
+Context loss aborts pending compile/load work and suspends frame submission. Restoration reuses approved sources and recreates post targets. Script scope disposal rejects subsequent calls. Headless mode validates source/target intent, then explicitly rejects GPU compilation.
+
+`examples/projects/shader-reference.pif` contains procedural UV checkers, typed uniforms and a deliberately unfinished draft separate from the valid applied source. Generate using `bun run generate:shader-reference`.
+
+Shader evidence: `tests/shader.test.ts` covers schema bounds, archive separation/roundtrip/unsafe paths and headless rejection. `tests/shader-browser.ts` covers default denial, last-valid recovery, stable material identity, cancellation/revocation, context restoration, skinned/morph/instanced pixels and repeated replacement cleanup. The editor test covers compile/apply, invalid source diagnostics, both draft fields, Home checkpoint/cold reopen and consent reset in browser and built Linux Electron. `TEST_SHADERS=1 bun tests/plan03-export.ts` exercises the built standalone shader fixture. Software/SwiftShader evidence is not physical CEDAR or Windows acceptance.

@@ -14,6 +14,16 @@ export interface GraphicsSnapshot {
   contextLost: boolean;
 }
 export interface GraphicsAPI {
+  compileShader(
+    entityId: string,
+    source: import("./shader-definition").ShaderSource,
+    signal?: AbortSignal,
+  ): Promise<void>;
+  setUniform(
+    entityId: string,
+    name: string,
+    value: import("./shader-definition").UniformValue,
+  ): void;
   readonly snapshot: GraphicsSnapshot;
   setPost(patch: Partial<PostSettings>): void;
   setPreview(

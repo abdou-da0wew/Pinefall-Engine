@@ -47,3 +47,18 @@ No CSS/theme changes. Desktop driver/compositor controls remain restart-only, ac
 Next stage: texture/UV asset integration and environment ownership, followed by the custom-shader compile/apply pipeline. Do not mark the whole plan done or publish a completed Plan 03 release from this checkpoint.
 
 Additional checks: forced LDR target selection/bloom/FXAA and cleanup pass in the graphics regression. The material dialog reuses the existing colour picker; its portal now stays inside a containing native dialog and focuses after reparenting, so Escape closes only the picker. The existing colour-picker regression and the nested native-dialog regression pass. No theme/CSS changes were made.
+
+## Completion pass — execution plan
+
+User requested completion of all remaining software gates. Implement the custom-shader contract and last-valid compile/apply recovery first, then integrate texture/UV resources and PMREM ownership, shadow update policy, and bounded depth-aware scattering. Each change must reach schema/PIF/SDK/editor/runtime and tests; do not relabel existing approximations. Preserve the theme. Physical hardware and independent-user acceptance remain owner-deferred rather than passed. Record any unfinished gate explicitly if implementation is interrupted.
+
+
+## Shader continuation — 0.6.3-dev.1
+
+**Plan 03 remains incomplete.** The Stage 1 matrix above is historical. G3 now has bounded unlit GLSL assets, independent applied/source/uniform drafts, staged compile/link/apply, line diagnostics, stable typed uniforms, consent controls, PIF/SDK/headless/editor/standalone integration and last-valid recovery. Skinning/morph/instance pixel fixtures, cancellation/revocation/context recovery, resource cleanup and native editor checkpoint/reopen have been exercised. No custom lit/depth/sampler contract is claimed.
+
+Audit fixes include in-flight consent revocation, pending compile invalidation on context loss, incorrect instanced world positions, malformed shader inventory handling, missing archive allowlist coverage for uniform drafts, standalone permission loss on quality changes, and a legacy second context-loss handler that left the engine paused after restoration. Tests cover the fixed behaviors rather than inferring success from screenshots.
+
+Still open: G0 texture/environment ownership; G1 maps, channel packing, UV tools, per-slot authoring, displacement and fixtures; G2 PMREM, independent shadow update modes and fitted frusta; G4 broader color/alpha/HDR fixtures and failure-atomic resource admission; G5 real depth-aware scattering. Physical CEDAR/Windows, listening and independent acceptance remain owner-deferred, not passed. No completed Plan 03 release is authorized by these results alone.
+
+Checkpoint evidence: typecheck/Oxlint pass (200 files, zero warnings/errors); 141 unit tests / 754 assertions pass; shader GPU fixture passes 20 replacements with zero retained shader programs after permission disable; general graphics fixture passes 100 post/resize cycles, grey-patch color, LDR fallback and context recovery. Built Linux Electron editor and both standalone reference exports pass. Existing script, shortcut and Player-handoff regressions also pass. Evidence files are in `docs/evidence/plan03-shaders/`. The new shader dialog alone receives scoped width/textarea/log-wrap rules; the existing theme and other controls are unchanged.

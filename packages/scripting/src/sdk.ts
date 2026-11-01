@@ -70,3 +70,11 @@ export class Script {
   constructor(public readonly ctx: ScriptContext) {}
 }
 export type GameScriptFactory = (ctx: ScriptContext) => Behavior;
+
+export type {
+  ShaderSource,
+  ShaderAsset,
+  ShaderUniform,
+  UniformValue,
+} from "../../runtime/src/shader-definition";
+export { DEFAULT_SHADER } from "../../runtime/src/shader-definition";

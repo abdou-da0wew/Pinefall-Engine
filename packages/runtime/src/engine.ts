@@ -1,3 +1,5 @@
+import { ShaderCompiler, setShaderUniform } from "./shader-runtime";
+import { parseShader, type ShaderSource } from "./shader-definition";
 import {
   surfaceMaterial,
   updateSurface,
@@ -141,6 +143,8 @@ export class Engine {
   document!: SceneDocument;
   readonly graphics: GraphicsAPI = this.createGraphicsAPI();
   private runtimePost?: PostSettings;
+  private shaderCompiler?: ShaderCompiler;
+  private shaderEpoch = new AbortController();
   private playSettingsSnapshot?: RenderSettings;
   private runtimeSurfaces = new Map<string, Surface>();
   private contextLost = false;
@@ -166,6 +170,50 @@ export class Engine {
     // oxlint-disable-next-line typescript/no-this-alias -- Stable API accessor captures its owning runtime.
     const engine = this;
     return {
+      async compileShader(id, source, signal) {
+        if (engine.dead || engine.loading || engine.contextLost)
+          throw Error("Renderer unavailable for shader compilation");
+        if (!engine.settings.allowCustomShaders)
+          throw Error("Custom GPU code is disabled; explicitly enable shader preview first");
+        const root = engine.objects.get(id);
+        if (!root) throw Error("Shader target missing");
+        if (
+          !engine.materials.has("shader:" + id) &&
+          [...engine.materials.keys()].filter((k) => k.startsWith("shader:")).length >= 16
+        )
+          throw Error("Custom shader instance budget");
+        const generation = engine.generation;
+        const material = await engine.compileShader(
+          root,
+          source,
+          signal ? AbortSignal.any([signal, engine.shaderEpoch.signal]) : engine.shaderEpoch.signal,
+        );
+        if (
+          engine.dead ||
+          engine.contextLost ||
+          !engine.settings.allowCustomShaders ||
+          signal?.aborted ||
+          engine.shaderEpoch.signal.aborted ||
+          engine.generation !== generation ||
+          engine.objects.get(id) !== root
+        ) {
+          material.dispose();
+          throw Error("Shader target changed during compilation");
+        }
+        engine.assignSurface(id, material, engine.liveWorld());
+        engine.materials.get("shader:" + id)?.dispose();
+        engine.materials.set("shader:" + id, material);
+        root.traverse((o) => {
+          if (o instanceof T.Mesh && o.userData.entityId === id) o.castShadow = false;
+        });
+      },
+      setUniform(id, name, value) {
+        if (engine.dead) throw Error("Graphics runtime disposed");
+        const material = engine.materials.get("shader:" + id);
+        if (!(material instanceof T.ShaderMaterial))
+          throw Error("No applied custom shader on target");
+        setShaderUniform(material, name, value);
+      },
       get snapshot() {
         const post = engine.requestedPost();
         return {
@@ -176,9 +224,9 @@ export class Engine {
           requested: structuredClone(post),
           effective: {
             ...structuredClone(post),
-            enabled: post.enabled && !engine.contextLost,
-            bloom: post.enabled && post.bloom && !engine.contextLost,
-            fxaa: post.enabled && post.fxaa && !engine.contextLost,
+            enabled: post.enabled && !engine.dead && !engine.contextLost,
+            bloom: post.enabled && post.bloom && !engine.dead && !engine.contextLost,
+            fxaa: post.enabled && post.fxaa && !engine.dead && !engine.contextLost,
           },
           postTargetBytes: engine.effects?.snapshot.targetBytes ?? 0,
           shadowTargetBytes: engine.shadowBytes,
@@ -193,10 +241,12 @@ export class Engine {
         };
       },
       setPost(patch) {
+        if (engine.dead) throw Error("Graphics runtime disposed");
         engine.runtimePost = parsePost({ ...engine.requestedPost(), ...patch });
         engine.applySettings(engine.settings);
       },
       setPreview(patch) {
+        if (engine.dead) throw Error("Graphics runtime disposed");
         if (
           Object.keys(patch).some(
             (k) => !["preset", "renderScale", "shadows", "viewDistance"].includes(k),
@@ -206,6 +256,7 @@ export class Engine {
         engine.applySettings({ ...engine.settings, ...patch });
       },
       setMaterial(id, patch) {
+        if (engine.dead) throw Error("Graphics runtime disposed");
         const entity = engine.document.entities.find((e) => e.id === id);
         if (!entity?.mesh || !engine.objects.has(id)) throw Error("Material target missing");
         const base = engine.runtimeSurfaces.get(id) ??
@@ -225,6 +276,8 @@ export class Engine {
         if (compatible) updateSurface(material, next);
         engine.assignSurface(id, material, engine.liveWorld());
         if (old !== material) old?.dispose();
+        engine.materials.get("shader:" + id)?.dispose();
+        engine.materials.delete("shader:" + id);
         engine.materials.set("runtime:" + id, material);
         engine.runtimeSurfaces.set(id, next);
         engine.objects.get(id)?.traverse((o) => {
@@ -234,6 +287,7 @@ export class Engine {
         engine.invalidateShadows();
       },
       setLight(id, patch) {
+        if (engine.dead) throw Error("Graphics runtime disposed");
         const object = engine.objects.get(id),
           light = object?.children.find((o) => o instanceof T.Light) as SceneLight | undefined;
         if (!light) throw Error("Light target missing");
@@ -244,9 +298,55 @@ export class Engine {
         engine.configureShadows();
       },
       invalidateShadows() {
+        if (engine.dead) throw Error("Graphics runtime disposed");
         engine.invalidateShadows();
       },
     };
+  }
+  private compileShader(root: T.Object3D, source: ShaderSource, signal: AbortSignal) {
+    parseShader(source);
+    return (this.shaderCompiler ??= new ShaderCompiler(this.renderer)).compile(
+      root,
+      this.camera,
+      this.scene,
+      source,
+      signal,
+    );
+  }
+  private async authoredShader(
+    e: Entity,
+    doc: SceneDocument,
+    world: WorldResources,
+    signal: AbortSignal,
+  ) {
+    if (!e.mesh?.shader) return;
+    const source = doc.graphics?.shaders?.find((s) => s.id === e.mesh?.shader);
+    if (!source) throw Error("Missing shader source");
+    let material: T.Material;
+    if (!this.settings.allowCustomShaders) {
+      material = new T.MeshBasicMaterial({ color: 0xff00ff });
+      this.events.emit(
+        "render",
+        "Custom shader blocked; enable trusted shader preview: " + source.name,
+      );
+    } else {
+      try {
+        material = await this.compileShader(world.objects.get(e.id)!, source, signal);
+        if (signal.aborted || !this.settings.allowCustomShaders || this.contextLost) {
+          material.dispose();
+          throw new DOMException("Shader permission or context changed", "AbortError");
+        }
+      } catch (error) {
+        signal.throwIfAborted();
+        material = new T.MeshBasicMaterial({ color: 0xff00ff });
+        this.events.emit("error", "Custom shader failed; visible error material: " + String(error));
+      }
+    }
+    world.materials.set("shader:" + e.id, material);
+    this.assignSurface(e.id, material, world);
+    world.objects.get(e.id)?.traverse((o) => {
+      if (o instanceof T.Mesh && o.userData.entityId === e.id) o.castShadow = false;
+    });
   }
   private assignSurface(id: string, material: T.Material, world: WorldResources) {
     world.objects.get(id)?.traverse((o) => {
@@ -388,11 +488,16 @@ export class Engine {
     const lost = (event: Event) => {
       event.preventDefault();
       this.contextLost = true;
+      this.shaderEpoch.abort();
+      this.loadAbort?.abort();
       this.input.clear();
+      this.audio.setPaused(true);
       this.events.emit("render", "WebGL context lost; rendering suspended; authored data retained");
     };
     const restored = () => {
       this.contextLost = false;
+      this.shaderEpoch = new AbortController();
+      this.audio.setPaused(this.paused);
       this.last = 0;
       this.effects?.dispose();
       this.effects = null;
@@ -559,11 +664,6 @@ export class Engine {
             this.events.emit("input", "Pointer lock unavailable; drag to look instead."),
           );
     });
-    this.listen(this.canvas, "webglcontextlost", (event) => {
-      event.preventDefault();
-      this.paused = true;
-      this.events.emit("error", "WebGL context lost. Stop and reload the application.");
-    });
   }
   private geometry(primitive: Primitive, geometries = this.geometries) {
     let geometry = geometries.get(primitive);
@@ -597,6 +697,8 @@ export class Engine {
       : null;
     let scene = parseScene(input);
     const generation = ++this.generation;
+    this.shaderEpoch.abort();
+    this.shaderEpoch = new AbortController();
     this.loading = true;
     this.loadAbort?.abort();
     const controller = new AbortController();
@@ -690,6 +792,7 @@ export class Engine {
             );
         }
         this.authoredSurface(e, scene, world);
+        await this.authoredShader(e, scene, world, controller.signal);
         if (performance.now() - slice > 2) {
           await new Promise((resolve) => setTimeout(resolve, 0));
           slice = performance.now();
@@ -1041,7 +1144,7 @@ export class Engine {
       this.objects.get(key)?.traverse((o) => {
         if (o instanceof T.Light && "shadow" in o) (o as SceneLight).shadow.dispose();
       });
-      for (const prefix of ["runtime:", "surface:"]) {
+      for (const prefix of ["runtime:", "surface:", "shader:"]) {
         this.materials.get(prefix + key)?.dispose();
         this.materials.delete(prefix + key);
       }
@@ -1090,7 +1193,24 @@ export class Engine {
     bounded(settings.renderScale ?? 1, 0.25, 1);
     if (settings.shadows !== undefined && typeof settings.shadows !== "boolean")
       throw Error("Invalid shadow preview flag");
+    if (
+      settings.allowCustomShaders !== undefined &&
+      typeof settings.allowCustomShaders !== "boolean"
+    )
+      throw Error("Invalid custom shader trust flag");
     if (settings.previewPost) parsePost(settings.previewPost);
+    if (this.settings.allowCustomShaders && !settings.allowCustomShaders) {
+      this.shaderEpoch.abort();
+      this.shaderEpoch = new AbortController();
+      this.loadAbort?.abort();
+      for (const [key, material] of this.materials)
+        if (key.startsWith("shader:")) {
+          const fallback = new T.MeshBasicMaterial({ color: 0xff00ff });
+          this.assignSurface(key.slice(7), fallback, this.liveWorld());
+          material.dispose();
+          this.materials.set(key, fallback);
+        }
+    }
     this.settings = { ...settings };
     this.configureShadows();
     const post = parsePost(this.requestedPost());
@@ -1139,7 +1259,7 @@ export class Engine {
   private tick = (now: number) => {
     if (this.dead) return;
     this.raf = requestAnimationFrame(this.tick);
-    if (document.hidden) {
+    if (document.hidden || this.contextLost) {
       this.last = now;
       return;
     }
@@ -1205,6 +1325,13 @@ export class Engine {
             (this.settings.viewDistance + Math.max(...e.transform.scale) * 2) ** 2;
         if (object.visible) visible++;
       }
+    for (const [key, material] of this.materials)
+      if (
+        key.startsWith("shader:") &&
+        material instanceof T.ShaderMaterial &&
+        material.uniforms.uTime
+      )
+        material.uniforms.uTime.value += dt;
     this.renderer.info.reset();
     try {
       if (this.effects) this.effects.draw(dt);
@@ -1254,6 +1381,7 @@ export class Engine {
     this.runtimePost = undefined;
   }
   dispose() {
+    this.shaderEpoch.abort();
     this.loadAbort?.abort();
     this.dead = true;
     this.generation++;

@@ -1,3 +1,4 @@
+import { parseShaderAsset, type ShaderAsset } from "./shader-definition";
 export interface Surface {
   family: "pbr" | "unlit";
   color: string;
@@ -30,6 +31,7 @@ export interface PostSettings {
   fxaa: boolean;
 }
 export interface GraphicsDefinition {
+  shaders?: ShaderAsset[];
   version: 1;
   materials: MaterialAsset[];
   post?: PostSettings;
@@ -134,7 +136,7 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
     v.version !== 1 ||
     !Array.isArray(v.materials) ||
     v.materials.length > 64 ||
-    Object.keys(v).some((k) => !["version", "materials", "post"].includes(k))
+    Object.keys(v).some((k) => !["version", "materials", "post", "shaders"].includes(k))
   )
     throw Error("Invalid graphics schema/version/budget");
   const materials = v.materials.map((raw) => {
@@ -143,7 +145,19 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
   });
   if (new Set(materials.map((m) => m.id)).size !== materials.length)
     throw Error("Duplicate material IDs");
-  return { version: 1, materials, ...(v.post === undefined ? {} : { post: parsePost(v.post) }) };
+  let shaders: ShaderAsset[] | undefined;
+  if (v.shaders !== undefined) {
+    if (!Array.isArray(v.shaders) || v.shaders.length > 16) throw Error("Shader asset budget");
+    shaders = v.shaders.map(parseShaderAsset);
+    if (new Set(shaders.map((s) => s.id)).size !== shaders.length)
+      throw Error("Duplicate shader IDs");
+  }
+  return {
+    version: 1,
+    materials,
+    ...(v.post === undefined ? {} : { post: parsePost(v.post) }),
+    ...(shaders ? { shaders } : {}),
+  };
 }
 export function emptyGraphics(): GraphicsDefinition {
   return { version: 1, materials: [] };

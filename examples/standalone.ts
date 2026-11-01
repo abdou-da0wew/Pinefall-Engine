@@ -9,7 +9,7 @@ const style = document.createElement("style");
 style.textContent = `*{box-sizing:border-box}body{margin:0;background:#14291e;color:#e3e4ca;font:13px system-ui}canvas{width:100vw;height:100vh;display:block}aside{position:absolute;top:20px;left:20px;padding:20px;background:#10251ee6;border:1px solid #74856855;border-radius:8px;max-width:360px}h1{font-weight:500}button,select,label{font:12px system-ui;padding:8px;background:#344b33;color:#e5e4c8;border:1px solid #647455;border-radius:4px;cursor:pointer}p{line-height:1.8;font-size:12px;color:#b3c5a9}#error{color:#ffbca2;white-space:pre-wrap}small{letter-spacing:2px;color:#b0ba8a}`;
 document.head.append(style);
 document.body.innerHTML =
-  '<canvas tabindex="0" aria-label="Game viewport"></canvas><aside><small style="display:flex;align-items:center;gap:8px"><img src="./pinefall-logo.svg" width="26" height="26" alt="Pinefall">PINEFALL / STANDALONE PLAYER</small><h1 id="title"></h1><p id="score">Loading physics…</p><p>WASD move/drive · Space jump/brake · Shift sprint · drag look · R recover · Escape pause. Sandbox: drag orbit.</p><button id="pause">Pause / resume</button> <button id="restart">Restart</button><p><select id="quality"><option value="low">Low / CEDAR</option><option value="high">High / FX</option></select> <label>Load scene<input hidden id="file" type="file" accept=".pif,.json"></label></p><div id="sandbox" hidden><button id="spawn">Spawn crate</button> <button id="impulse">Impulse</button></div><p id="trust" hidden>Scene contains executable code. Run only scripts you trust. <button id="allow-scripts">Trust scripts and play</button></p><p><button id="unlock-audio">Unlock audio</button> <button id="return-editor" hidden>Return to editor</button></p><p id="stats"></p><p id="error"></p></aside>';
+  '<canvas tabindex="0" aria-label="Game viewport"></canvas><aside><small style="display:flex;align-items:center;gap:8px"><img src="./pinefall-logo.svg" width="26" height="26" alt="Pinefall">PINEFALL / STANDALONE PLAYER</small><h1 id="title"></h1><p id="score">Loading physics…</p><p>WASD move/drive · Space jump/brake · Shift sprint · drag look · R recover · Escape pause. Sandbox: drag orbit.</p><button id="pause">Pause / resume</button> <button id="restart">Restart</button><p><select id="quality"><option value="low">Low / CEDAR</option><option value="high">High / FX</option></select> <label>Load scene<input hidden id="file" type="file" accept=".pif,.json"></label></p><div id="sandbox" hidden><button id="spawn">Spawn crate</button> <button id="impulse">Impulse</button></div><p id="shader-trust" hidden>Custom GPU code can stall your driver. <button id="allow-shaders">Trust shaders and reload</button></p><p id="trust" hidden>Scene contains executable code. Run only scripts you trust. <button id="allow-scripts">Trust scripts and play</button></p><p><button id="unlock-audio">Unlock audio</button> <button id="return-editor" hidden>Return to editor</button></p><p id="stats"></p><p id="error"></p></aside>';
 const $ = (id: string) => document.getElementById(id)!;
 async function main() {
   let runtime: Engine;
@@ -50,6 +50,8 @@ async function main() {
   }
   async function load() {
     await runtime.load(authored);
+    $("shader-trust").hidden =
+      !!runtime.settings.allowCustomShaders || !authored.entities.some((e) => e.mesh?.shader);
     $("title").textContent = authored.name;
     $("sandbox").hidden = authored.template !== "sandbox";
     if (hasSceneScripts(authored)) {
@@ -84,6 +86,16 @@ async function main() {
         $("error").textContent = String(error);
       });
   };
+  $("allow-shaders").onclick = () => {
+    runtime.applySettings({ ...runtime.settings, allowCustomShaders: true });
+    void load()
+      .then(() => {
+        $("shader-trust").hidden = true;
+      })
+      .catch((error) => {
+        $("error").textContent = String(error);
+      });
+  };
   $("pause").onclick = () => {
     runtime.paused = !runtime.paused;
   };
@@ -91,7 +103,10 @@ async function main() {
   $("spawn").onclick = () => runtime.spawnBox();
   $("impulse").onclick = () => runtime.impulse();
   $("quality").onchange = (e) =>
-    runtime.applySettings((e.target as HTMLSelectElement).value === "high" ? HIGH : LOW);
+    runtime.applySettings({
+      ...((e.target as HTMLSelectElement).value === "high" ? HIGH : LOW),
+      allowCustomShaders: runtime.settings.allowCustomShaders,
+    });
   $("file").onchange = async (e) => {
     try {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -101,6 +116,7 @@ async function main() {
       authored = pif
         ? await projectJob("unpack", new Uint8Array(await file.arrayBuffer()))
         : parseScene(JSON.parse(await file.text()));
+      runtime.applySettings({ ...runtime.settings, allowCustomShaders: false });
       await load();
     } catch (error) {
       $("error").textContent = String(error);
