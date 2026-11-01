@@ -1,5 +1,7 @@
 # Pinefall Engine 0.6.0 — Plan02 animation/audio release
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 **Full software release, published after the owner explicitly deferred hardware/listening acceptance to their own testing.** Plan02’s documented software profiles and local regression coverage are implemented. Windows/CEDAR/physical audio/timing/independent checks are **unverified, not passed**; the owner elected not to block this release on them. See `docs/PLAN02-ACCEPTANCE.md`.
 
 ## Included

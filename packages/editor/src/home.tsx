@@ -1,3 +1,5 @@
+import { FolderSession } from "../../project/src/folder-session";
+import type { FolderRecent } from "../../project/src/disk-api";
 import type { GraphicsPreferences, GraphicsState } from "./graphics";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
 /* oxlint-disable react/refs -- Event handler ref keeps keyboard routing current without reattaching listeners. */
@@ -211,7 +213,7 @@ export function Home({
   recovery,
   notice = "",
 }: {
-  onOpen: (scene: SceneDocument) => void | Promise<void>;
+  onOpen: (scene: SceneDocument, folder?: FolderSession) => void | Promise<void>;
   recovery?: SceneDocument;
   notice?: string;
 }) {
@@ -224,6 +226,16 @@ export function Home({
     [creating, setCreating] = useState<string>(),
     [name, setName] = useState("Untitled game"),
     [removing, setRemoving] = useState<RecentProject>();
+  const [folders, setFolders] = useState<FolderRecent[]>([]);
+  const folderOpening = useRef<FolderSession | null>(null);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      folderOpening.current?.dispose();
+    };
+  }, []);
   const file = useRef<HTMLInputElement>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const commands: EditorCommand[] = [
@@ -282,7 +294,43 @@ export function Home({
     applyPreferences(readPreferences());
     blobs.retain(recovery ? sceneReferences(recovery) : []);
     void refresh();
+    void window.engineDesktop?.workspace
+      .recents()
+      .then(setFolders)
+      .catch((error) => setError(String(error)));
   }, [recovery]);
+  async function openFolder(id: string) {
+    const api = window.engineDesktop?.workspace;
+    if (!api || busy) return;
+    setBusy(true);
+    setError("");
+    let adopted = false;
+    let candidate: FolderSession | undefined;
+    try {
+      const grant = await api.reopen(id),
+        session = new FolderSession(api, grant);
+      if (!mounted.current) {
+        session.dispose();
+        throw Error("Home closed during folder opening");
+      }
+      candidate = session;
+      folderOpening.current = session;
+      const snapshot = await session.read();
+      const layout = await session.accept(snapshot);
+      session.adopt(snapshot, layout);
+      // Opening is an explicit user action; scripts/shaders still start without trust.
+      if (!mounted.current) throw Error("Home closed during folder validation");
+      folderOpening.current = null;
+      await onOpen(snapshot.scene, session);
+      adopted = true;
+    } catch (error) {
+      setError("Folder not opened: " + String(error));
+    } finally {
+      if (!adopted) candidate?.dispose();
+      folderOpening.current = null;
+      setBusy(false);
+    }
+  }
   async function open(work: () => Promise<SceneDocument>) {
     setBusy(true);
     setError("");
@@ -455,6 +503,32 @@ export function Home({
                     />
                   )}
                 </header>
+                {section === "projects" && folders.length > 0 && (
+                  <section aria-label="Recent working folders">
+                    <h3>Working folders</h3>
+                    <div className="pf-project-grid">
+                      {folders
+                        .filter((folder) => folder.root.toLowerCase().includes(query.toLowerCase()))
+                        .map((folder) => (
+                          <Panel key={folder.id} className="pf-project-card">
+                            <Button
+                              className="pf-project-open"
+                              disabled={busy}
+                              onClick={() => void openFolder(folder.id)}
+                              aria-label={"Open working folder " + folder.root}
+                            >
+                              <h3>{folder.root.split(/[\\/]/).at(-1)}</h3>
+                              <span>Open working folder ↗</span>
+                            </Button>
+                            <p>{folder.root}</p>
+                            <small>
+                              {new Date(folder.opened).toLocaleDateString()} · Disk source of truth
+                            </small>
+                          </Panel>
+                        ))}
+                    </div>
+                  </section>
+                )}
                 {section === "projects" &&
                   (rows.length ? (
                     <div className="pf-project-grid">

@@ -1,5 +1,7 @@
 # Pinefall Engine 0.6.1 — Home and shared editor UI
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 ## What changed
 
 - Home screen with real local recent-project archives, search/removal, portable PIF opening, a normal blank game and all four existing 3D templates. The home screen does not create a canvas or WebGL renderer.

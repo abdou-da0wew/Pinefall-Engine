@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Refresh maintained documentation and distinguish historical evidence from current status.
+- Install a source-owned Bun commit-msg hook for the DiveeAgent co-author trailer.
+- Home working-folder cards with validated session handoff and cancellation-aware acceptance; native restart/no-execution coverage.
+- Verification: 155 unit tests, 918 assertions; typecheck/lint, desktop build and native external workflow pass. Remaining Plan03 and folder UX work is not complete.
+
 ## 0.6.3-dev.2 — Folder workflow and rendering checkpoint (Plan03 incomplete)
 
 - Native folder-first editing, conflict-safe disk saves, shell-free external tools, semantic TypeScript diagnostics, and offline IDE typing-kit generation. Embedded TS/GLSL editors removed.

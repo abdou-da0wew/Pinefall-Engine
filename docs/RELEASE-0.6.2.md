@@ -1,5 +1,7 @@
 # Pinefall Engine 0.6.2 — Commands, disk-backed assets and real project preview
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 ## Keyboard and authoring
 
 Typed command routing and a searchable **F1 / Ctrl+Shift+P** palette cover project actions, importing, history, scene/UI copy-cut-paste, duplication/deletion, grouping, rename/frame, W/E/R tools, Play/Stop/Pause, panels, settings and named model placement/reimport. Text, IME, repeat, menu/modal and gameplay scopes are respected. Script-editor Ctrl+S saves the script. Native dialog autofocus now reaches the intended field; UI clipboards survive panel switches. [Shortcut reference](SHORTCUTS.md).

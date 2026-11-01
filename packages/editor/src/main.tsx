@@ -100,7 +100,9 @@ async function download(name: string, text: string) {
 }
 function App({
   onHome,
+  initialFolder,
 }: {
+  initialFolder?: FolderSession;
   onHome: (
     scene: SceneDocument,
     skipSnapshot?: boolean,
@@ -156,7 +158,7 @@ function App({
   const [materialEditor, setMaterialEditor] = useState(false);
   const [shaderEditor, setShaderEditor] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
-  const [folderSession, setFolderSession] = useState<FolderSession | null>(null);
+  const [folderSession, setFolderSession] = useState<FolderSession | null>(initialFolder ?? null);
   const [repackShortcut, setRepackShortcut] = useState("Mod+Shift+S");
   useEffect(() => {
     if (!folderSession) return;
@@ -3182,6 +3184,7 @@ function App({
   );
 }
 function ApplicationShell() {
+  const [openingFolder, setOpeningFolder] = useState<FolderSession>();
   const [editing, setEditing] = useState(
     () => startInEditor || new URLSearchParams(location.search).has("editor"),
   );
@@ -3189,6 +3192,7 @@ function ApplicationShell() {
   useEffect(() => applyPreferences(readPreferences()), []);
   return editing ? (
     <App
+      initialFolder={openingFolder}
       onHome={async (scene, skipSnapshot, isCurrent) => {
         if (!skipSnapshot) await rememberProject(scene);
         if (isCurrent && !isCurrent())
@@ -3197,6 +3201,7 @@ function ApplicationShell() {
           );
         bootScene = scene;
         setRecovery(scene);
+        setOpeningFolder(undefined);
         setEditing(false);
       }}
     />
@@ -3204,7 +3209,7 @@ function ApplicationShell() {
     <Home
       notice={bootNotice}
       recovery={recovery}
-      onOpen={async (scene) => {
+      onOpen={async (scene, folder) => {
         scene.project ??= newProjectMetadata(scene.name);
         try {
           await rememberProject(scene);
@@ -3212,6 +3217,7 @@ function ApplicationShell() {
           bootNotice = "Recent snapshot unavailable: " + String(error) + ". Save a PIF backup.";
         }
         bootScene = scene;
+        setOpeningFolder(folder);
         recoveryBlocked = false;
         setEditing(true);
       }}

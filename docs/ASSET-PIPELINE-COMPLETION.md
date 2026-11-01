@@ -1,5 +1,7 @@
 # Plan 01 continuation — execution contract
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Baseline: v0.5.3 / 1d155ea. Owner selected **finish Plan 01**, not Plan 02. Standing release-after-major-update rule applies.
 
 ## Work sequence (before source changes)

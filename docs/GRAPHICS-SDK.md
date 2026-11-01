@@ -1,10 +1,10 @@
 # Graphics authoring, preview and SDK — Plan 03 development
 
-This documents implemented development APIs, not completion of the whole Plan 03. The bounded custom-unlit GLSL pipeline is implemented. Texture-map authoring, PMREM environment and actual volumetric scattering remain unimplemented.
+This documents implemented development APIs, not completion of the whole Plan 03. The bounded custom-unlit GLSL pipeline is implemented. Texture-map/UV/channel-packing/per-slot authoring and external HDR inputs remain incomplete. Procedural PMREM and depth-aware height scattering are implemented; see [current status](CURRENT-STATUS.md).
 
 ## Three separate kinds of settings
 
-1. **Authored:** `scene.graphics` (version 1), reusable scalar material assets, optional artistic post settings, entity material references/instance surfaces, independent light definitions and per-mesh shadow flags. Saved in portable PIF7. Older PIF formats remain readable; published 0.6.2 cannot open PIF7.
+1. **Authored:** `scene.graphics` (version 1), reusable scalar material assets, optional artistic post settings, entity material references/instance surfaces, independent light definitions and per-mesh shadow flags. Saved in legacy portable PIF7 or native folder/PIF8 resources. Older PIF formats remain readable; published 0.6.2 cannot open PIF7.
 2. **Device/preview:** Rendering → resolution scale, quality and shadow ceilings, local post overrides. The GPU/CPU/compositor button opens the existing restart-only desktop controls. A browser cannot change its host acceleration policy. These device settings are not serialized into the project.
 3. **Runtime:** `ctx.graphics` updates transient material/light/post values. No authoring undo or saved scene mutation. Runtime material changes use an owned per-entity material; subsequent scalar changes update uniforms without replacing that material. Stop restores authored values and the pre-Play preview settings.
 
@@ -56,7 +56,7 @@ ctx.graphics.setLight("lamp-id", { intensity: 40, angle: 35, penumbra: 0.5 });
 ctx.graphics.invalidateShadows();
 const report = ctx.graphics.snapshot;
 // available, backend, adapter, hdr, requested, effective,
-// postTargetBytes, shadowTargetBytes, shadowViews, reasons, contextLost
+// postTargetBytes, environmentTargetBytes, shadowTargetBytes, shadowViews, reasons, contextLost
 ```
 
 Light type changes are authored scene edits, not runtime uniform updates. Material/light target IDs must exist. Invalid/NaN/out-of-range values are rejected. Script calls after the owning script is disposed are rejected. A typed interface is not a sandbox for trusted project scripts.
@@ -71,15 +71,15 @@ Current overrides deliberately replace **all material slots** on an entity. They
 
 Emissive surfaces do not create lights. Bloom does not light neighbouring objects. Blended surfaces have sorting limitations and default to not casting opaque shadows. Forcing a blended caster does not create coloured/translucent shadow transport.
 
-Directional, point and spot lights support authored colour/intensity, range, spot cone/penumbra/decay, shadow request/size/bias/normal bias. Point/spot intensity follows Three.js candela conventions; directionals use Three's irradiance multiplier. Scene distance is metres. Directional frusta are currently fixed local bounds, not camera-fitted cascades.
+Directional, point and spot lights support authored colour/intensity, range, spot cone/penumbra/decay, shadow request/size/bias/normal bias. Point/spot intensity follows Three.js candela conventions; directionals use Three's irradiance multiplier. Scene distance is metres. Directional frusta can use fixed bounds or scene-bound fitting with padding; these are not cascaded shadow maps. Deforming meshes can require extra padding.
 
-Low preview: shadows off by default; explicit opt-in permits one 512px sun map. High: at most eight shadow views and a 64 MiB accounted shadow allocation budget, maps capped to 1024px. Point lights charge six rendered views and their atlas storage. Requested 2048px maps remain authored as 2048 even when the preview caps them. Requested/effective downgrade reasons appear in Rendering. Continuous updates are implemented; independent manual/on-change shadow modes remain pending.
+Low preview: shadows off by default; explicit opt-in permits one 512px sun map. High: at most eight shadow views and a 64 MiB accounted shadow allocation budget, maps capped to 1024px. Point lights charge six rendered views and their atlas storage. Requested 2048px maps remain authored as 2048 even when the preview caps them. Requested/effective downgrade reasons appear in Rendering. Each light supports `shadowUpdate: "every-frame" | "on-change" | "manual"`. Gameplay conservatively invalidates on-change maps; manual maps require explicit `invalidateShadows(entityId?)` after initial allocation. `shadowFrustum: "scene"` enables fitted directional bounds, and `shadowPadding` adds a margin.
 
 ## Post stack and accounting
 
-Linear scene → multi-resolution bloom → grading/vignette/grain/chromatic aberration → tone mapping and one sRGB conversion → display-space FXAA. DOM game UI remains outside the chain. Exposure/tone mapping also work without post enabled. The `none` curve uses linear exposure gain/clipping rather than an artistic tone curve. Bloom is based on Three r185 `UnrealBloomPass`, not the previous five-tap approximation.
+Linear scene/opaque depth → optional half-resolution scattering → multi-resolution bloom → grading/vignette/grain/chromatic aberration → tone mapping and one sRGB conversion → display-space FXAA. DOM game UI remains outside the chain. Exposure/tone mapping also work without post enabled. The `none` curve uses linear exposure gain/clipping rather than an artistic tone curve. Bloom is based on Three r185 `UnrealBloomPass`, not the previous five-tap approximation.
 
-HDR render targets are chosen when `EXT_color_buffer_float` is available; otherwise the stack uses byte targets and labels bloom as an LDR approximation. Target estimates account for composer ping-pong, depth and bloom mip targets and reserve from the shared asset-work budget, with a 96 MiB post ceiling. These are conservative accounting estimates, **not measured VRAM**, total process RAM or GPU timings. Disabling passes disposes their owned targets/materials. Scalar effect edits do not recreate the composer.
+HDR render targets are chosen when `EXT_color_buffer_float` is available; otherwise the stack uses byte targets and labels bloom/scattering as an LDR approximation. Target estimates account for composer ping-pong, depth, half-resolution scattering and bloom mip targets and reserve from the shared asset-work budget, with a 96 MiB post ceiling. These are conservative accounting estimates, **not measured VRAM**, total process RAM or GPU timings. Disabling passes disposes their owned targets/materials. Scalar effect edits do not recreate the composer.
 
 WebGL context loss stops frame submission/simulation advancement while retaining authored data; restoration recreates the post chain and reapplies settings. One restore cycle and 100 effect-toggle/resize cycles are tested. This is not the full staged upload/repeated-driver-failure recovery system promised by later gates.
 
@@ -96,7 +96,7 @@ Physical CEDAR/Windows performance, maximum scene complexity and full Plan 03 ac
 
 ## Custom unlit shaders (0.6.3-dev.1)
 
-Mesh renderer → **Custom shader…** opens a source/uniform dialog without changing the theme. GPU code is disabled by default. Explicit session consent is required; scripts cannot grant that consent through `setPreview`. Rendering also offers trust/reload and disable controls. Standalone exports have a separate shader-consent button, retain permission across quality changes, and revoke permission when a different project file is opened.
+Mesh renderer → **Custom shader…** opens Project files. Source/uniform JSON is edited externally; the embedded GLSL editor was removed. Create files, edit them in your IDE, validate and explicitly Apply. GPU code is disabled by default. Explicit session consent is required; scripts cannot grant that consent through `setPreview`. Rendering also offers trust/reload and disable controls. Standalone exports have a separate shader-consent button, retain permission across quality changes, and revoke permission when a different project file is opened.
 
 ```ts
 await ctx.graphics.compileShader(this.ctx.entity.id, {
@@ -109,7 +109,7 @@ ctx.graphics.setUniform(this.ctx.entity.id, "uTint", [1, 0, 0]);
 
 The fragment function returns **linear RGBA**. The fixed engine vertex interface includes skinning, morphs and instancing; the supplied world position includes instance transforms. This interface is unlit, opaque and does **not cast shadows**. Custom lighting, vertex deformation, sampler uniforms, custom depth/shadow variants and arbitrary render passes are not supported. `uTime` is reserved for elapsed rendered seconds. User uniform names begin with `u` and an uppercase letter; supported types are float/vec2/vec3/vec4 with finite components bounded to ±1,000,000.
 
-Limits: 16,384 UTF-16 code units of source, 16 typed uniforms, 16 shader assets and 16 bound entities. Applied source and unfinished source/uniform drafts are distinct PIF entries; invalid draft text is never executed. Save draft only is available after the first successful application. The draft-uniform text is capped at 4,096 code units. Archive paths, sizes, references and integrity are checked. Cold reopening resets consent.
+Limits: 16,384 UTF-16 code units of source, 16 typed uniforms, 16 shader assets and 16 bound entities. Applied source and unfinished source/uniform drafts are distinct PIF entries; invalid draft text is never executed. Native raw backups preserve unfinished external draft files even when Apply is blocked. The draft-uniform text is capped at 4,096 code units. Archive paths, sizes, references and integrity are checked. Cold reopening resets consent.
 
 Compile/apply serializes staged compilation of direct/offscreen variants and validates GL link status before adopting the material. Invalid source, cancellation and revoked trust retain the last valid material (revocation explicitly replaces custom materials with a magenta blocked-code surface). Driver logs map to authored lines where supported. Typed uniform updates do not rebuild the material/program. A 30-second polling deadline and AbortSignal govern asynchronous completion waits; **synchronous GPU/driver calls and hostile shader workloads cannot reliably be preempted**. These are resource limits, not a GPU security sandbox. No production sandbox is disabled.
 
@@ -118,3 +118,13 @@ Context loss aborts pending compile/load work and suspends frame submission. Res
 `examples/projects/shader-reference.pif` contains procedural UV checkers, typed uniforms and a deliberately unfinished draft separate from the valid applied source. Generate using `bun run generate:shader-reference`.
 
 Shader evidence: `tests/shader.test.ts` covers schema bounds, archive separation/roundtrip/unsafe paths and headless rejection. `tests/shader-browser.ts` covers default denial, last-valid recovery, stable material identity, cancellation/revocation, context restoration, skinned/morph/instanced pixels and repeated replacement cleanup. The editor test covers compile/apply, invalid source diagnostics, both draft fields, Home checkpoint/cold reopen and consent reset in browser and built Linux Electron. `TEST_SHADERS=1 bun tests/plan03-export.ts` exercises the built standalone shader fixture. Software/SwiftShader evidence is not physical CEDAR or Windows acceptance.
+
+## PMREM environments and depth-aware scattering
+
+`scene.graphics.environment = { sky: "#b8d7ff", ground: "#30352a", intensity: 1, resolution: 128 }` authors a filtered hemisphere environment. Resolution is 128 or 256; intensity is 0–8. Source colours are converted to linear radiance. Renderer-local leases share the texture across staged worlds; intensity-only changes do not regenerate PMREM. Context generations invalidate old targets. Floating-point-target support is required and unsupported intent is reported. External HDR image loading remains open.
+
+`PostSettings.scattering` is optional. Import `DEFAULT_SCATTERING` from `@pinefall/sdk`, then set density (0–0.5), heightFalloff (0–2), baseHeight (−100–100), maxDistance (1–200), steps (8/16/32), colour, intensity (0–8) and anisotropy (−0.8–0.8). Rendering exposes preview controls and the same explicit commit-to-project action as other post fields.
+
+The pass integrates a height-density medium using Beer–Lambert transmittance and terminates at opaque scene depth. Depth-aware upsampling reduces edge bleeding. It does not terminate at transparent objects, sample shadow maps or maintain temporal history; thin geometry may reveal half-resolution limitations. Fake cone beams remain a separate feature. Software pixel tests do not establish physical CEDAR performance.
+
+Tests: `environment-browser.ts`, `shadow-fit.test.ts`, `scattering-browser.ts`, `plan03-browser.ts` and native `plan03-editor.ts`. See [checkpoint details](DISK-PROJECTS-IMPLEMENTATION.md) for measured software results and open gates.

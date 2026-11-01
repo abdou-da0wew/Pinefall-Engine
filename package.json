@@ -44,7 +44,9 @@
     "test:large-model": "bun tests/large-model-browser.ts",
     "test:plan03": "bun tests/plan03-browser.ts && bun tests/shader-browser.ts && bun tests/plan03-editor.ts",
     "generate:shader-reference": "bun scripts/generate-shader-reference.ts",
-    "generate:materials-reference": "bun scripts/generate-materials-reference.ts"
+    "generate:materials-reference": "bun scripts/generate-materials-reference.ts",
+    "hooks:install": "bun scripts/install-hooks.ts",
+    "prepare": "bun scripts/install-hooks.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

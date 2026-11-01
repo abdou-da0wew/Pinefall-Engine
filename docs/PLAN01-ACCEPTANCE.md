@@ -1,5 +1,7 @@
 # Plan 01 acceptance status — 0.6.0 candidate
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 The owner's instruction is to continue, not stop at another partial release. **This file does not certify 100% completion.** It records actual code/tests and identifies evidence that cannot be produced by a software-rendered Linux sandbox.
 
 | Area | Implemented behavior / executed evidence | Acceptance still required |

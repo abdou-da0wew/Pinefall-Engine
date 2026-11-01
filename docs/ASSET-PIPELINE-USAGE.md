@@ -40,7 +40,7 @@ The ObjectLoader adapter is pinned to Three r185: runtime `parseObject` takes fi
 
 PIF **v4** is required for recipe-v2 provenance and expanded identities. 0.6.0 reads v1/v2/v3/v4; older provenance remains v3 and projects without provenance remain v2. Older engines reject v4 instead of silently losing settings. Portable scene JSON remains embedded; reference-only working documents still require their blob database.
 
-Current limits remain 4 MB selected source/companions, 2 MB cooked GLB, 2048px images, 64 MiB inspected decoded model data, and the existing project budgets. Large Samba/Mixamo examples which exceed cooked output limits are rejected, not counted as fidelity passes. Sparse/compressed required extensions without supported decoders, partially shared scene roots during normalization, incompatible animation/skin/index data and missing companions reject explicitly. The importer also rejects EXT_mesh_gpu_instancing, even when optional; use engine instances. Total unique and expanded skeleton joint bindings are each limited to 8192.
+Current admission is 200 MB combined source/companions and 200 MB cooked model data, 2048px imported companion images, 256 MiB inspected decoded model data and 480 MB encoded model/source project capacity. Decoded/render and shared-work budgets are independent; passing encoded admission does not certify hardware performance.
 
 FBX loader/exporter warnings are captured into bounded import reports, in addition to the experimental-conversion warning. Constraints, proprietary shading, some interpolation/conversion cases and morph normals are not universally lossless. Supported importer behavior and rejection policy must not be confused with full FBX specification coverage.
 

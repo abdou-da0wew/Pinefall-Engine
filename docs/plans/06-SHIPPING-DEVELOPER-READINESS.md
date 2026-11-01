@@ -1,5 +1,7 @@
 # Game export, input, save games, security and production readiness
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](../CURRENT-STATUS.md).
+
 **Pinefall implementation plan • research date: 2026-10-31 • baseline: 0.5.2 / b8b38af**
 
 > Planning only. This document does not claim these features are implemented. Budgets and API sketches are proposed acceptance criteria, not measured performance or final public contracts.

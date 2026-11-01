@@ -172,6 +172,8 @@ export class FolderSession {
     void this.api.close(this.grant.id).catch(() => {});
   }
   async accept(snapshot: FolderSnapshot, signal?: AbortSignal) {
+    signal = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal;
+    signal.throwIfAborted();
     if (snapshot.diagnostics.length) throw Error("Resolve file diagnostics before applying");
     for (const [path, hash] of Object.entries(snapshot.hashes)) {
       signal?.throwIfAborted();

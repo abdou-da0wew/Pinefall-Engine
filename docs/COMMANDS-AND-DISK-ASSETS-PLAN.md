@@ -1,5 +1,7 @@
 # Commands, disk-backed assets and usable authoring
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Written before implementation, 2026-11-01. Baseline: published 0.6.1.
 
 ## Problems to fix

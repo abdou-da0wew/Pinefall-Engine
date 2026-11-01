@@ -1,5 +1,7 @@
 # Pinefall Engine 0.4.0 release
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 A complete distribution of the current **experimental** engine foundation, not a claim of production maturity or Unity feature parity.
 
 ## Assets

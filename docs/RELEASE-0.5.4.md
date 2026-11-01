@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.4 — Persistent asset recovery and reviewed reimport
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 **Plan 01 continuation checkpoint, not full Plan 01 completion.** Plan 02 has not started. Publication requires authenticated upload/verification; preparing this file does not establish a public release.
 
 ## Changes

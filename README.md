@@ -1,10 +1,10 @@
-# Pinefall Engine 0.6.3-dev.0
+# Pinefall Engine 0.6.3-dev.2
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**Current development work:** desktop graphics preferences and larger-model admission, plus the [first Plan 03 implementation stage](docs/PLAN03-IMPLEMENTATION.md): scalar PBR/unlit authoring, independent lights/shadow budgets, an ordered post stack and [typed graphics SDK](docs/GRAPHICS-SDK.md). Preview controls remain in Rendering; the UI theme is unchanged. [Large-model and desktop validation limits](docs/GRAPHICS-AND-LARGE-MODELS-STATUS.md). The full Plan 03 is not complete, and this is not a published 0.6.3 release.
+**Latest published development pre-release: [v0.6.3-dev.2](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.3-dev.2).** Native external-file projects, semantic diagnostics/offline IDE typings, streamed PIF8 backups and configurable repacking, persistent folder recents, procedural PMREM, independent shadow updates/fitted bounds and depth-aware scattering are implemented. **Plan03 remains incomplete.** See [current implementation status](docs/CURRENT-STATUS.md), [remaining execution plan](docs/COMPLETION-EXECUTION.md), and [release notes](docs/RELEASE-0.6.3-dev.2.md).
 
 **0.6.2 published:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). [Published downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.2).
 
@@ -20,9 +20,9 @@
 
 Pinefall Engine is a separate TypeScript engine and editor built with Bun, Three.js, Rapier and React, with Linux/Windows Electron applications. This is an **experimental engine foundation**, not Unity feature parity or a production-certified engine. The original Pinefall game is unchanged.
 
-## PIF v2 in 0.5.2
+## Historical PIF v2 introduction (0.5.2)
 
-Current source writes portable project/editor metadata and a verified SHA-256 resource inventory. Strict verification and an optional trusted external digest are supported. These are integrity checks, not signatures. Published 0.5.1 reads only PIF v1; see [format compatibility and verification](docs/PIF.md).
+That milestone introduced portable project/editor metadata and a verified SHA-256 resource inventory. Strict verification and an optional trusted external digest are supported. These are integrity checks, not signatures. Published 0.5.1 reads only PIF v1; see [format compatibility and verification](docs/PIF.md).
 
 ## Historical first milestone (0.5.1)
 
@@ -30,26 +30,23 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 ## Downloads
 
-Release assets include platform packages, source, the original workshop and SHA-256 checksums.
+The current development pre-release contains unsigned desktop packages, source, release notes and checksums. It does not declare Plan03 complete.
 
-[**0.6.1 release and checksums**](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.1)
+- [Linux x64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-windows-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-source.zip)
+- [SHA-256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/SHA256SUMS-0.6.3-dev.2.txt)
 
-- [Linux x86-64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-win-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Pinefall-Engine-0.6.1-source.zip)
-- [Animation/audio workshop PIF6](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/Animation-Audio-Workshop-0.6.1.pif)
-- [SHA256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.1/SHA256SUMS-0.6.1.txt)
-
-Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pinefall-Engine-0.6.1-linux-x86_64.AppImage`, then run it. AppImage normally needs FUSE; `--appimage-extract-and-run` is an alternative when available. On Windows, extract the **entire ZIP** and run `Pinefall Engine.exe`; do not move only the executable. Verify downloads against the checksums. Do not bypass OS security warnings unless you trust the source and have verified the package.
+Linux: `chmod +x Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage`, then launch normally (FUSE or the supported extraction route). Windows: extract the complete ZIP and run `Pinefall Engine.exe`. Verify checksums. Packaged Linux passed the workflow suite; Windows execution and physical CEDAR performance remain unverified. Historical workshop downloads remain on their historical release pages.
 
 ## Documentation
 
 | Guide                                        | Contents                                                                            |
 | -------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                     |
-| [Scripting and SDK](docs/SCRIPTING.md)       | TypeScript editor, attachments, properties, hooks, helpers, events, script security |
+| [Scripting and SDK](docs/SCRIPTING.md)       | External TypeScript workflow, semantic diagnostics, attachments, SDK and trust |
 | [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts                 |
-| [Release notes](docs/RELEASE-0.5.1.md)       | Features, download contents, validation and known limitations                       |
+| [Release notes](docs/RELEASE-0.6.3-dev.2.md)       | Features, download contents, validation and known limitations                       |
 | [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                                 |
 | [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                                   |
 
@@ -74,10 +71,10 @@ Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pin
 
 ### Programmable gameplay
 
-- Create/import/edit TypeScript in the Scripts panel; attach multiple scripts alongside a built-in behavior, with separate properties and state per attachment.
+- Create/import TypeScript in Scripts and edit source in an external IDE; attach multiple scripts alongside a built-in behavior, with separate properties and state per attachment.
 - Class or factory scripts with `start`, `fixedUpdate`, `update`, `trigger`, and `dispose` hooks.
 - Typed SDK: input, timing, scene/entity queries, Three math/transforms, Rapier physics, spawn/destroy, events and logs. Share helper modules between scene scripts.
-- Syntax checking in the editor and real TypeScript semantic checking through the CLI. Synchronous exceptions are isolated to the failing instance.
+- Syntax and real SDK-aware semantic diagnostics in the native folder workflow, plus CLI type checking. Synchronous exceptions are isolated to the failing instance.
 - Scripts travel with exported scenes and run in the editor, standalone player, or headless simulation **only after explicit code permission**.
 
 ### Runtime
@@ -85,7 +82,7 @@ Binaries are unsigned. On Linux, make the AppImage executable with `chmod +x Pin
 - Real Rapier fixed-60-Hz physics, CCD, primitive colliders, sensors, kinematic character controls, gravity/jumping, arcade driving, checkpoints and collectibles.
 - Configurable orbit, first-person, follow and vehicle camera rigs.
 - Low preset: up to 960×540, 30 FPS target, shadows/post/beam effects off by default. High preset: up to 1600×900, 60 FPS play target, sun shadows and optional effects. These are targets/caps, not guaranteed performance.
-- Standard lit materials, hemisphere/sun/point/spot lights, frustum/distance culling, fog, optional five-tap glow/exposure and **approximate translucent cone beams**, not physical ray-marched volumetrics or HDR bloom.
+- PBR/unlit surfaces, hemisphere/sun/point/spot lights, PMREM reflection environments, bounded shadows, HDR/LDR post, multi-resolution bloom and opaque-depth-aware height scattering. Approximate translucent cone beams remain a separately labeled option.
 - Play/Stop isolation restores the authored scene and removes runtime-spawned objects.
 - Stats, a bounded event console with JSONL export, and rotating native diagnostic logs.
 
@@ -152,13 +149,13 @@ bun run game export-web examples/projects/beacon-run.scene.json build/beacon-run
 bun run game export-web examples/projects/script-lab.scene.json build/script-lab-web
 ```
 
-Output directories must not already exist. Serve the exported directory with an **HTTP static server**, then open `index.html`; do not launch it directly as `file://`. Release assets also include ready-to-serve copies of both examples.
+Output directories must not already exist. Serve the exported directory with an **HTTP static server**, then open `index.html`; do not launch it directly as `file://`. Build the examples from source when needed; the latest pre-release assets are listed above.
 
-The editor's Player link opens a stock template, not unsaved edits. Load your exported scene in the standalone player's file picker, or use `export-web` for automatic loading. In Electron use the application menu to open the player; popups are blocked intentionally.
+The editor's Player command checkpoints the actual authored project and opens it in the standalone player. Runtime-only mutations and unapplied external edits are not silently adopted. Use `export-web` for a portable web build; trusted script/shader permissions remain separate.
 
 ## Saving and hardware notes
 
-Projects are single-scene JSON files. New Game replaces local autosave; export your old scene first. Browser storage quotas can be smaller than scene asset budgets. Exported files are the portable backups; undo history and layout preferences are not a replacement.
+Projects remain single-scene, represented by native working-folder files or legacy scene documents. Folder-backed Save creates PIF8; browser recovery and legacy export use the older formats. Browser quotas are separate from native filesystem capacity. Keep verified backups; undo/layout preferences are not backups.
 
 Requires WebGL 2 through Chromium/ANGLE. There is **no fake 2D fallback**. On Linux, `--legacy-gl` requests X11 + ANGLE OpenGL and disables Vulkan. It is not a Mesa/Chromium patch or a compatibility guarantee, and does not disable the GPU sandbox. Quality/effect controls are in the Rendering inspector; driver flags require relaunch.
 
@@ -166,15 +163,15 @@ Linux packaged smoke tests use Xvfb/SwiftShader. **CEDAR/Wayland hardware and Wi
 
 ## Tests and current limits
 
-28 unit/physics/headless/scripting/hierarchy tests (82 assertions), strict TypeScript and Oxlint pass. Browser suites cover the four starters, GLB/game creation, movement, script execution/trust, standalone exports, hierarchy and workspace interactions. Packaged Linux tests cover script import, trust gating, spawned physics bodies and Stop restoration. No long-duration memory/performance certification is claimed.
+The published v0.6.3-dev.2 checkpoint passed 153 unit tests / 852 assertions plus typecheck/lint, native external-workflow and editor regressions. Additional tests added after that tag are working-tree evidence, not claims about the immutable release. See [current status](docs/CURRENT-STATUS.md) and the evidence directory for detailed scope. No physical-hardware or long-duration performance certification is claimed.
 
 For browser tests, start the dev server, install Chromium with `bun x playwright install --with-deps chromium`, build/export the two examples above, then run `test:browser`, `test:runtime-browser`, `test:scripting-browser`, `test:workspace`, and `bun tests/creation-browser.ts`. They explicitly use SwiftShader for repeatability.
 
-Limits: 500 entities, 100 collections, eight lights, 16 GLB assets (2 MB/import, 8 MB combined embedded strings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
+Limits: 500 entities, 100 collections, eight lights, 16 model assets (200 MB combined model/companion import, 480 MB encoded model/source project capacity; separate decoded/GPU ceilings), 32 script assets (64,000 source characters each, 512,000 combined), 16 attachments/entity and 8,000 JSON property characters/attachment. Imported GLB resources must be embedded and decoder-free. Physics bodies remain transform roots; use collections for organization.
 
-Not yet implemented: skeletal-animation authoring, audio import/system, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects, full asset dependency database, automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, IDE autocomplete/debugger or script hot reload. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
+Not yet implemented: texture/UV/channel-packing/per-slot material authoring, external HDR environment images, full scattering transparency/shadow/history handling, navmesh, terrain sculpting, networking, visual scripting, multi-scene projects,  automatic mesh-collider cooking, per-game desktop export, unrestricted floating/multi-monitor panels, embedded IDE/debugger or silent script hot reload. External IDE typings are available. Authoring edits reload the scene rather than incrementally patching all resources. Camera/editor controls currently share runtime code; the runtime does not depend on React or editor modules.
 
-### Asset pipeline in 0.5.3
+### Historical asset pipeline introduction in 0.5.3
 
 The working tree includes worker model parsing, shared instance resources, cancellable
 import/reimport and PIF v3 source provenance. FBX conversion is experimental.
@@ -184,4 +181,8 @@ The previous v0.5.2 release remains unchanged. Plan 01 is not fully complete; se
 
 ### Release/testing workflow
 
-After each completed update or major edit, validate, version, push and publish a downloadable release, then pause for the project owner to test before continuing. See [release policy](docs/RELEASE-WORKFLOW.md). Never store authentication tokens in repository files.
+After each completed update or major edit, validate, version, push and publish a downloadable release, with explicit scope and evidence. The owner has requested continuing the remaining implementation rather than stopping at another checkpoint. See [release policy](docs/RELEASE-WORKFLOW.md). Never store authentication tokens in repository files.
+
+## Contributing and attribution
+
+Run `bun run hooks:install` in a checkout (also invoked by `bun install`). The tracked commit-msg hook adds the requested DiveeAgent co-author without duplicating it. See [contribution instructions](docs/CONTRIBUTING.md).

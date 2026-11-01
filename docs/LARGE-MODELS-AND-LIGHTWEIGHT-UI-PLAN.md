@@ -1,5 +1,7 @@
 # Large models and lightweight editor UI
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 ## Accepted scope
 
 User selected up to 200 MB model + companion input per import, and normal HTML/CSS UI with minimal GPU-promoting effects. Chromium may still GPU-composite the window. Do not disable WebGL, disable the GPU globally, weaken the sandbox, or claim strictly CPU-only compositing.

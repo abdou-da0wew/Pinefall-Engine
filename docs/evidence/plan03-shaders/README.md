@@ -1,5 +1,7 @@
 # Shader checkpoint — not complete Plan 03 acceptance
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](../../CURRENT-STATUS.md).
+
 Version: 0.6.3-dev.1. Browser and Linux Electron tests use SwiftShader in the container. They are not CEDAR/Windows hardware evidence.
 
 - `native-plan03-shader-recovery.png`: built Electron shader source/uniform editor, consent, and failed-compile diagnostics; previous valid material is retained.

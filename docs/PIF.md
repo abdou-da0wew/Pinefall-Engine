@@ -1,10 +1,6 @@
-> Development update: the current 0.6.3-dev.0 reader also supports **PIF7** for authored graphics/material/light fields. It writes v7 only when those fields are present; older projects still select their existing format. Published 0.6.2 reads through v6 and cannot open v7. See [graphics SDK and compatibility](GRAPHICS-SDK.md).
+# PIF project containers — legacy PIF1–7 and native PIF8
 
-# PIF project container — v1–v6 compatibility (0.6.2)
-
-**Current writers select v6 for authored audio, v5 for animator/root-motion data, v4 for recipe-v2/expanded provenance, v3 for legacy provenance and v2 otherwise. Readers support v1–v6. Older releases cannot necessarily open newer formats; keep backups.**
-
-**The published 0.5.1 release writes PIF v1. 0.5.2 writes PIF v2 and still reads v1. PIF v2 requires 0.5.2 or newer; 0.5.1 cannot open v2 projects. The broader graphics/import overhaul remains pending.**
+**Native folder backups use streamed raw PIF8. Legacy scene/browser/export writers select PIF7 for graphics, v6 for audio, v5 for animator/root-motion, v4/v3 for provenance and v2 otherwise; legacy readers support v1–v7.** PIF8 currently has its own native Open raw folder PIF action. Older applications cannot read newer formats. The following manifest/resource discussion describes the legacy format unless explicitly labeled PIF8; the native raw format is documented below.
 
 A `.pif` is a real **XZ-compressed USTAR archive**, using LZMA2 preset 6 and CRC64. Higher presets are not automatically better for already compressed textures and require substantially more memory. Compression ratio depends on project content.
 
@@ -30,7 +26,7 @@ Inside `scene.json`, each asset has `{id,name,file}` instead of `{id,name,data}`
 - Project compression/decompression runs in a dedicated worker; **Cancel project operation** terminates it. A two-minute timeout also terminates stuck worker jobs.
 - Import never executes scripts, and always revokes script trust, including reopening an identical project. Play requires fresh approval.
 - Failed imports leave the current document intact. Edits made while an open operation runs cause its result to be rejected instead of silently overwriting those edits.
-- Saving captures the current authored scene, not runtime state or unsaved text in the script editor. Local autosave is still a legacy JSON recovery cache; it is not the `.pif` project on disk.
+- Legacy saving captures the adopted authored scene, not runtime changes. Native folder saving captures working-folder files, including unapplied drafts. Local recovery uses reference-backed checkpoints; it is not a substitute for the working directory or portable backup.
 
 ```sh
 bun run game new build/example.pif "My Game"
@@ -52,12 +48,12 @@ tar -xJf build/ui-lab.pif -C project-inspection
 
 ## Safety and limits
 
-- 16 MiB compressed input, 40 MiB expanded TAR, 64 MiB XZ decoder dictionary budget. Expanded output is bounded **inside the WASM decode call**, not merely checked after unbounded decompression.
+- Legacy: 512 MiB compressed input and expanded TAR, 64 MiB XZ decoder dictionary budget. Native PIF8 uses the same archive-size ceiling and a 256 MiB decoder memory limit. Expanded output is bounded **inside the WASM decode call**, not merely checked after unbounded decompression.
 - Strict regular-file USTAR subset; no links, directories, absolute/traversal paths, duplicate paths, prefixes, PAX/GNU extensions, concatenated XZ streams, or unreferenced resources. A `.pif` created with arbitrary external TAR options may therefore be rejected despite being a valid general TAR archive.
 - Validate manifest/version, resource references, headers/checksums, full XZ consumption, GLB structure and the existing scene schema before adoption.
-- Existing limits on scene entities, GLBs and scripts still apply. Current PIF assets are **GLB only** because FBX/loose textures/custom shader resources belong to subsequent implementation phases. The format does not magically enable unsupported asset types.
+- Existing limits on scene entities, GLBs and scripts still apply. Runtime model artifacts are GLB; supported archives also retain original model/companion sources, audio, TypeScript and shader resources. Archiving a file does not make its format executable or renderable.
 - XZ checksums detect accidental corruption, not authenticity. Trusted-code approval remains essential.
-- Project worker processing does not fix the existing main-thread GLB parser/GPU upload path. No stall-free model import claim is made for this milestone.
+- Model parsing/conversion uses workers and budgeted preparation. GPU uploads and driver compilation still have main-thread/driver costs; no universal stall-free guarantee is claimed.
 
 ## Codec and portability
 
@@ -88,7 +84,7 @@ bun run game metadata my-game.pif
 bun run game metadata my-game.pif '{"author":"My Studio","description":"My game","projectVersion":"1.2.0"}'
 ```
 
-The update command validates and rewrites the archive and all integrity hashes atomically. Title follows the scene name. Script source edits still require saving the script editor before saving the project.
+The update command validates and rewrites the archive and all integrity hashes atomically. Title follows the scene name. Save source in the external IDE; Apply separately controls adoption into the runtime.
 
 ## Embedded integrity proof
 
@@ -133,12 +129,9 @@ Every file is covered by the existing SHA-256 integrity inventory/root; source a
 artifact hashes are also verified against their metadata before adoption. Hashes
 remain consistency evidence, **not publisher signatures or script trust**.
 
-The existing 16 MiB compressed / 40 MiB expanded / 64 MiB XZ dictionary / 100-entry
-bounds remain. A project exceeding entry limits is rejected before writing an
+Legacy bounds are 512 MiB compressed/expanded, a 64 MiB XZ dictionary budget and 100 entries. A project exceeding entry limits is rejected before writing an
 unreadable archive. The in-memory/legacy JSON scene adapter still uses data URIs;
-reference-only runtime documents and a persistent artifact database are not yet
-implemented. Undo history interns those strings rather than repeating them in
-every retained snapshot.
+reference-only working documents and the persistent content-addressed artifact cache are implemented. Undo/checkpoints retain references rather than repeating whole asset strings.
 
 ## v4 normalized provenance
 

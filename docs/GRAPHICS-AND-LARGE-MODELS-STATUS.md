@@ -36,4 +36,8 @@ PIF still stores separate resources in XZ, with a 512 MiB compressed/expanded ce
 
 **Remaining validation:** 200 MB full export/render peak-memory profiling, large real-world FBX fixtures, packaged Windows execution and physical low-end GPU/CPU acceptance. Large sources can need several times their size in temporary RAM; monolithic XZ packaging is not streaming. A constrained machine can still run out of memory. Small models are recommended on old hardware even when a larger file is admitted. Private/incognito browser storage may impose a much smaller quota; errors are surfaced rather than silently using RAM.
 
-These changes are local development work, not a newly published release. Published 0.6.2 does not contain them.
+These changes are included in published development pre-release v0.6.3-dev.2. The older stable 0.6.2 release does not contain them.
+
+## Current graphics checkpoint
+
+[Current status](CURRENT-STATUS.md) supersedes older milestone descriptions: v0.6.3-dev.2 is published; native folder backups use PIF8. Procedural PMREM, independent shadow update modes/fitted bounds and depth-aware height scattering are implemented and software-tested. Texture/UV/packing/per-slot authoring, external HDR input and broader graphics gates remain open.

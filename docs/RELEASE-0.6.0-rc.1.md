@@ -1,5 +1,7 @@
 # Pinefall Engine 0.6.0-rc.1 — animation/audio release candidate
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 **Pre-release, not 100% Plan02 acceptance.** Software implementation and local regression coverage now include the bounded streaming/persistent profile. Required Windows/CEDAR/physical audio/timing/independent acceptance remains open. See `docs/PLAN02-ACCEPTANCE.md` in the source package. No full-plan sign-off is claimed.
 
 ## Included

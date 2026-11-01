@@ -1,5 +1,7 @@
 # Plan02 execution contract
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 The owner authorized moving to Plan02. Plan01 remains implemented/tested to its recorded software scope, with Windows/CEDAR and independent acceptance still open; moving on does not certify those gates.
 
 ## First vertical slice (AA0 foundation)

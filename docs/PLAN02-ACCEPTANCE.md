@@ -1,5 +1,7 @@
 # Plan02 acceptance ledger — 0.6.0
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Date: 2026-11-01. **Plan02 software implementation released as 0.6.0.** The owner explicitly instructed: “ignore them bro, i will test them myself.” Accordingly, the hardware/listening/timing/independent gates below are **deferred to the owner and no longer block publication**, not marked passed. Supported software profiles and local regressions are complete as documented. This is not a claim of universal device certification or full physical acceptance.
 
 The earlier 0.6.0-rc.1 was deliberately held as a prerelease pending this decision. The owner’s deferral authorizes the full release without falsifying any test result.

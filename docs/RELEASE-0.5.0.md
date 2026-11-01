@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.0 — Game UI toolkit
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Release source: commit `6919ac2`. Includes the 0.4.1 custom color-picker fix.
 
 ## Highlights

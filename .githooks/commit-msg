@@ -1,0 +1,8 @@
+#!/usr/bin/env bun
+import { addCoauthorTrailer } from "../scripts/commit-coauthor.ts";
+try {
+  await addCoauthorTrailer(process.argv[2]);
+} catch (error) {
+  console.error("Co-author hook failed:", String(error));
+  process.exit(1);
+}

@@ -1,5 +1,7 @@
 # Asset pipeline implementation work log
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Started 2026-10-31 against d3b9cde. This is implementation of Plan 01, not release authorization.
 
 ## Execution sequence (written before source edits)

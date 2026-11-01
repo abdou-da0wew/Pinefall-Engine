@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.5 — Transactional world staging and shared asset admission
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 **Plan 01 is still incomplete.** This release contains the 0.5.4 persistent-storage/reimport work plus the tested changes below. It does not implement Plan 02.
 
 ## New behavior

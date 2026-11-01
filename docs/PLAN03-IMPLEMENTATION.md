@@ -1,5 +1,7 @@
 # Plan 03 implementation ledger
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Written before implementation, following the linked R0–R3 plan and the user's correction.
 
 ## Required scope

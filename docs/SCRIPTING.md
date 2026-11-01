@@ -1,17 +1,17 @@
-# TypeScript scripting — Pinefall Engine 0.3
+# TypeScript scripting — current external-file workflow
 
 Write actual game logic, not a fixed list of behavior choices. Script assets travel inside scene/prefab JSON and run in the editor, standalone exports and the headless simulator.
 
-## Editor: write → attach → play
+## Editor: external source → validate → Apply → trust → Play
 
-1. Open **Scripts** in the bottom panel; click **New TypeScript** or **Import .ts**.
-2. Write code and click **Save script** (Ctrl/⌘+Enter). **Check syntax** checks TypeScript syntax without running code; it is not type checking.
-3. Select an object/player. In the Inspector's **Custom scripts**, choose a script to attach.
-4. Edit **Properties (JSON overrides)** for that attachment. Each attachment can be enabled/disabled or detached. Multiple scripts can coexist with the built-in character/vehicle controller.
-5. Review the source and check **Allow trusted scripts**, then Play. Stop restores the authored scene and runs cleanup. Source changes revoke permission. Permission is not saved in scene files or retained after reload.
-6. Use **Console** to read script logs and errors, including entity, module and lifecycle context. Errors disable only the failing script instance; sibling scripts continue.
+1. Open **Project → Project files & external tools** and select an empty working folder, or validate an existing folder.
+2. Create/import a TypeScript asset in Scripts. Use **Open source externally** or the file manager to launch the configured editor. Embedded source and attachment-JSON textareas have been removed.
+3. Use **Install / refresh IDE typings** for offline SDK declarations and `@game` import aliases. Existing custom tsconfig files are preserved; extend `./tsconfig.pinefall.json` when instructed. Refresh after changing registered module names.
+4. Attach a script in the Inspector. Edit attachment property overrides in the external `scene.json`; enable/disable and detach controls remain in the app.
+5. Saved external edits trigger syntax and semantic diagnostics. Resolve errors, then explicitly **Apply validated changes**. This does not execute scripts. Apply verifies disk hashes and retains the prior runtime on failures.
+6. Review the source, approve trusted scripts, then Play. Stop restores authored state. Source changes/cold reopening revoke UI trust. Logs/errors remain in Console.
 
-Code edits are allowed while stopped. Changes take effect on the next Play; no live hot-reload. Export scene JSON to preserve source, attachments and properties together. Export .ts saves the current editor text; unsaved text is otherwise not part of scene exports. Switching files without saving discards draft changes. Removing a script asset detaches it from objects in the scene.
+Browser mode can import/update `.ts` files but has no native folder watcher or external-process launcher. Native Save project backs up raw PIF8 files, including unregistered and invalid drafts; legacy/browser exports remain PIF1–7. Unregistering a script detaches it but does not delete its disk file. Export .ts exports the currently adopted asset source; the working-folder file may contain newer unapplied edits. There is no silent code hot reload.
 
 ## A simple script
 
@@ -172,7 +172,7 @@ The `.ts` examples are also individually importable from `examples/scripts/`. Ex
 
 Importing scenes, parsing scripts, syntax checking and type checking do not execute script code. Module initialization happens only during approved Play/step. Scene JSON stores TypeScript source, not pre-approved executable permissions.
 
-Limits: 32 script assets, 64,000 source characters per script, 512,000 combined characters; 16 attachments per entity; 8,000 JSON property characters per attachment, nesting depth 10. This first editor uses a plain text code field; it does not provide IDE autocomplete, debugger breakpoints, editor-side semantic type checking, or hot reload. Scripts are synchronous and can still hang a host; use source control and backups.
+Limits: 32 script assets, 64,000 source characters per script, 512,000 combined characters; 16 attachments per entity; 8,000 JSON property characters per attachment, nesting depth 10. Source editing is external. Native diagnostics include real semantic checks; editor autocomplete/debugging is provided by your external IDE, not an embedded editor or full engine-hosted LSP. There is no silent hot reload. Scripts are synchronous and can still hang a host; use source control and backups.
 
 ## Game UI SDK (0.5.0)
 

@@ -1,5 +1,7 @@
 # Plan02 foundation: executable AA0 slice
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 This is subsystem groundwork and an integration lab, **not completion of Plan02**. Existing game scenes do not automatically acquire animation graphs or audio cues. Authored schema/PIF integration, editor panels, root motion and script lifecycle wiring follow the execution contract in `PLAN02-EXECUTION.md`.
 
 ## Run the lab

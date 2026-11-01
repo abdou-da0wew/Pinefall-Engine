@@ -1,4 +1,4 @@
-# Workspace, hierarchy and Phosphor icons — 0.4
+# Workspace, hierarchy and Phosphor icons
 
 ## Icons
 
@@ -7,7 +7,7 @@ Editor UI icons now use **Phosphor Icons** (`@phosphor-icons/react`), bundled as
 ## Resizing and docking
 
 - Drag the separator between hierarchy/viewport or viewport/inspector to change widths.
-- Drag the shelf's top separator to change its height. The script editor retains a taller minimum.
+- Drag the shelf's top separator to change its height. The Scripts workbench retains a taller minimum; source editing itself is external.
 - Double-click a separator to reset that dimension; focus it with Tab and use arrow keys for keyboard resizing.
 - Drag the shelf's small layout grip onto a highlighted **bottom** or **right** docking target.
 - The top **Workspace layout** selector provides Balanced, Shelf docked right, and Focus viewport modes.
@@ -60,3 +60,7 @@ Micro-interactions include subtle hover/press feedback, drag/drop target highlig
 28 unit/physics/headless/scripting/hierarchy tests (82 assertions) pass. New hierarchy tests cover organizational grouping, scene roundtrip, world-position preservation, invalid cycles/physics parenting, subtree duplication and deletion. Browser workspace tests cover SVG icons, grouping/renaming, collapse and search, drag/drop, resizing, drag docking, focus/restore, keyboard duplication, rejected physics parenting and persistence. Existing scripting, creation and starter browser smoke tests pass. Browser rendering validation uses SwiftShader, not CEDAR hardware.
 
 The 0.4 Linux package also passed the existing script import/trust/physics-spawn/Stop restoration test under Xvfb/SwiftShader. Windows packages were generated but not executed. Physical CEDAR GPU support remains unverified. See [0.4 release notes](RELEASE-0.4.0.md) for distribution and validation details.
+
+### Unreleased: Home working folders
+
+Desktop Home lists persisted working folders separately from browser snapshots. Opening a folder validates its registered sources and verifies hashes before handing the session to the editor. It does not grant script or shader trust. Invalid registered sources must be fixed externally before opening succeeds; raw PIF backups still preserve unregistered drafts.

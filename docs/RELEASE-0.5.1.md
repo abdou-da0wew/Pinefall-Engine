@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.1 — PIF project files
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Includes the complete 0.5.0 UI toolkit, plus the first milestone of the documented graphics/asset roadmap.
 
 ## Highlights

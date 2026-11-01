@@ -1,5 +1,7 @@
 # Plan 01 finalization contract
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Requested after local 0.5.4 candidate; do not start Plan 02. Write this contract before implementation.
 
 ## Sequence

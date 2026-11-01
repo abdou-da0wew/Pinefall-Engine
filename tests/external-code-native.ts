@@ -264,7 +264,20 @@ try {
   await app.close();
   app = await _electron.launch(options);
   const reopened = await app.firstWindow();
-  await enterEditor(reopened);
+  await writeFile(
+    join(unpacked, "shaders", shader),
+    "vec4 shade(vec2 uv, vec3 worldPosition) { return vec4(0.3,0.7,0.5,1.0); }",
+  );
+  await reopened
+    .getByRole("button", { name: "Open working folder " + unpacked, exact: true })
+    .click();
+  await expect(reopened.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled({
+    timeout: 30000,
+  });
+  expect(
+    await reopened.evaluate(() => (globalThis as unknown as Record<string, unknown>).__diskCodeRan),
+  ).toBeUndefined();
+  await reopened.screenshot({ path: "build/native-home-folder-open.png" });
   await reopened.getByRole("button", { name: "Project", exact: true }).click();
   await reopened
     .getByRole("menuitem", { name: "Project files & external tools…", exact: true })

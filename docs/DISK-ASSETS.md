@@ -1,11 +1,11 @@
-# Disk-backed assets — 0.6.2
+# Disk-backed encoded assets and native working folders
 
 ## What changed
 
 Browser and Electron use `DiskBlobStore`, backed by IndexedDB database `pinefall-asset-bytes-v1`. Encoded source files and cooked artifacts are addressed by SHA-256. JavaScript retains a small reference/size index, **not a permanent Map of source byte arrays**. A successful write means transaction completion. Quota, blocked and unavailable-storage errors are surfaced; there is no silent RAM-only browser fallback.
 
 - Import workers persist verified sources/artifacts before returning references. Input buffers are transferred rather than copied to parsing workers.
-- PIF workers read shared disk references rather than receiving a copied full inventory from the renderer. Export/compression still requires temporary bounded buffers.
+- PIF workers read shared disk references rather than receiving a copied full inventory from the renderer. Legacy export/compression still requires temporary bounded buffers; native PIF8 streams through a separate worker.
 - Default checkpoint and conversion-cache records store references. Legacy checkpoint bytes are verified and migrated lazily; custom independent `AssetDatabase` instances keep their portable byte-copy behavior.
 - Library-only imports do not prepare renderer models. Opening a project with unplaced library models also avoids model decoding. Placement or reimport of a live instance loads the required model.
 - Encoded audio no longer has a second resident `AudioCatalog.waves` inventory in disk mode. Validation reads sources sequentially, and decoding reads them when the audio backend prepares playback. Decoded audio/stream playback resources remain bounded runtime resources; this is not a claim that all PCM decoding is per-cue lazy.
@@ -36,4 +36,4 @@ Synchronous materialization remains useful for inline documents and Node memory 
 
 `tests/lazy-library-browser.ts` verifies zero model preparation for library-only import and cold reopening, on-demand preparation when placed, and a canceled reimport not contaminating a subsequent new import.
 
-This changes residency, not every capacity constraint: the existing 4 MB combined import input, 2 MB cooked model, 2048px texture, 8 MB model/source project budget, separate 8 MB audio-source budget and 16 MiB compressed PIF bounds remain. Large-project streaming, larger validated importer profiles and user-managed native project folders are future work—not completed features of this release.
+Current admission is 200 MB combined model+companions and 480 MB encoded model/source capacity; legacy/native archive ceilings are 512 MiB, with separate decoded/render and audio budgets. Native working folders and streamed PIF8 are implemented. IndexedDB remains the content-addressed cache/recovery layer, not the externally edited source of truth when a native folder is attached. See [current status](CURRENT-STATUS.md), [folder workflow](DISK-PROJECTS-IMPLEMENTATION.md) and [PIF compatibility](PIF.md).

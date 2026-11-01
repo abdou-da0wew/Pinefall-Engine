@@ -1,5 +1,7 @@
 # UI/UX implementation plan
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Date: 2026-11-01. Begins after Plan02 release0.6.0 and owner deferral of external hardware acceptance.
 
 ## Scope and order

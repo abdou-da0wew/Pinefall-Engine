@@ -1,5 +1,7 @@
 # Pinefall graphics, asset pipeline and PIF implementation plan
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Status: plan written before implementation; phase 1 source integration now verified. Phases 2–4 and most of phase 5 are pending. Completion of one phase does not imply completion of later phases.
 
 ## Goals and constraints

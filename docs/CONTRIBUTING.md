@@ -1,0 +1,21 @@
+# Development setup and commit attribution
+
+Use Bun and authored TypeScript. Run `bun install`, `bun run check` and `bun test tests`; use the relevant native/browser regression suites for changed workflows.
+
+## Tracked commit-msg hook
+
+`bun install` runs the prepare script; alternatively run `bun run hooks:install`. In this repository it sets `core.hooksPath=.githooks` and enables the tracked executable `.githooks/commit-msg`. A source ZIP without its own Git working tree skips setup. Existing non-Pinefall hooksPath configuration is preserved and requires manual integration.
+
+Every ordinary local commit adds exactly one trailer:
+
+```text
+Co-authored-by: DiveeAgent <270451464+DiveeAgent@users.noreply.github.com>
+```
+
+The hook runs authored TypeScript with Bun and uses Git's trailer parser. Existing co-authors/comments are retained; amendments do not duplicate the requested trailer. Keep Bun on PATH when committing. Tests cover insertion, repeat execution, other co-authors and template comments.
+
+Git hooks are local configuration: each checkout must install them. Git's `--no-verify` can bypass commit-msg hooks, and server-created commits do not run a local hook. This hook does not rewrite historical commits or claim server-side enforcement.
+
+## Documentation policy
+
+[Current status](CURRENT-STATUS.md) is the implementation index. Update user workflows, compatibility, SDK fields, limits, release links and evidence when code changes. Historical release notes, plans and acceptance records remain dated records; preserve their original results rather than rewriting history. Never turn an owner-deferred physical gate into a pass.

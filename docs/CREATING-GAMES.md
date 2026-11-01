@@ -1,4 +1,4 @@
-# Creating games — Pinefall Engine 0.2
+# Creating games
 
 ## Visual workflow
 
@@ -8,9 +8,9 @@
 4. To make an imported model your player, select the existing Player and select its **Library model**. This replaces visuals while keeping the character behavior and collider. Adjust scale to match the collider; rigged animations do not play automatically.
 5. Press Play. Stop restores the authored scene. Export scene JSON to save a portable, self-contained game scene; Open scene loads it again.
 
-**Storage:** these are single-scene projects, not a multi-scene project database. Creating a new game replaces browser autosave. Export the old scene first; session Undo can also restore it. Large scenes may exceed browser storage quota, so exported files are essential backups.
+**Storage:** projects remain single-scene. Native working folders are the external-editing source of truth; PIF8 provides raw backups, while browser recovery/export uses the legacy paths. Encoded model resources are disk-backed and loaded lazily, not kept wholesale in source strings. Save before replacing a project. See [current status](CURRENT-STATUS.md) and [PIF compatibility](PIF.md).
 
-**Supported assets:** self-contained, uncompressed `.glb` models with embedded materials/textures. Maximum 2 MB per imported model, 16 assets, 8 MB total embedded asset strings, 500 entities, eight lights. External texture/buffer URLs and decoder-dependent Draco/Meshopt/KTX2 assets are rejected. Export Blender assets as GLB with textures embedded and compression disabled. FBX/OBJ/Blender files, separate image/audio import, skeletal animation authoring and automatic collision-mesh cooking are not supported yet.
+**Supported assets:** self-contained, uncompressed `.glb` models with embedded materials/textures. Model+companion admission is 200 MB; project encoded model/source capacity is 480 MB, with separate decoded/render budgets. See [asset pipeline usage](ASSET-PIPELINE-USAGE.md) for exact supported conversion cases. External texture/buffer URLs and decoder-dependent Draco/Meshopt/KTX2 assets are rejected. Export Blender assets as GLB with textures embedded and compression disabled. Experimental FBX plus PNG/JPEG companions, authored animation and audio are implemented; see the pipeline and animation/audio guides. Direct OBJ/Blender import and automatic collision-mesh cooking are not implemented.
 
 ## Headless CLI
 
@@ -98,11 +98,10 @@ Browser tests use SwiftShader. They are not proof of CEDAR hardware compatibilit
   The import report shows counts, warnings and the cooked SHA-256.
 - Save as `.pif` to retain original sources and companion images. Provenance-bearing
   projects use PIF v3, which older releases cannot read. Keep a backup.
-- Current safety limits: 4 MB total selected source bytes, 2 MB cooked GLB,
-  2048-pixel texture dimensions, 64 MiB estimated decoded model budget, and a
-  128 MiB shared prototype cache ceiling. The scene's 16-asset/500-entity and
-  combined 8,000,000-character asset/source budget remain. These conservative
-  ceilings are not a hardware-performance guarantee.
+- Current admission: 200 MB selected model+companions, 200 MB cooked model,
+  2048-pixel imported companion textures and 256 MiB inspected decoded model data.
+  Encoded project model/source capacity is 480 MB; render/cache budgets are separate.
+  These limits are admission rules, not hardware-performance guarantees.
 - Draco/Meshopt/KTX2 and sparse GLB accessors are rejected with a diagnostic.
   FBX constraints, axes/units/pivots, proprietary materials and morph normals need
   DCC comparison; do not assume lossless conversion or automatic unit correction.

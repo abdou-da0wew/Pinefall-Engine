@@ -1,5 +1,7 @@
 # Publishing the prepared 0.5 releases
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Target: `abdou-da0wew/Pinefall-Engine`.
 
 - `v0.5.0`: exact historical UI-toolkit commit `6919ac2` and its original verified binaries.

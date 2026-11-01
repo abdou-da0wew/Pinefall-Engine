@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.2 — PIF v2 metadata and integrity
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Includes all 0.5.0 UI toolkit and 0.5.1 project-container features.
 
 ## New

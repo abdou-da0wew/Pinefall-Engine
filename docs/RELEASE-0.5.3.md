@@ -1,5 +1,7 @@
 # Pinefall Engine 0.5.3 — Worker asset pipeline, first implementation
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 A downloadable testing checkpoint for Plan 01. **This is not completion of the entire asset-pipeline plan. FBX conversion remains experimental.** Includes the previous UI toolkit and PIF integrity features.
 
 ## What's new

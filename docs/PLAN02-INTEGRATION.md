@@ -1,5 +1,7 @@
 # Plan02 software integration — 0.6.0 released
 
+> Historical release, design or acceptance record: retain the results and limits of its stated checkpoint. For current implementation and downloads, see [current status](CURRENT-STATUS.md).
+
 Date: 2026-11-01. Version0.6.0 is the full software release. The owner has explicitly deferred hardware/listening acceptance to their own testing. Earlier checkpoint sections below are historical; see PLAN02-ACCEPTANCE.md for current status.
 
 ## Streaming/persistent release-candidate continuation
