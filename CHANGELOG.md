@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.3-dev.2 — Folder workflow and rendering checkpoint (Plan03 incomplete)
+
+- Native folder-first editing, conflict-safe disk saves, shell-free external tools, semantic TypeScript diagnostics, and offline IDE typing-kit generation. Embedded TS/GLSL editors removed.
+- Streamed raw PIF8 archives preserve invalid/unregistered drafts. Manual, interval, per-action and customized-shortcut repacking; folder recents/settings survive restart. Native PIF8 opening is separate from legacy PIF import; hidden files/node_modules are excluded.
+- Explicit Apply retains prior runtime on errors. Script execution still requires trust.
+- Leased procedural PMREM environments, independent shadow modes/fitted directional bounds, and half-resolution opaque-depth-aware Beer–Lambert scattering, with preview/authored controls.
+- Software checks cover the folder lifecycle, actual lighting/scattering pixels, cleanup and post/context regressions. Physical CEDAR/Windows acceptance remains owner-deferred and unverified.
+- Still incomplete: texture/UV/channel-packing/per-slot authoring and remaining graphics gates; external HDR input; several folder UX/race follow-ups. See `docs/DISK-PROJECTS-IMPLEMENTATION.md` for precise limits.
+
 ## 0.6.2 — Commands and disk-backed assets (local release candidate)
 
 - Searchable commands, focus-safe keyboard routing and project-local scene/UI clipboards.

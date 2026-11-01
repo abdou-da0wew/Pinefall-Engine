@@ -15,7 +15,47 @@ export interface MaterialAsset extends Surface {
   id: string;
   name: string;
 }
+export interface ScatteringSettings {
+  density: number;
+  heightFalloff: number;
+  baseHeight: number;
+  maxDistance: number;
+  steps: 8 | 16 | 32;
+  color: string;
+  intensity: number;
+  anisotropy: number;
+}
+export const DEFAULT_SCATTERING: ScatteringSettings = {
+  density: 0.03,
+  heightFalloff: 0.1,
+  baseHeight: 0,
+  maxDistance: 100,
+  steps: 16,
+  color: "#bfd4ef",
+  intensity: 1,
+  anisotropy: 0,
+};
+export function parseScattering(value: unknown): ScatteringSettings {
+  const v = object(value);
+  if (
+    Object.keys(v).some((k) => !Object.hasOwn(DEFAULT_SCATTERING, k)) ||
+    ![8, 16, 32].includes(Number(v.steps)) ||
+    typeof v.steps !== "number"
+  )
+    throw Error("Invalid scattering settings");
+  return {
+    density: bounded(v.density, 0, 0.5),
+    heightFalloff: bounded(v.heightFalloff, 0, 2),
+    baseHeight: bounded(v.baseHeight, -100, 100),
+    maxDistance: bounded(v.maxDistance, 1, 200),
+    steps: v.steps as 8 | 16 | 32,
+    color: color(v.color),
+    intensity: bounded(v.intensity, 0, 8),
+    anisotropy: bounded(v.anisotropy, -0.8, 0.8),
+  };
+}
 export interface PostSettings {
+  scattering?: ScatteringSettings;
   enabled: boolean;
   bloom: boolean;
   threshold: number;
@@ -30,7 +70,29 @@ export interface PostSettings {
   chromaticAberration: number;
   fxaa: boolean;
 }
+export interface EnvironmentLighting {
+  sky: string;
+  ground: string;
+  intensity: number;
+  resolution: 128 | 256;
+}
+export function parseEnvironment(value: unknown): EnvironmentLighting {
+  const v = object(value);
+  if (
+    Object.keys(v).some((k) => !["sky", "ground", "intensity", "resolution"].includes(k)) ||
+    ![128, 256].includes(Number(v.resolution)) ||
+    typeof v.resolution !== "number"
+  )
+    throw Error("Invalid environment lighting");
+  return {
+    sky: color(v.sky),
+    ground: color(v.ground),
+    intensity: bounded(v.intensity, 0, 8),
+    resolution: v.resolution as 128 | 256,
+  };
+}
 export interface GraphicsDefinition {
+  environment?: EnvironmentLighting;
   shaders?: ShaderAsset[];
   version: 1;
   materials: MaterialAsset[];
@@ -113,8 +175,10 @@ export function parseSurface(value: unknown): Surface {
 export function parsePost(value: unknown): PostSettings {
   const v = object(value);
   for (const key of Object.keys(v))
-    if (!Object.hasOwn(DEFAULT_POST, key)) throw Error("Unknown post-processing field: " + key);
+    if (!Object.hasOwn(DEFAULT_POST, key) && key !== "scattering")
+      throw Error("Unknown post-processing field: " + key);
   return {
+    ...(v.scattering === undefined ? {} : { scattering: parseScattering(v.scattering) }),
     enabled: bool(v.enabled),
     bloom: bool(v.bloom),
     threshold: bounded(v.threshold, 0, 10),
@@ -136,7 +200,9 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
     v.version !== 1 ||
     !Array.isArray(v.materials) ||
     v.materials.length > 64 ||
-    Object.keys(v).some((k) => !["version", "materials", "post", "shaders"].includes(k))
+    Object.keys(v).some(
+      (k) => !["version", "materials", "post", "shaders", "environment"].includes(k),
+    )
   )
     throw Error("Invalid graphics schema/version/budget");
   const materials = v.materials.map((raw) => {
@@ -155,6 +221,7 @@ export function parseGraphicsDefinition(value: unknown): GraphicsDefinition {
   return {
     version: 1,
     materials,
+    ...(v.environment === undefined ? {} : { environment: parseEnvironment(v.environment) }),
     ...(v.post === undefined ? {} : { post: parsePost(v.post) }),
     ...(shaders ? { shaders } : {}),
   };
@@ -163,6 +230,9 @@ export function emptyGraphics(): GraphicsDefinition {
   return { version: 1, materials: [] };
 }
 export interface LightDefinition {
+  shadowUpdate?: "every-frame" | "on-change" | "manual";
+  shadowFrustum?: "fixed" | "scene";
+  shadowPadding?: number;
   type: "point" | "spot" | "directional";
   color: string;
   intensity: number;
@@ -191,6 +261,9 @@ export function parseLight(value: unknown): LightDefinition {
         "shadowSize",
         "bias",
         "normalBias",
+        "shadowUpdate",
+        "shadowFrustum",
+        "shadowPadding",
       ].includes(key)
     )
       throw Error("Unsupported light field: " + key);
@@ -200,6 +273,11 @@ export function parseLight(value: unknown): LightDefinition {
     intensity: bounded(v.intensity, 0, 200),
     range: bounded(v.range, 1, 100),
   };
+  if (v.shadowUpdate !== undefined)
+    result.shadowUpdate = choice(v.shadowUpdate, ["every-frame", "on-change", "manual"] as const);
+  if (v.shadowFrustum !== undefined)
+    result.shadowFrustum = choice(v.shadowFrustum, ["fixed", "scene"] as const);
+  if (v.shadowPadding !== undefined) result.shadowPadding = bounded(v.shadowPadding, 0, 100);
   if (v.angle !== undefined) result.angle = bounded(v.angle, 1, 89);
   if (v.penumbra !== undefined) result.penumbra = bounded(v.penumbra, 0, 1);
   if (v.decay !== undefined) result.decay = bounded(v.decay, 0, 2);

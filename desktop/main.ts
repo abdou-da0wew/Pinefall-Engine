@@ -1,9 +1,22 @@
+import { installWorkspaceBridge } from "./workspace";
 import { defaultGraphics, parseGraphics, graphicsSwitches } from "../packages/editor/src/graphics";
 import { ARCHIVE_BYTES } from "../packages/assets/src/limits";
-import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu, protocol } from "electron";
 import { atomicWrite } from "../packages/project/src/atomic-file";
 import { join } from "node:path";
 import { appendFileSync, existsSync, renameSync, statSync, readFileSync, mkdirSync } from "node:fs";
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "pinefall-project",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 const graphicsPath = join(app.getPath("userData"), "graphics.json");
 let savedGraphics = { ...defaultGraphics };
 try {
@@ -46,6 +59,7 @@ void app.whenReady().then(() => {
       sandbox: true,
     },
   });
+  installWorkspaceBridge(win, join(app.getPath("userData"), "external-editor.json"));
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith("file:")) event.preventDefault();

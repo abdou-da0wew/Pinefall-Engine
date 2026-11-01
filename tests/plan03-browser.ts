@@ -94,6 +94,12 @@ try {
     const documentScene = createGame("Plan03 reference");
     documentScene.entities = [];
     documentScene.graphics = emptyGraphics();
+    documentScene.graphics.environment = {
+      sky: "#ffffff",
+      ground: "#303030",
+      intensity: 1,
+      resolution: 128,
+    };
     documentScene.graphics.materials.push({ ...DEFAULT_SURFACE, id: "shared", name: "Shared" });
     const a = entity("A"),
       b = entity("B");
@@ -115,6 +121,7 @@ try {
     documentScene.entities.push(lamp);
     try {
       await engine.load(documentScene);
+      assert(engine.graphics.snapshot.environmentTargetBytes > 0, "Missing PMREM allocation");
       const meshA = engine.objects.get(a.id).children.find((o: { isMesh?: boolean }) => o.isMesh),
         meshB = engine.objects.get(b.id).children.find((o: { isMesh?: boolean }) => o.isMesh);
       const untouched = meshB.material.color.getHexString();
@@ -140,6 +147,19 @@ try {
           2048,
         "Profile rewrote authored shadow size",
       );
+      engine.graphics.setLight(lamp.id, { intensity: 33, shadowUpdate: "manual" });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const lampObject = engine.objects
+        .get(lamp.id)
+        .children.find((o: { isLight?: boolean }) => o.isLight);
+      assert(
+        lampObject.shadow.autoUpdate === false && lampObject.shadow.needsUpdate === false,
+        "Manual shadow did not settle",
+      );
+      engine.graphics.setLight(lamp.id, { intensity: 34 });
+      assert(lampObject.shadow.needsUpdate === false, "Scalar edit invalidated manual shadow");
+      engine.graphics.invalidateShadows(lamp.id);
+      assert(lampObject.shadow.needsUpdate === true, "Targeted shadow invalidation failed");
       engine.graphics.setLight(lamp.id, { intensity: 33 });
       assert(
         engine.document.entities.find((e: { id: string }) => e.id === lamp.id).light.intensity ===

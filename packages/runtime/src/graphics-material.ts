@@ -57,7 +57,8 @@ export function applyLight(light: SceneLight, input: LightDefinition) {
   if (light instanceof T.DirectionalLight)
     Object.assign(light.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20 });
   light.shadow.camera.updateProjectionMatrix();
-  light.shadow.needsUpdate = true;
+  light.shadow.autoUpdate = (s.shadowUpdate ?? "every-frame") === "every-frame";
+  if (s.shadowUpdate !== "manual" || !light.shadow.map) light.shadow.needsUpdate = true;
   light.userData.pinefallLight = s;
 }
 /** Update only a privately owned instance material. Scalar edits keep the program identity. */

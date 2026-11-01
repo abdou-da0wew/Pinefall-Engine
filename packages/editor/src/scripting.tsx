@@ -1,10 +1,10 @@
 import { Panel } from "./ui";
-import { Button, Input, Select, Textarea } from "./ui";
+import { Button, Input, Select } from "./ui";
 import { Icon } from "./icons";
 import { useRef, useState } from "react";
 import type { Entity, SceneDocument } from "../../runtime/src/schema";
 import { compileScript } from "../../scripting/src/compiler";
-import { SCRIPT_TEMPLATE } from "../../scripting/src/template";
+import { SCRIPT_TEMPLATE, uniqueScriptName } from "../../scripting/src/template";
 interface PanelProps {
   scene: SceneDocument;
   disabled: boolean;
@@ -12,6 +12,8 @@ interface PanelProps {
   exportText: (name: string, text: string) => Promise<void>;
   selectedId: string;
   onSelect: (id: string) => void;
+  onOpenFiles: () => void;
+  onOpenSource: () => void;
 }
 export function ScriptPanel({
   scene,
@@ -20,57 +22,53 @@ export function ScriptPanel({
   exportText,
   selectedId,
   onSelect,
+  onOpenFiles,
+  onOpenSource,
 }: PanelProps) {
   const asset = scene.scripts?.find((s) => s.id === selectedId);
-  const [draft, setDraft] = useState(asset?.source || ""),
-    [name, setName] = useState(asset?.name || ""),
-    [message, setMessage] = useState("");
+  const [message, setMessage] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  function add(source = SCRIPT_TEMPLATE, name = "CustomScript.ts") {
-    const id = crypto.randomUUID();
-    commit((s) => {
-      s.scripts ??= [];
-      s.scripts.push({ id, name, source });
-    });
-    onSelect(id);
-  }
-  function check() {
+  function add(source = SCRIPT_TEMPLATE, name = "CustomScript.ts", updateExisting = false) {
     try {
-      compileScript(draft, name);
-      setMessage("Syntax OK. TypeScript types are erased, not checked. Nothing executed.");
-      return true;
-    } catch (e) {
-      setMessage(String(e));
-      return false;
+      compileScript(source, name);
+      const matches = scene.scripts?.filter((s) => s.name === name) ?? [];
+      if (updateExisting && matches.length > 1)
+        throw Error("Ambiguous filename; rename duplicate script assets first");
+      const existing = updateExisting ? matches[0] : undefined;
+      const id = existing?.id ?? crypto.randomUUID();
+      commit((s) => {
+        s.scripts ??= [];
+        const target = existing && s.scripts.find((a) => a.id === existing.id);
+        if (target) target.source = source;
+        else s.scripts.push({ id, name, source });
+      });
+      onSelect(id);
+    } catch (error) {
+      setMessage(String(error));
     }
-  }
-  function save() {
-    if (!asset || !check()) return;
-    commit((s) => {
-      const target = s.scripts?.find((a) => a.id === asset.id);
-      if (target) {
-        target.source = draft;
-        target.name = name;
-      }
-    });
-    setMessage("Saved. Stop and Play again to instantiate the new code.");
   }
   return (
     <div className="script-workbench">
       <div className="script-list">
-        <Button disabled={disabled} onClick={() => add()}>
+        <Button
+          disabled={disabled}
+          onClick={() => {
+            add(SCRIPT_TEMPLATE, uniqueScriptName((scene.scripts ?? []).map((s) => s.name)));
+            onOpenFiles();
+          }}
+        >
           <Icon name="plus" /> New TypeScript
         </Button>
         <Button disabled={disabled} onClick={() => input.current?.click()}>
           <Icon name="upload" /> Import .ts
         </Button>
-        {scene.scripts?.map((s) => (
+        {scene.scripts?.map((script) => (
           <Button
-            className={s.id === selectedId ? "active" : ""}
-            key={s.id}
-            onClick={() => onSelect(s.id)}
+            key={script.id}
+            className={script.id === selectedId ? "active" : ""}
+            onClick={() => onSelect(script.id)}
           >
-            {s.name}
+            {script.name}
           </Button>
         ))}
         <Input
@@ -86,27 +84,17 @@ export function ScriptPanel({
               setMessage("Script limit: 64 KB");
               return;
             }
-            add(await file.text(), file.name);
+            add(await file.text(), file.name, true);
           }}
         />
       </div>
       <div className="script-editor">
-        {asset ? (
-          <>
-            <div className="script-toolbar">
-              <Input
-                aria-label="Script filename"
-                value={name}
-                disabled={disabled}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Button disabled={disabled} onClick={check}>
-                Check syntax
-              </Button>
-              <Button disabled={disabled} onClick={save}>
-                Save script
-              </Button>
-              <Button onClick={() => void exportText(name, draft)}>Export .ts</Button>
+        <div className="script-toolbar">
+          <Button onClick={onOpenFiles}>Project files & external tools…</Button>
+          {asset && (
+            <>
+              <Button onClick={onOpenSource}>Open source externally</Button>
+              <Button onClick={() => void exportText(asset.name, asset.source)}>Export .ts</Button>
               <Button
                 disabled={disabled}
                 onClick={() => {
@@ -118,47 +106,27 @@ export function ScriptPanel({
                   onSelect("");
                 }}
               >
-                Delete
+                Detach and unregister
               </Button>
-            </div>
-            <Textarea
-              aria-label="TypeScript source"
-              spellCheck={false}
-              disabled={disabled}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (
-                  (e.ctrlKey || e.metaKey) &&
-                  !e.shiftKey &&
-                  !e.altKey &&
-                  (e.key === "Enter" || e.key.toLowerCase() === "s")
-                ) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!e.repeat && !e.nativeEvent.isComposing) save();
-                }
-              }}
-            />
-          </>
-        ) : (
-          <div className="script-help">
-            <h3>Make the game behave your way.</h3>
-            <p>
-              Create/import a TypeScript module, save it, select an object and attach it in the
-              Inspector. Multiple scripts can run alongside built-in controls.
-            </p>
-            <code>import &#123; Script, Vector3, MathUtils &#125; from '@pinefall/sdk';</code>
-            <p>start · fixedUpdate · update · trigger · dispose</p>
-            <p>
-              Unsaved text is not included in scene exports. Scripts are trusted code, not
-              sandboxed. Never enable code from an unknown source.
-            </p>
-          </div>
-        )}
+            </>
+          )}
+        </div>
+        <div className="script-help">
+          <h3>{asset?.name ?? "Edit code in your own tools."}</h3>
+          <p>
+            Source text is edited outside Pinefall, not in an embedded code editor. Desktop project
+            folders support external editor launching, watched changes, diagnostics and explicit
+            Apply.
+          </p>
+          <p>
+            Nothing is executed merely because a file changes. Resolve diagnostics, Apply, then
+            approve scripts before Play. Unregistering a script does not delete its disk file.
+          </p>
+          <code>start · fixedUpdate · update · trigger · dispose</code>
+        </div>
         <div className="script-message" role="status">
           {message ||
-            "Ctrl/⌘ + S or Enter saves · edit while stopped · approve trusted scripts before Play"}
+            "Open Project files to configure VS Code, VSCodium, Visual Studio or a text editor."}
         </div>
       </div>
     </div>
@@ -177,7 +145,6 @@ export function ScriptAttachments({
   patch: (fn: (entity: Entity) => void) => void;
   onOpen: (id: string) => void;
 }) {
-  const [message, setMessage] = useState("");
   return (
     <Panel>
       <h3>
@@ -221,7 +188,7 @@ export function ScriptAttachments({
               />
               {scene.scripts?.find((s) => s.id === a.script)?.name}
             </label>
-            <Button onClick={() => onOpen(a.script)}>Edit code</Button>
+            <Button onClick={() => onOpen(a.script)}>Open source files</Button>
             <Button
               disabled={disabled}
               onClick={() =>
@@ -233,37 +200,15 @@ export function ScriptAttachments({
               Detach
             </Button>
           </div>
-          <label>
-            Properties (JSON overrides)
-            <Textarea
-              aria-label={"Script properties " + a.id}
-              key={a.id + JSON.stringify(a.props)}
-              disabled={disabled}
-              defaultValue={JSON.stringify(a.props, null, 2)}
-              onBlur={(event) => {
-                try {
-                  const props = JSON.parse(event.target.value);
-                  if (!props || typeof props !== "object" || Array.isArray(props))
-                    throw Error("Properties must be a JSON object");
-                  patch((e) => {
-                    const target = e.scripts?.find((t) => t.id === a.id);
-                    if (target) target.props = props;
-                  });
-                  setMessage("");
-                } catch (e) {
-                  setMessage(String(e));
-                }
-              }}
-            />
-          </label>
+          <Button onClick={() => onOpen("")}>Edit properties in scene.json externally</Button>
         </div>
       ))}
       <small className="hint">
-        {message ||
-          "Add scripts without replacing the built-in behavior. Each attachment gets its own properties, state and lifecycle."}
+        Add scripts without replacing built-in behavior. Source and JSON overrides are editable in
+        project files.
       </small>
       <Button className="wide-button" onClick={() => onOpen("")}>
-        Open script editor
+        Open project files
       </Button>
     </Panel>
   );

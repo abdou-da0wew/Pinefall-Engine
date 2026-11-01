@@ -9,6 +9,7 @@ export interface GraphicsSnapshot {
   effective: PostSettings;
   postTargetBytes: number;
   shadowTargetBytes: number;
+  environmentTargetBytes: number;
   shadowViews: number;
   reasons: string[];
   contextLost: boolean;
@@ -31,5 +32,5 @@ export interface GraphicsAPI {
   ): void;
   setMaterial(entityId: string, patch: Partial<Surface>): void;
   setLight(entityId: string, patch: Partial<LightDefinition>): void;
-  invalidateShadows(): void;
+  invalidateShadows(entityId?: string): void;
 }

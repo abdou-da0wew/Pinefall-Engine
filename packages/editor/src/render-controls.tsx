@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button, Input, Select, Panel, Dialog, Switch } from "./ui";
 import {
   DEFAULT_POST,
+  DEFAULT_SCATTERING,
   DEFAULT_SURFACE,
   type PostSettings,
   type Surface,
@@ -120,6 +121,87 @@ export function PreviewRendering({
             />
           </label>
         ))}
+        <details>
+          <summary>Depth-aware scattering</summary>
+          <label className="row-field">
+            Enable height scattering
+            <Switch
+              aria-label="Preview depth scattering"
+              checked={!!post.scattering}
+              onChange={(e) =>
+                onPost({
+                  ...post,
+                  scattering: e.target.checked ? { ...DEFAULT_SCATTERING } : undefined,
+                })
+              }
+            />
+          </label>
+          {post.scattering && (
+            <>
+              <label>
+                Ray steps
+                <Select
+                  aria-label="Scattering ray steps"
+                  value={post.scattering.steps}
+                  onChange={(e) =>
+                    onPost({
+                      ...post,
+                      scattering: {
+                        ...post.scattering!,
+                        steps: Number(e.target.value) as 8 | 16 | 32,
+                      },
+                    })
+                  }
+                >
+                  {[8, 16, 32].map((steps) => (
+                    <option key={steps}>{steps}</option>
+                  ))}
+                </Select>
+              </label>
+              {(
+                [
+                  ["density", 0, 0.5, 0.005],
+                  ["heightFalloff", 0, 2, 0.05],
+                  ["baseHeight", -100, 100, 1],
+                  ["maxDistance", 1, 200, 1],
+                  ["intensity", 0, 8, 0.1],
+                  ["anisotropy", -0.8, 0.8, 0.05],
+                ] as const
+              ).map(([key, min, max, step]) => (
+                <label key={key}>
+                  {key} <b>{post.scattering![key]}</b>
+                  <Input
+                    aria-label={"Scattering " + key}
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={post.scattering![key]}
+                    onChange={(e) =>
+                      onPost({
+                        ...post,
+                        scattering: { ...post.scattering!, [key]: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+              <ColorPicker
+                label="Scattering color"
+                value={post.scattering.color}
+                onChange={(color) =>
+                  onPost({ ...post, scattering: { ...post.scattering!, color } })
+                }
+              />
+            </>
+          )}
+          <p className="hint">
+            Half-resolution Beer–Lambert integration stops at opaque scene depth. Transparent
+            surfaces do not terminate rays. No shadow-map sampling or temporal history; thin
+            geometry may show half-resolution limitations. This is separate from the fake cone
+            beams.
+          </p>
+        </details>
         <Button onClick={onReset}>Use authored post settings</Button>
         <Button disabled={!canAuthor} onClick={onAuthor}>
           Apply preview post to project

@@ -151,3 +151,11 @@ Audio-bearing scene3 projects write PIF6 (minimum reader6); non-audio animator p
 ## Disk-backed sessions in 0.6.2
 
 Portable export materializes and verifies disk references in the worker; machine-local references are not written into portable archives. Writer metadata follows the application version. See [disk storage and capacity limits](DISK-ASSETS.md).
+
+## Native raw-folder PIF8 checkpoint
+
+Folder-backed Save project now creates a streaming PIF8 archive. Use **Project → Project files & external tools → Open raw folder PIF** to extract it into an empty directory; the existing legacy Open project path is still for PIF1–7. Native repacking supports manual, interval and settled-change modes and a customizable shortcut. Recent folders and destinations are persisted locally.
+
+PIF8 is XZ-compressed TAR with a `folder.json` index and separate `files/N.bin` entries. The index records original relative paths, byte counts and SHA-256 digests. It preserves invalid JSON, unapplied code and unregistered files rather than serializing only the last valid runtime. Hidden files and `node_modules` are excluded; the destination archive must be outside the working directory. Limits are 512 MiB compressed/expanded, 10,000 files, a 4 MiB index and confined portable paths. The codec is worker-isolated and pull-based with 64 KiB chunks; decoder memory is limited to 256 MiB. Hashes and XZ checksums are not signatures or an authenticity guarantee.
+
+The legacy browser/export/snapshot codec remains PIF7 with its existing memory/entry constraints. PIF8 extraction does not execute code or implicitly Apply a pending working folder.

@@ -21,3 +21,12 @@ export default class Rotate extends Script {
   // dispose() { /* release resources when Play stops */ }
 }
 `;
+
+export function uniqueScriptName(names: readonly string[]): string {
+  const taken = new Set(names.map((name) => name.toLowerCase()));
+  for (let index = 1; index <= names.length + 1; index++) {
+    const name = `CustomScript${index === 1 ? "" : index}.ts`;
+    if (!taken.has(name.toLowerCase())) return name;
+  }
+  throw Error("Script name allocation failed");
+}

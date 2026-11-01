@@ -1,3 +1,4 @@
+import { ScatteringPass } from "./scattering";
 import * as T from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -16,6 +17,7 @@ export class Effects {
   private output: OutputPass;
   private bloom?: UnrealBloomPass;
   private fxaa?: ShaderPass;
+  private scattering?: ScatteringPass;
   private width = 1;
   private height = 1;
   private time = 0;
@@ -23,7 +25,11 @@ export class Effects {
   private allocation = assetMemory.reserve(0, "post-targets");
   readonly hdr: boolean;
   private targetBytes = 0;
-  constructor(renderer: T.WebGLRenderer, scene: T.Scene, camera: T.Camera) {
+  constructor(
+    renderer: T.WebGLRenderer,
+    scene: T.Scene,
+    private camera: T.Camera,
+  ) {
     this.hdr = renderer.extensions.has("EXT_color_buffer_float");
     this.composer = new EffectComposer(
       renderer,
@@ -31,6 +37,7 @@ export class Effects {
         type: this.hdr ? T.HalfFloatType : T.UnsignedByteType,
         stencilBuffer: false,
         depthBuffer: true,
+        depthTexture: new T.DepthTexture(1, 1, T.UnsignedIntType),
       }),
     );
     this.composer.setPixelRatio(1);
@@ -69,7 +76,7 @@ export class Effects {
       fxaa: !!this.fxaa,
     };
   }
-  private estimate(w: number, h: number, bloom: boolean) {
+  private estimate(w: number, h: number, bloom: boolean, scattering = !!this.scattering) {
     const color = this.hdr ? 8 : 4;
     // Two composer targets including conservative depth allowance, plus bright/mip pairs.
     let bytes = w * h * 2 * (color + 4);
@@ -83,13 +90,25 @@ export class Effects {
         y = Math.max(1, Math.round(y / 2));
       }
     }
+    if (scattering) bytes += Math.max(1, Math.ceil(w / 2)) * Math.max(1, Math.ceil(h / 2)) * color;
     return bytes;
   }
   configure(input: PostSettings) {
     const s = parsePost(input);
-    const bytes = this.estimate(this.width, this.height, s.bloom);
+    const bytes = this.estimate(this.width, this.height, s.bloom, !!s.scattering);
     if (bytes > 96 * 1024 * 1024) throw Error("Post-processing target budget exceeds 96 MiB");
     this.allocation.resize(bytes);
+    if (s.scattering && !this.scattering) {
+      this.scattering = new ScatteringPass(this.camera, this.hdr);
+      this.composer.insertPass(this.scattering, 1);
+      this.scattering.setSize(this.width, this.height);
+    }
+    if (!s.scattering && this.scattering) {
+      this.composer.removePass(this.scattering);
+      this.scattering.dispose();
+      this.scattering = undefined;
+    }
+    if (s.scattering) this.scattering!.configure(s.scattering);
     if (s.bloom && !this.bloom) {
       this.bloom = new UnrealBloomPass(
         new T.Vector2(this.width, this.height),
@@ -104,7 +123,7 @@ export class Effects {
           ...this.bloom.renderTargetsVertical,
         ])
           t.texture.type = T.UnsignedByteType;
-      this.composer.insertPass(this.bloom, 1);
+      this.composer.insertPass(this.bloom, this.scattering ? 2 : 1);
     }
     if (!s.bloom && this.bloom) {
       this.composer.removePass(this.bloom);
@@ -149,6 +168,7 @@ export class Effects {
     this.composer.render(dt);
   }
   dispose() {
+    this.scattering?.dispose();
     this.bloom?.dispose();
     this.fxaa?.dispose();
     this.render.dispose();

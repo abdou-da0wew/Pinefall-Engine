@@ -5,6 +5,7 @@ import {
   emptyGraphics,
   DEFAULT_SURFACE,
   DEFAULT_POST,
+  DEFAULT_SCATTERING,
   parsePost,
   parseSurface,
   parseGraphicsDefinition,
@@ -29,6 +30,8 @@ test("graphics schemas bound scalar values and preserve legacy scene defaults", 
     { fxaa: "yes" },
     { chromaticAberration: 0.5 },
     { arbitrary: true },
+    { scattering: { ...DEFAULT_SCATTERING, steps: 1000 } },
+    { scattering: { ...DEFAULT_SCATTERING, density: -1 } },
   ])
     expect(() => parsePost({ ...DEFAULT_POST, ...patch })).toThrow();
   expect(() =>
@@ -48,7 +51,14 @@ test("PIF7 persists authored materials, independent lights and post; old archive
   const scene = createGame("Graphics reference");
   scene.graphics = emptyGraphics();
   scene.graphics.materials = [{ ...DEFAULT_SURFACE, id: "gold", name: "Gold", metalness: 0.8 }];
-  scene.graphics.post = { ...DEFAULT_POST, enabled: true, bloom: true, fxaa: true };
+  scene.graphics.post = {
+    ...DEFAULT_POST,
+    enabled: true,
+    bloom: true,
+    fxaa: true,
+    scattering: { ...DEFAULT_SCATTERING },
+  };
+  scene.graphics.environment = { sky: "#ffffff", ground: "#303030", intensity: 1, resolution: 128 };
   const item = entity("Surface");
   item.mesh!.material = "gold";
   item.mesh!.castShadow = false;
@@ -63,6 +73,9 @@ test("PIF7 persists authored materials, independent lights and post; old archive
     castShadow: true,
     shadowSize: 2048,
     normalBias: 0.1,
+    shadowUpdate: "manual",
+    shadowFrustum: "scene",
+    shadowPadding: 2,
   };
   scene.entities.push(lamp);
   const files = projectFiles(scene);

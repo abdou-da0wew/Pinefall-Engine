@@ -25,6 +25,11 @@ try {
   await page.getByLabel("Preview enabled", { exact: true }).check();
   await page.getByLabel("Preview bloom", { exact: true }).check();
   await page.getByLabel("Preview fxaa", { exact: true }).check();
+  await page.getByLabel("PMREM environment", { exact: true }).check();
+  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
+  await page.getByText("Depth-aware scattering", { exact: true }).click();
+  await page.getByLabel("Preview depth scattering", { exact: true }).check();
+  await page.getByLabel("Scattering ray steps", { exact: true }).selectOption("8");
   await page.getByRole("button", { name: "Apply preview post to project", exact: true }).click();
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Use authored post settings", exact: true }).click();
@@ -51,49 +56,24 @@ try {
   await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
   expect(await page.getByLabel("Reusable material", { exact: true }).inputValue()).not.toBe("");
   await page.getByRole("button", { name: "Custom shader…", exact: true }).click();
-  await page.getByLabel("Trust custom shader", { exact: true }).check();
-  await page.getByRole("button", { name: "Compile and apply", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Custom unlit shader", exact: true })).toBeHidden();
-  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Custom shader…", exact: true }).click();
-  await page.getByLabel("Shader fragment draft", { exact: true }).fill("unfinished shader draft");
-  await page.getByLabel("Shader uniforms", { exact: true }).fill("{ unfinished uniforms");
-  await page.getByRole("button", { name: "Save draft only", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Play scene", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Custom shader…", exact: true }).click();
-  await expect(page.getByLabel("Shader fragment draft", { exact: true })).toHaveValue(
-    "unfinished shader draft",
-  );
-  await expect(page.getByLabel("Shader uniforms", { exact: true })).toHaveValue(
-    "{ unfinished uniforms",
-  );
-  await page.getByLabel("Shader uniforms", { exact: true }).fill("{}");
-  await page.getByRole("button", { name: "Compile and apply", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("previous material retained");
-  await page.screenshot({
-    path: "build/" + (native ? "native-" : "") + "plan03-shader-recovery.png",
-  });
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Project files & external tools", exact: true }),
+  ).toBeVisible();
+  expect(await page.getByLabel("Shader fragment draft").count()).toBe(0);
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Back to home", exact: true }).click();
   await expect(page.locator(".pf-home")).toBeVisible({ timeout: 60000 });
   await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
   await enterEditor(page);
   await page.getByRole("button", { name: "Rendering", exact: true }).click();
   await expect(page.getByLabel("Preview bloom", { exact: true })).toBeChecked();
-  await page.getByRole("button", { name: "Inspector", exact: true }).click();
-  await page.getByRole("treeitem").filter({ hasText: "Valley floor" }).first().click();
-  await page.getByRole("button", { name: "Custom shader…", exact: true }).click();
-  await expect(page.getByLabel("Shader fragment draft", { exact: true })).toHaveValue(
-    "unfinished shader draft",
-  );
-  await expect(page.getByLabel("Shader uniforms", { exact: true })).toHaveValue(
-    "{ unfinished uniforms",
-  );
-  await expect(page.getByLabel("Trust custom shader", { exact: true })).not.toBeChecked();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByLabel("PMREM environment", { exact: true })).toBeChecked();
+  await page.getByText("Depth-aware scattering", { exact: true }).click();
+  await expect(page.getByLabel("Preview depth scattering", { exact: true })).toBeChecked();
+  await expect(page.getByLabel("Scattering ray steps", { exact: true })).toHaveValue("8");
   expect(errors).toEqual([]);
   console.log(
-    "PASS Plan03 editor: preview/authored post separation, graphics-settings access, reusable surface authoring, shader compile/recovery, independent source/uniform drafts, cold reopen and trust reset",
+    "PASS Plan03 editor: preview/authored post separation, graphics-settings access, reusable surface authoring, external-file workflow entry and cold reopen",
   );
 } finally {
   await app?.close();

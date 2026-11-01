@@ -17,16 +17,19 @@ try {
   await page.getByLabel("Game name", { exact: true }).fill("Script Workshop");
   await page.getByRole("button", { name: "Create game", exact: true }).click();
   await page.getByRole("button", { name: "Scripts", exact: true }).click();
-  await page.getByRole("button", { name: "New TypeScript", exact: true }).click();
-  await page
-    .getByLabel("TypeScript source")
-    .fill(
-      `import {Script} from '@pinefall/sdk';\nexport const defaults={speed:2};\nexport default class Test extends Script { start(){ this.ctx.log('script-browser-ok'); } update(dt:number){this.ctx.object.rotation.y+=Number(this.ctx.props.speed)*dt;} }`,
-    );
-  let downloads = 0;
-  page.on("download", () => downloads++);
-  await page.getByLabel("TypeScript source").press("Control+s");
-  expect(downloads).toBe(0);
+  const importSource = async (source: string) => {
+    await page
+      .locator('input[accept=".ts"]')
+      .setInputFiles({
+        name: "CustomScript.ts",
+        mimeType: "text/plain",
+        buffer: Buffer.from(source),
+      });
+  };
+  await importSource(
+    `import {Script} from '@pinefall/sdk'; export const defaults={speed:2}; export default class Test extends Script {start(){this.ctx.log('script-browser-ok');} update(dt:number){this.ctx.object.rotation.y+=Number(this.ctx.props.speed)*dt;}}`,
+  );
+  expect(await page.getByLabel("TypeScript source").count()).toBe(0);
   await page.locator(".entity-row").filter({ hasText: "Player" }).click();
   await page
     .getByLabel("Attach script", { exact: true })
@@ -40,13 +43,10 @@ try {
   await page.getByRole("button", { name: /Console \(/ }).click();
   await expect(page.locator(".console")).toContainText("script-browser-ok");
   await page.getByRole("button", { name: "Scripts", exact: true }).click();
-  await page.screenshot({ path: "docs/scripting-editor.png" });
-  await page
-    .getByLabel("TypeScript source")
-    .fill(
-      `import {Script} from '@pinefall/sdk';export default class Test extends Script {start(){this.ctx.log('changed');}}`,
-    );
-  await page.getByRole("button", { name: "Save script", exact: true }).click();
+  await page.screenshot({ path: "build/external-script-panel.png" });
+  await importSource(
+    `import {Script} from '@pinefall/sdk'; export default class Test extends Script {start(){this.ctx.log('changed');}}`,
+  );
   await expect(page.getByLabel("Allow trusted scripts", { exact: true })).not.toBeChecked();
   // Reloaded scenes retain source/attachments but never retain permission.
   await page.waitForTimeout(600);
@@ -68,10 +68,10 @@ try {
   const after = await page.locator("#stats").textContent();
   const draws = (value: string | null) => Number(value?.match(/(\d+) draws/)?.[1] || 0);
   expect(draws(after)).toBeGreaterThan(draws(before));
-  await page.screenshot({ path: "docs/script-lab-player.png" });
+  await page.screenshot({ path: "build/external-script-player.png" });
   expect(errors).toEqual([]);
   console.log(
-    "PASS editor create/edit/save/attach script, trust gate, real execution, source-change and reload revoke trust; exported player scripts spawn geometry; no page errors",
+    "PASS external-file import/update/attach script, trust gate, real execution, source-change and reload revoke trust; exported player scripts spawn geometry; no page errors",
   );
 } finally {
   await browser.close();

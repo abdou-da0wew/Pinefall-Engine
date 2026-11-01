@@ -1,4 +1,7 @@
-import { ShaderDialog } from "./shader-dialog";
+import { ProjectFilesDialog } from "./project-files-dialog";
+import { FolderSession, type FolderSnapshot } from "../../project/src/folder-session";
+import { DEFAULT_SHADER } from "../../runtime/src/shader-definition";
+import { SCRIPT_TEMPLATE, uniqueScriptName } from "../../scripting/src/template";
 import { PreviewRendering, previewPost, SurfaceDialog } from "./render-controls";
 import { DEFAULT_SURFACE, emptyGraphics } from "../../runtime/src/graphics-definition";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
@@ -152,6 +155,21 @@ function App({
   const [audioOpen, setAudioOpen] = useState(false);
   const [materialEditor, setMaterialEditor] = useState(false);
   const [shaderEditor, setShaderEditor] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [folderSession, setFolderSession] = useState<FolderSession | null>(null);
+  const [repackShortcut, setRepackShortcut] = useState("Mod+Shift+S");
+  useEffect(() => {
+    if (!folderSession) return;
+    void folderSession.api
+      .repackStatus(folderSession.grant.id)
+      .then((v) => setRepackShortcut(v.settings.shortcut))
+      .catch(() => {});
+  }, [folderSession, filesOpen]);
+  const [folderPending, setFolderPending] = useState<FolderSnapshot | null>(null);
+  const folderAbort = useRef<AbortController | null>(null);
+  const folderApplyAbort = useRef<AbortController | null>(null);
+  const folderSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const preloadedScene = useRef<SceneDocument | null>(null);
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
@@ -222,6 +240,21 @@ function App({
     setProjectBusy(true);
     setStatus("Compressing PIF project in worker…");
     try {
+      if (folderSession) {
+        await folderSaveQueue.current.catch(() => {});
+        const cancel = () => void folderSession.api.cancelArchive();
+        controller.signal.addEventListener("abort", cancel, { once: true });
+        try {
+          controller.signal.throwIfAborted();
+          const result = await folderSession.api.repack(folderSession.grant.id);
+          setStatus(
+            result.archive ? "Raw folder PIF backup saved: " + result.archive : "Backup cancelled",
+          );
+        } finally {
+          controller.signal.removeEventListener("abort", cancel);
+        }
+        return;
+      }
       const name = current.current.name;
       const snapshot = cloneScene(current.current);
       if (snapshot.project) {
@@ -319,11 +352,177 @@ function App({
     }
   }
 
+  async function openExternalSource(kind: "script" | "shader" | "scene", id = "") {
+    if (!folderSession || folderSession.boundProjectId !== current.current.project?.id) {
+      setFilesOpen(true);
+      return;
+    }
+    try {
+      await folderSaveQueue.current.catch(() => {});
+      await folderSession.save(current.current);
+      const path =
+        kind === "scene"
+          ? "scene.json"
+          : kind === "script"
+            ? folderSession.layout?.scripts[id]
+            : folderSession.layout?.shaders[id]?.source;
+      if (!path) {
+        setFilesOpen(true);
+        return;
+      }
+      await folderSession.api.openExternal(folderSession.grant.id, path);
+    } catch (error) {
+      setStatus(String(error));
+      setFilesOpen(true);
+    }
+  }
+  async function validateFolder() {
+    if (!folderSession) throw Error("Choose a working project folder first");
+    folderAbort.current?.abort();
+    const controller = new AbortController();
+    folderAbort.current = controller;
+    setFolderPending(null);
+    const snapshot = await folderSession.read(controller.signal);
+    controller.signal.throwIfAborted();
+    setFolderPending(snapshot);
+    setStatus(
+      snapshot.diagnostics.length
+        ? "External files have diagnostics; running code unchanged."
+        : "Disk changes validated; open Project files to Apply explicitly.",
+    );
+  }
+  async function applyFolder(snapshot: FolderSnapshot) {
+    if (!folderSession || playing || loadBusy || !engine.current)
+      throw Error("Stop and wait for the renderer before applying disk changes");
+    const before = current.current;
+    const controller = new AbortController();
+    folderApplyAbort.current = controller;
+    setProjectBusy(true);
+    try {
+      await folderSaveQueue.current.catch(() => {});
+      const layout = await folderSession.accept(snapshot, controller.signal);
+      if (current.current !== before) throw Error("Editor changed during validation; retry Apply");
+      if (snapshot.scene.project?.id !== before.project?.id) {
+        const nextSettings = { ...settings, allowCustomShaders: false };
+        engine.current.applySettings(nextSettings);
+        setSettings(nextSettings);
+      }
+      await engine.current.load(snapshot.scene, {
+        preserveView: true,
+        strictShaders: true,
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
+      if (current.current !== before) throw Error("Editor changed during file application");
+      folderSession.adopt(snapshot, layout);
+      preloadedScene.current = snapshot.scene;
+      history.current.commit(before);
+      current.current = snapshot.scene;
+      setScene(snapshot.scene);
+      setSelected(null);
+      setTrustedSignature(null);
+      setFolderPending(null);
+      setRevision((r) => r + 1);
+      setStatus("Disk changes applied; scripts require explicit trust before Play.");
+    } finally {
+      if (folderApplyAbort.current === controller) folderApplyAbort.current = null;
+      setProjectBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!folderSession) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const changedPaths = new Set<string>();
+    let needsRescan = false;
+    const off = folderSession.api.onChanged((event) => {
+      if (event.id !== folderSession.grant.id) return;
+      if (timer) clearTimeout(timer);
+      for (const path of event.paths) {
+        if (changedPaths.size < 128) changedPaths.add(path);
+        else needsRescan = true;
+      }
+      needsRescan ||= event.rescan;
+      // Every event invalidates older validation, including while the dialog is closed.
+      folderAbort.current?.abort();
+      folderApplyAbort.current?.abort();
+      setFolderPending(null);
+      timer = setTimeout(() => {
+        void (async () => {
+          const relevant = [...changedPaths].filter((p) => !p.endsWith(".pif"));
+          const rescan = needsRescan;
+          changedPaths.clear();
+          needsRescan = false;
+          if (!rescan && !relevant.length) return;
+          let external = rescan;
+          for (const path of relevant) {
+            try {
+              if (
+                (await folderSession.api.hash(folderSession.grant.id, path)) !==
+                folderSession.hashes.get(path)
+              )
+                external = true;
+            } catch {
+              external = true;
+            }
+          }
+          if (!external || !active) return;
+          folderSession.grant.entries = await folderSession.api.inventory(folderSession.grant.id);
+          const controller = new AbortController();
+          folderAbort.current = controller;
+          const snapshot = await folderSession.read(
+            controller.signal,
+            rescan ? undefined : relevant,
+          );
+          if (!active || controller.signal.aborted) return;
+          setFolderPending(snapshot);
+          setStatus(
+            snapshot.diagnostics.length
+              ? "External code has errors; previous runtime retained."
+              : "External files changed. Validate/apply in Project files; nothing executed automatically.",
+          );
+        })().catch((error) => {
+          if (active && !folderAbort.current?.signal.aborted)
+            setStatus("Disk validation: " + String(error));
+        });
+      }, 300);
+    });
+    return () => {
+      active = false;
+      off();
+      clearTimeout(timer);
+      folderAbort.current?.abort();
+      folderApplyAbort.current?.abort();
+      folderSession.dispose();
+    };
+  }, [folderSession]);
+  useEffect(() => {
+    if (!folderSession || folderSession.boundProjectId !== scene.project?.id || playing) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      folderSaveQueue.current = folderSaveQueue.current
+        .catch(() => {})
+        .then(async () => {
+          controller.signal.throwIfAborted();
+          await folderSession.save(scene, controller.signal);
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted)
+            setStatus(
+              "Disk save failed; previous files retained where not committed: " + String(error),
+            );
+        });
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [scene, folderSession, playing]);
   useEffect(() => {
     engine.current?.selectUI(uiSelected);
   }, [uiSelected, revision]);
   function commit(fn: (scene: SceneDocument) => void) {
-    if (playing) return;
+    if (playing || folderApplyAbort.current) return;
     try {
       const next = cloneScene(current.current);
       fn(next);
@@ -406,7 +605,12 @@ function App({
   useEffect(() => {
     current.current = scene;
     let active = true;
-    if (engine.current && ready) {
+    if (engine.current && ready && preloadedScene.current === scene) {
+      preloadedScene.current = null;
+      setLoadedScene(scene);
+      setFailedScene(null);
+      setLoadBusy(false);
+    } else if (engine.current && ready) {
       setLoadBusy(true);
       void engine.current
         .load(scene, { preserveView: engine.current.document?.name === scene.name })
@@ -566,6 +770,22 @@ function App({
         throw Error("Project changed while opening. Retry after finishing your edits.");
       if (engine.current?.playing) throw Error("Stop gameplay before replacing the project");
       next.project ??= newProjectMetadata(next.name);
+      if (isPif && window.engineDesktop?.workspace) {
+        setStatus("Choose an empty working folder for the unpacked PIF project…");
+        const grant = await window.engineDesktop.workspace.choose();
+        if (!grant) throw Error("Working-folder selection cancelled; previous project retained");
+        setFolderSession(null);
+        if (grant.entries.length)
+          throw Error("PIF extraction requires an empty working folder; nothing was overwritten");
+        const session = new FolderSession(window.engineDesktop.workspace, grant);
+        await session.save(next, controller.signal);
+        controller.signal.throwIfAborted();
+        setFolderSession(session);
+        setFolderPending(null);
+      }
+      const safeSettings = { ...settings, allowCustomShaders: false };
+      engine.current?.applySettings(safeSettings);
+      setSettings(safeSettings);
       recoveryBlocked = false;
       setTrustedSignature(null);
       setStatus("Project opened; executable scripts require approval");
@@ -914,6 +1134,16 @@ function App({
           else input?.click();
         },
         editReason,
+      ),
+      addCommand(
+        "folder.repack",
+        "Repack raw working folder",
+        folderSession ? [repackShortcut] : [],
+        saveProject,
+        !folderSession || projectBusy
+          ? "Working folder unavailable or operation in progress"
+          : undefined,
+        { allowTyping: true },
       ),
       addCommand(
         "project.save",
@@ -1354,43 +1584,57 @@ function App({
           </div>
         </Dialog>
       )}
-      {shaderEditor && chosen?.mesh && (
-        <ShaderDialog
-          key={chosen.id}
-          asset={scene.graphics?.shaders?.find((s) => s.id === chosen.mesh?.shader)}
-          trusted={!!settings.allowCustomShaders}
-          onClose={() => setShaderEditor(false)}
-          onDraft={(draft, draftUniforms) => {
-            commit((d) => {
-              const shader = d.graphics?.shaders?.find((s) => s.id === chosen.mesh?.shader);
-              if (shader) {
-                shader.draft = draft;
-                shader.draftUniforms = draftUniforms;
-              }
-            });
+      {(filesOpen || shaderEditor) && (
+        <ProjectFilesDialog
+          scene={scene}
+          session={folderSession}
+          pending={folderPending}
+          onPending={setFolderPending}
+          onSession={setFolderSession}
+          onRepackShortcut={setRepackShortcut}
+          onValidate={validateFolder}
+          onApply={applyFolder}
+          preferredFile={
+            shaderEditor && chosen?.mesh?.shader
+              ? folderSession?.layout?.shaders[chosen.mesh.shader]?.source
+              : folderSession?.layout?.scripts[scriptId]
+          }
+          onClose={() => {
+            folderApplyAbort.current?.abort();
+            setFilesOpen(false);
             setShaderEditor(false);
           }}
-          onCompile={async (source, signal) => {
-            const runtime = engine.current;
-            if (!runtime) throw Error("Renderer unavailable");
-            const next = { ...settings, allowCustomShaders: true };
-            runtime.applySettings(next);
-            setSettings(next);
-            await runtime.graphics.compileShader(chosen.id, source, signal);
-            signal.throwIfAborted();
+          onCreateScript={() => {
+            const id = crypto.randomUUID();
             commit((d) => {
-              d.graphics ??= emptyGraphics();
-              d.graphics.shaders ??= [];
-              const e = d.entities.find((e) => e.id === chosen.id);
-              if (!e?.mesh) throw Error("Shader target removed");
-              const id = e.mesh.shader ?? crypto.randomUUID();
-              const asset = { ...source, id, name: chosen.name + " shader" };
-              const index = d.graphics.shaders.findIndex((s) => s.id === id);
-              if (index < 0) d.graphics.shaders.push(asset);
-              else d.graphics.shaders[index] = asset;
-              e.mesh.shader = id;
+              d.scripts ??= [];
+              d.scripts.push({
+                id,
+                name: uniqueScriptName(d.scripts.map((s) => s.name)),
+                source: SCRIPT_TEMPLATE,
+              });
             });
+            setScriptId(id);
           }}
+          onCreateShader={
+            chosen?.mesh
+              ? () => {
+                  commit((d) => {
+                    const e = d.entities.find((e) => e.id === chosen.id);
+                    if (!e?.mesh || e.mesh.shader) return;
+                    d.graphics ??= emptyGraphics();
+                    d.graphics.shaders ??= [];
+                    const id = crypto.randomUUID();
+                    d.graphics.shaders.push({
+                      ...DEFAULT_SHADER,
+                      id,
+                      name: chosen.name + " shader",
+                    });
+                    e.mesh.shader = id;
+                  });
+                }
+              : undefined
+          }
         />
       )}
       {materialEditor && chosen?.mesh && (
@@ -1586,6 +1830,9 @@ function App({
           </Button>
           {workspace.toolbar}
           <ActionMenu label="Project">
+            <MenuItem disabled={playing || projectBusy} onSelect={() => setFilesOpen(true)}>
+              Project files & external tools…
+            </MenuItem>
             <MenuItem
               disabled={playing || projectBusy || homeBusy}
               onSelect={() => {
@@ -2235,6 +2482,7 @@ function App({
                   patch={patchEntity}
                   onOpen={(id) => {
                     setScriptId(id);
+                    void openExternalSource(id ? "script" : "scene", id);
                     setTab("scripts");
                   }}
                 />
@@ -2275,6 +2523,46 @@ function App({
                         }
                       />
                     </label>
+                    <label>
+                      Shadow updates
+                      <Select
+                        aria-label="Light shadow update mode"
+                        disabled={playing}
+                        value={chosen.light.shadowUpdate ?? "every-frame"}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (e.light)
+                              e.light.shadowUpdate = event.target.value as
+                                | "every-frame"
+                                | "on-change"
+                                | "manual";
+                          })
+                        }
+                      >
+                        {["every-frame", "on-change", "manual"].map((mode) => (
+                          <option key={mode}>{mode}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    {chosen.light.type === "directional" && (
+                      <label>
+                        Directional shadow bounds
+                        <Select
+                          aria-label="Directional shadow bounds"
+                          disabled={playing}
+                          value={chosen.light.shadowFrustum ?? "fixed"}
+                          onChange={(event) =>
+                            patchEntity((e) => {
+                              if (e.light)
+                                e.light.shadowFrustum = event.target.value as "fixed" | "scene";
+                            })
+                          }
+                        >
+                          <option value="fixed">Fixed bounds</option>
+                          <option value="scene">Fit scene bounds</option>
+                        </Select>
+                      </label>
+                    )}
                     <label>
                       Requested shadow size
                       <Select
@@ -2482,6 +2770,91 @@ function App({
                     : "Trust and reload authored shaders"}
                 </Button>
               </Panel>
+              <Panel>
+                <h3>Scene reflection lighting (authored)</h3>
+                <label className="row-field">
+                  PMREM hemisphere environment
+                  <Input
+                    aria-label="PMREM environment"
+                    type="checkbox"
+                    disabled={playing}
+                    checked={!!scene.graphics?.environment}
+                    onChange={(event) =>
+                      commit((d) => {
+                        d.graphics ??= emptyGraphics();
+                        if (event.target.checked)
+                          d.graphics.environment = {
+                            sky: "#b8d7ff",
+                            ground: "#30352a",
+                            intensity: 1,
+                            resolution: 128,
+                          };
+                        else delete d.graphics.environment;
+                      })
+                    }
+                  />
+                </label>
+                {scene.graphics?.environment && (
+                  <>
+                    {(["sky", "ground"] as const).map((key) => (
+                      <label className="row-field" key={key}>
+                        {key}
+                        <ColorPicker
+                          label={"Environment " + key}
+                          value={scene.graphics!.environment![key]}
+                          disabled={playing}
+                          onChange={(color) =>
+                            commit((d) => {
+                              if (d.graphics?.environment) d.graphics.environment[key] = color;
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                    <label>
+                      Environment intensity
+                      <Input
+                        aria-label="Environment intensity"
+                        type="range"
+                        min={0}
+                        max={8}
+                        step={0.1}
+                        disabled={playing}
+                        value={scene.graphics.environment.intensity}
+                        onChange={(event) =>
+                          commit((d) => {
+                            if (d.graphics?.environment)
+                              d.graphics.environment.intensity = Number(event.target.value);
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      PMREM face size
+                      <Select
+                        aria-label="PMREM face size"
+                        disabled={playing}
+                        value={scene.graphics.environment.resolution}
+                        onChange={(event) =>
+                          commit((d) => {
+                            if (d.graphics?.environment)
+                              d.graphics.environment.resolution = Number(event.target.value) as
+                                | 128
+                                | 256;
+                          })
+                        }
+                      >
+                        <option value={128}>128</option>
+                        <option value={256}>256</option>
+                      </Select>
+                    </label>
+                  </>
+                )}
+                <p className="hint">
+                  Filtered linear reflections, shared between staged worlds. Requires floating-point
+                  targets. External HDR image environments are not yet supported.
+                </p>
+              </Panel>
               <PreviewRendering
                 settings={settings}
                 post={previewPost(settings, scene.graphics?.post)}
@@ -2622,6 +2995,8 @@ function App({
             exportText={download}
             selectedId={scriptId}
             onSelect={setScriptId}
+            onOpenFiles={() => setFilesOpen(true)}
+            onOpenSource={() => void openExternalSource("script", scriptId)}
           />
         ) : tab === "assets" ? (
           <div className="asset-content">

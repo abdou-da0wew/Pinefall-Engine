@@ -1,13 +1,13 @@
 {
   "name": "pinefall-engine",
-  "version": "0.6.3-dev.1",
+  "version": "0.6.3-dev.2",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
   "scripts": {
-    "dev": "bun --bun vite --host 0.0.0.0",
-    "build": "bun run check && bun --bun vite build",
-    "typecheck": "tsc --noEmit",
+    "dev": "bun scripts/prepare-language-service.ts && bun --bun vite --host 0.0.0.0",
+    "build": "bun run check && bun scripts/prepare-language-service.ts && bun --bun vite build",
+    "typecheck": "bun node_modules/typescript/bin/tsc --noEmit",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt --write .",
     "check": "bun run typecheck && bun run lint",
@@ -58,7 +58,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sucrase": "3.35.0",
-    "three": "0.185.0"
+    "three": "0.185.0",
+    "typescript-language-service": "npm:typescript@5.9.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

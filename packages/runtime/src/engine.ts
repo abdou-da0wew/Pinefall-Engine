@@ -1,3 +1,5 @@
+import { acquireEnvironment, invalidateEnvironments, type EnvironmentLease } from "./environment";
+import { installDirectionalFit } from "./shadow-fit";
 import { ShaderCompiler, setShaderUniform } from "./shader-runtime";
 import { parseShader, type ShaderSource } from "./shader-definition";
 import {
@@ -41,6 +43,7 @@ import type { SceneDocument, Entity, RenderSettings, Primitive, Vec3 } from "./s
 import { registerBuiltins } from "./behaviors";
 import type { BehaviorFactory, Behavior } from "./behaviors";
 interface WorldResources {
+  environment?: EnvironmentLease;
   animators: Map<string, AnimationGraphPlayer>;
   reservation?: Reservation;
   root: T.Group;
@@ -52,6 +55,7 @@ interface WorldResources {
   beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[];
 }
 function disposeWorld(world: WorldResources) {
+  world.environment?.release();
   for (const animator of world.animators.values()) animator.dispose();
   world.animators.clear();
   world.physics.dispose();
@@ -148,6 +152,10 @@ export class Engine {
   private playSettingsSnapshot?: RenderSettings;
   private runtimeSurfaces = new Map<string, Surface>();
   private contextLost = false;
+  private environmentLease?: EnvironmentLease;
+  private shadowFitFrame = 0;
+  private shadowBoundsFrame = -1;
+  private shadowBounds = new T.Box3();
   private shadowBytes = 0;
   private shadowViews = 0;
   private shadowReasons: string[] = [];
@@ -225,16 +233,23 @@ export class Engine {
           effective: {
             ...structuredClone(post),
             enabled: post.enabled && !engine.dead && !engine.contextLost,
+            scattering:
+              post.enabled && !engine.dead && !engine.contextLost ? post.scattering : undefined,
             bloom: post.enabled && post.bloom && !engine.dead && !engine.contextLost,
             fxaa: post.enabled && post.fxaa && !engine.dead && !engine.contextLost,
           },
           postTargetBytes: engine.effects?.snapshot.targetBytes ?? 0,
           shadowTargetBytes: engine.shadowBytes,
+          environmentTargetBytes: engine.environmentLease?.bytes ?? 0,
           shadowViews: engine.shadowViews,
           reasons: [
             ...engine.shadowReasons,
-            ...(!engine.renderer?.extensions.has("EXT_color_buffer_float") && post.bloom
-              ? ["HDR unavailable: bloom uses an LDR approximation."]
+            ...(engine.document?.graphics?.environment && !engine.environmentLease
+              ? ["PMREM environment unavailable: floating-point render targets are unsupported."]
+              : []),
+            ...(!engine.renderer?.extensions.has("EXT_color_buffer_float") &&
+            (post.bloom || post.scattering)
+              ? ["HDR unavailable: bloom/scattering targets use an LDR approximation."]
               : []),
           ],
           contextLost: engine.contextLost,
@@ -284,7 +299,7 @@ export class Engine {
           if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === id)
             o.castShadow = entity.mesh?.castShadow ?? next.alphaMode !== "blend";
         });
-        engine.invalidateShadows();
+        engine.invalidateShadows(false);
       },
       setLight(id, patch) {
         if (engine.dead) throw Error("Graphics runtime disposed");
@@ -297,9 +312,10 @@ export class Engine {
         applyLight(light, next);
         engine.configureShadows();
       },
-      invalidateShadows() {
+      invalidateShadows(entityId) {
         if (engine.dead) throw Error("Graphics runtime disposed");
-        engine.invalidateShadows();
+        if (entityId && !engine.objects.has(entityId)) throw Error("Shadow target missing");
+        engine.invalidateShadows(true, entityId);
       },
     };
   }
@@ -318,6 +334,7 @@ export class Engine {
     doc: SceneDocument,
     world: WorldResources,
     signal: AbortSignal,
+    strict = false,
   ) {
     if (!e.mesh?.shader) return;
     const source = doc.graphics?.shaders?.find((s) => s.id === e.mesh?.shader);
@@ -338,6 +355,7 @@ export class Engine {
         }
       } catch (error) {
         signal.throwIfAborted();
+        if (strict) throw error;
         material = new T.MeshBasicMaterial({ color: 0xff00ff });
         this.events.emit("error", "Custom shader failed; visible error material: " + String(error));
       }
@@ -369,10 +387,16 @@ export class Engine {
       }
     });
   }
-  private invalidateShadows() {
+  private invalidateShadows(explicit = true, entityId?: string) {
     this.renderer.shadowMap.needsUpdate = true;
-    this.scene.traverse((o) => {
-      if (o instanceof T.Light && "shadow" in o) (o as SceneLight).shadow.needsUpdate = true;
+    (entityId ? this.objects.get(entityId)! : this.scene).traverse((o) => {
+      if (
+        o instanceof T.Light &&
+        "shadow" in o &&
+        (explicit ||
+          (o.userData.pinefallLight as LightDefinition | undefined)?.shadowUpdate !== "manual")
+      )
+        (o as SceneLight).shadow.needsUpdate = true;
     });
   }
   private configureShadows() {
@@ -395,7 +419,8 @@ export class Engine {
         this.shadowReasons.push(label + ": shadows disabled by preview profile/allocation budget");
       if (requested && allowed && side !== size)
         this.shadowReasons.push(label + ": shadow resolution capped to " + side);
-      if (light.castShadow !== allowed || light.shadow.mapSize.x !== side) {
+      const changed = light.castShadow !== allowed || light.shadow.mapSize.x !== side;
+      if (changed) {
         light.shadow.map?.dispose();
         light.shadow.map = null;
       }
@@ -404,8 +429,17 @@ export class Engine {
       if (allowed) {
         this.shadowViews += views;
         this.shadowBytes += bytes;
-        light.shadow.needsUpdate = true;
+        if (changed || !light.shadow.map) light.shadow.needsUpdate = true;
       }
+      if (light instanceof T.DirectionalLight)
+        installDirectionalFit(light, () => {
+          if (this.shadowBoundsFrame !== this.shadowFitFrame) {
+            this.root.updateWorldMatrix(true, true);
+            this.shadowBounds.setFromObject(this.root);
+            this.shadowBoundsFrame = this.shadowFitFrame;
+          }
+          return this.shadowBounds;
+        });
     };
     apply(this.sun, enabled, 1024, "Environment sun");
     this.root.traverse((o) => {
@@ -501,6 +535,12 @@ export class Engine {
       this.last = 0;
       this.effects?.dispose();
       this.effects = null;
+      invalidateEnvironments(this.renderer);
+      this.environmentLease?.release();
+      this.environmentLease = this.document?.graphics?.environment
+        ? acquireEnvironment(this.renderer, this.document.graphics.environment)
+        : undefined;
+      this.scene.environment = this.environmentLease?.texture ?? null;
       this.applySettings(this.settings);
       this.events.emit("render", "WebGL context restored; graphics resources rebuilding");
     };
@@ -690,7 +730,10 @@ export class Engine {
     }
     return m;
   }
-  async load(input: SceneDocument, options: { preserveView?: boolean } = {}) {
+  async load(
+    input: SceneDocument,
+    options: { preserveView?: boolean; strictShaders?: boolean; signal?: AbortSignal } = {},
+  ) {
     const started = performance.now();
     const savedView = options.preserveView
       ? { position: this.camera.position.clone(), target: this.orbit.target.clone() }
@@ -703,6 +746,9 @@ export class Engine {
     this.loadAbort?.abort();
     const controller = new AbortController();
     this.loadAbort = controller;
+    const externalAbort = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", externalAbort, { once: true });
+    if (options.signal?.aborted) externalAbort();
     const staged = new Map<string, ModelLease>();
     let world: WorldResources | undefined;
     let audio: AudioCatalog | undefined;
@@ -765,6 +811,8 @@ export class Engine {
         imported: new Map(),
         beams: [],
       };
+      if (scene.graphics?.environment)
+        world.environment = acquireEnvironment(this.renderer, scene.graphics.environment);
       let slice = performance.now();
       for (const e of scene.entities) {
         controller.signal.throwIfAborted();
@@ -792,7 +840,7 @@ export class Engine {
             );
         }
         this.authoredSurface(e, scene, world);
-        await this.authoredShader(e, scene, world, controller.signal);
+        await this.authoredShader(e, scene, world, controller.signal, options.strictShaders);
         if (performance.now() - slice > 2) {
           await new Promise((resolve) => setTimeout(resolve, 0));
           slice = performance.now();
@@ -812,12 +860,16 @@ export class Engine {
       for (const lease of staged.values()) lease.release();
       this.assetCache.pruneUnused();
       if (generation === this.generation) this.loading = false;
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) {
+        if (options.signal) throw controller.signal.reason;
+        return;
+      }
       this.events.emit("error", "Asset preparation failed; previous world retained", {
         error: String(error),
       });
       throw error;
     } finally {
+      options.signal?.removeEventListener("abort", externalAbort);
       if (this.dead || generation !== this.generation) {
         audio?.dispose();
         audio = undefined;
@@ -844,6 +896,9 @@ export class Engine {
     this.scene.add(this.root);
     for (const [id, object] of world.objects) this.objects.set(id, object);
     this.worldReservation = world.reservation;
+    this.environmentLease = world.environment;
+    this.scene.environment = world.environment?.texture ?? null;
+    this.scene.environmentIntensity = scene.graphics?.environment?.intensity ?? 1;
     this.physics = world.physics;
     this.geometries = world.geometries;
     this.materials = world.materials;
@@ -889,6 +944,7 @@ export class Engine {
   private liveWorld(): WorldResources {
     return {
       reservation: this.worldReservation,
+      environment: this.environmentLease,
       animators: this.animators,
       root: this.root,
       objects: this.objects,
@@ -1311,18 +1367,21 @@ export class Engine {
       }
     }
     if (this.orbit.enabled) this.orbit.update();
-    let visible = 0;
+    let visible = 0,
+      shadowVisibilityChanged = false;
     if (this.document)
       for (const e of this.document.entities) {
         const object = this.objects.get(e.id);
         if (!object) continue;
         object.getWorldPosition(this.follow);
+        const previousVisibility = object.visible;
         object.visible =
           e.enabled &&
           !this.collected.has(e.id) &&
           !(this.playing && this.cameraRig === "first-person" && e.tag === "player") &&
           this.follow.distanceToSquared(this.camera.position) <
             (this.settings.viewDistance + Math.max(...e.transform.scale) * 2) ** 2;
+        if (previousVisibility !== object.visible) shadowVisibilityChanged = true;
         if (object.visible) visible++;
       }
     for (const [key, material] of this.materials)
@@ -1332,6 +1391,8 @@ export class Engine {
         material.uniforms.uTime
       )
         material.uniforms.uTime.value += dt;
+    if (shadowVisibilityChanged || (this.playing && !this.paused)) this.invalidateShadows(false);
+    this.shadowFitFrame++;
     this.renderer.info.reset();
     try {
       if (this.effects) this.effects.draw(dt);

@@ -96,6 +96,19 @@ export class BlobStore {
   async readAsync(ref: string) {
     return this.read(ref);
   }
+  async readRange(ref: string, offset: number, length: number) {
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 0 ||
+      !Number.isSafeInteger(length) ||
+      length < 1 ||
+      length > 1048576
+    )
+      throw Error("Invalid blob range");
+    const bytes = this.data.get(ref);
+    if (!bytes) throw Error("Missing asset blob");
+    return bytes.slice(offset, offset + length);
+  }
   async sizeOf(ref: string) {
     return this.byteLength(ref);
   }
@@ -236,6 +249,22 @@ export class DiskBlobStore extends BlobStore {
       throw Error("Disk asset hash mismatch: " + ref);
     this.known.set(ref, bytes.length);
     return bytes;
+  }
+  override async readRange(ref: string, offset: number, length: number) {
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 0 ||
+      !Number.isSafeInteger(length) ||
+      length < 1 ||
+      length > 1048576
+    )
+      throw Error("Invalid blob range");
+    const stored = await this.get<Uint8Array | Blob>("bytes", ref);
+    if (stored instanceof Blob && stored.size <= MODEL_BYTES)
+      return new Uint8Array(await stored.slice(offset, offset + length).arrayBuffer());
+    if (stored instanceof Uint8Array && stored.length <= MODEL_BYTES)
+      return stored.slice(offset, offset + length);
+    throw Error("Missing or oversized disk asset");
   }
   override async sizeOf(ref: string) {
     const row = await this.get<{ bytes: number }>("metadata", ref);

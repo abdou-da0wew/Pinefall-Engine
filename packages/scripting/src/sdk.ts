@@ -1,5 +1,7 @@
 export type { GraphicsAPI, GraphicsSnapshot } from "../../runtime/src/graphics-api";
 export type {
+  ScatteringSettings,
+  EnvironmentLighting,
   Surface,
   MaterialAsset,
   LightDefinition,
@@ -9,6 +11,7 @@ export type {
 export {
   DEFAULT_SURFACE,
   DEFAULT_POST,
+  DEFAULT_SCATTERING,
   emptyGraphics,
 } from "../../runtime/src/graphics-definition";
 import type { UIAPI } from "../../ui/src/store";

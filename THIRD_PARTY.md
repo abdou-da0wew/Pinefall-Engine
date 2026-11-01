@@ -35,3 +35,7 @@ SOFTWARE.
 ## Shared editor UI primitives (0.6.1)
 
 Pinefall owns its editor components and CSS; this uses the shadcn-style source ownership approach, not the shadcn CLI or a Tailwind runtime. Accessible menus use `@radix-ui/react-dropdown-menu`2.2.1 (MIT). Variants use `class-variance-authority`0.7.1 (Apache-2.0), and class composition uses `clsx`2.1.1 (MIT). Their bundled dependency notices are included in `docs/licenses/ui-primitives-notices.txt`, also shipped in desktop packages. Icons/fonts remain locally bundled. No UI CDN or marketplace network service is required.
+
+## TypeScript semantic diagnostics
+
+The lazy diagnostics worker bundles TypeScript 5.9.3 (npm alias `typescript-language-service`, Microsoft, Apache-2.0), its standard-library declarations, and SDK dependency declarations. The license and third-party notices are shipped under `docs/licenses/typescript-*`. The existing TypeScript 7 project compiler remains separate and is invoked by its explicit package path; diagnostics do not execute project code or plugins.
