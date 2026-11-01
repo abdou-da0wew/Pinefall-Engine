@@ -1,6 +1,6 @@
 # Texture, UV, material-slot and HDR authoring
 
-Implemented in the 0.7.0 source/release candidate. Publication status is tracked separately in [current status](CURRENT-STATUS.md).
+Implemented in 0.7.0. Publication status is tracked separately in [current status](CURRENT-STATUS.md).
 
 ## Authoring workflow
 

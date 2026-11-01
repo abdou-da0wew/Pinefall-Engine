@@ -4,7 +4,7 @@ Reviewed 2026-11-01. Current source version: **0.7.0**. This page supersedes his
 
 ## Publication
 
-**0.7.0 is prepared locally, not pushed or published.** Publication is authorized, but the previously supplied transient GitHub credential is not present in the resumed environment. No replacement credential is requested, no secret is stored in the repository, and no public-release claim is made. The last verified public development release remains [v0.6.3-dev.2](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.3-dev.2); historical stable release: v0.6.2. Their files do not include the subsequent source changes.
+The 0.7.0 release contains the verified implementation and packaged assets described below. The authoritative publication location is [v0.7.0](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.0). Publication verifies asset sizes and SHA-256 digests before making the release public. Earlier local-candidate evidence records preparation status, not a publication receipt. Credentials are used transiently and are not stored in repository files or Git configuration.
 
 ## Implemented software scope
 
@@ -29,4 +29,4 @@ Actual Linux Electron authoring covers disk-backed PNG/HDR imports, UV inspectio
 
 ## Delivery boundary
 
-The outstanding delivery operation is authenticated push/publication, not another advertised partial graphics implementation. The local version/tag/artifacts must not be confused with an existing GitHub release. Historical release notes retain the results of their own versions; unpublished features must not be attributed to those downloads.
+Release packaging and physical acceptance are separate: Windows is packaged but execution-untested, and physical CEDAR/independent acceptance remains owner-deferred. Historical release notes and evidence retain the results of their own checkpoints.

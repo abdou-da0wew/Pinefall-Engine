@@ -1,6 +1,6 @@
 # Pinefall Engine 0.7.0 — graphics authoring and folder workflows
 
-**Local release candidate. Not yet pushed or published.** See [current status](CURRENT-STATUS.md). This version completes the bounded Plan03 software scope and the requested folder-workflow follow-ups; owner-deferred physical acceptance is not claimed.
+**Verified 0.7.0 release artifacts.** See [current status](CURRENT-STATUS.md). This version completes the bounded Plan03 software scope and the requested folder-workflow follow-ups; owner-deferred physical acceptance is not claimed.
 
 ## Included
 
@@ -26,4 +26,4 @@ The release asset set consists of Linux x64 AppImage, Windows x64 ZIP, source ZI
 
 Nearest-interface depth is not multilayer transparent transport. Volumetric shadows use the brightest visible directional light, not point/spot or VSM. Temporal rejection/clamping is not a universal ghost-free guarantee. Custom shaders retain the bounded unlit interface, not arbitrary render passes or sampler uniforms. These are the supported contracts, not hidden completion claims.
 
-All recorded GPU tests use SwiftShader. Physical CEDAR/Windows, listening, hardware timings and independent acceptance remain owner-deferred, unverified and not release blockers. The authenticated publication operation remains outstanding because the previously supplied transient credential is absent from this resumed environment; no replacement token is requested.
+All recorded GPU tests use SwiftShader. Physical CEDAR/Windows, listening, hardware timings and independent acceptance remain owner-deferred, unverified and not release blockers. Publication uses transient authorization and verifies all five release assets before making the release public. The GitHub release page is the authoritative availability record.

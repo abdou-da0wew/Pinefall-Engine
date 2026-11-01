@@ -4,7 +4,7 @@
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**0.7.0 is the local release candidate; publication is not yet complete.** Texture maps, UV inspection/transforms, channel packing, source-guarded material slots, external HDR and advanced depth-aware scattering are implemented alongside the folder-first external-code workflow. See [current status](docs/CURRENT-STATUS.md), [graphics authoring](docs/GRAPHICS-AUTHORING.md), and [0.7.0 release notes](docs/RELEASE-0.7.0.md). The download links below still refer to the last verified public development release, v0.6.3-dev.2.
+**[Pinefall Engine 0.7.0](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.7.0)** contains texture maps, UV inspection/transforms, channel packing, source-guarded material slots, external HDR and advanced depth-aware scattering alongside the folder-first external-code workflow. See [current status](docs/CURRENT-STATUS.md), [graphics authoring](docs/GRAPHICS-AUTHORING.md), and [release notes](docs/RELEASE-0.7.0.md).
 
 **0.6.2 published:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). [Published downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.2).
 
@@ -32,12 +32,12 @@ The [implementation plan](docs/PLAN-0.6.md) was written before coding. The first
 
 The current development pre-release contains unsigned desktop packages, source, release notes and checksums. It does not declare Plan03 complete.
 
-- [Linux x64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage)
-- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-windows-x64.zip)
-- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/Pinefall-Engine-0.6.3-dev.2-source.zip)
-- [SHA-256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.6.3-dev.2/SHA256SUMS-0.6.3-dev.2.txt)
+- [Linux x64 AppImage](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-linux-x64.AppImage)
+- [Windows x64 ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-windows-x64.zip)
+- [Source ZIP](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/Pinefall-Engine-0.7.0-source.zip)
+- [SHA-256 checksums](https://github.com/abdou-da0wew/Pinefall-Engine/releases/download/v0.7.0/SHA256SUMS-0.7.0.txt)
 
-Linux: `chmod +x Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage`, then launch normally (FUSE or the supported extraction route). Windows: extract the complete ZIP and run `Pinefall Engine.exe`. Verify checksums. Packaged Linux passed the workflow suite; Windows execution and physical CEDAR performance remain unverified. Historical workshop downloads remain on their historical release pages.
+Linux: `chmod +x Pinefall-Engine-0.7.0-linux-x64.AppImage`, then launch normally (FUSE or the supported extraction route). Windows: extract the complete ZIP and run `Pinefall Engine.exe`. Verify checksums. Packaged Linux passed the workflow suite; Windows execution and physical CEDAR performance remain unverified. Historical workshop downloads remain on their historical release pages.
 
 ## Documentation
 
@@ -46,7 +46,7 @@ Linux: `chmod +x Pinefall-Engine-0.6.3-dev.2-linux-x64.AppImage`, then launch no
 | [Creating games](docs/CREATING-GAMES.md)     | New Game, GLB import, scene files, headless CLI/API, web export                     |
 | [Scripting and SDK](docs/SCRIPTING.md)       | External TypeScript workflow, semantic diagnostics, attachments, SDK and trust |
 | [Workspace and hierarchy](docs/WORKSPACE.md) | Phosphor icons, docking/resizing, collections, parenting, shortcuts                 |
-| [Release notes](docs/RELEASE-0.6.3-dev.2.md)       | Features, download contents, validation and known limitations                       |
+| [Release notes](docs/RELEASE-0.7.0.md)       | Features, download contents, validation and known limitations                       |
 | [Changelog](CHANGELOG.md)                    | Changes since 0.1.1                                                                 |
 | [Third-party assets](THIRD_PARTY.md)         | Phosphor icon attribution/license                                                   |
 

@@ -41,6 +41,6 @@ Repeated context recovery exposed disposal listeners holding old-context GPU han
 - [HDR/scattering controls](native-hdr-scattering-controls.png)
 - [Production standalone reference](graphics-export.png)
 
-Physical CEDAR/Windows, listening, hardware timings and independent acceptance are owner-deferred, **not passed**. Publication is blocked separately by the absence of the previously supplied transient credential; no replacement credential is requested.
+Physical CEDAR/Windows, listening, hardware timings and independent acceptance are owner-deferred, **not passed**. At this evidence checkpoint publication was blocked by unavailable transient authorization. Subsequent publication status is recorded on the GitHub release page; the software evidence above is unchanged.
 
 Native smoke tests use isolated temporary profiles, avoiding accumulated recents from unrelated runs.
