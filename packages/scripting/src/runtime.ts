@@ -173,11 +173,40 @@ export function createBehaviorSession(
         return value;
       };
       const scope = entity.id + ":" + attachment.id;
-      const audioLive = () => {
+      const audioLive = (kind = "Audio") => {
         if (inactive || host.fixed.pendingDestroy.has(entity.id))
-          throw Error("Audio script scope disposed");
+          throw Error(kind + " script scope disposed");
       };
       const context: ScriptContext = {
+        graphics: {
+          get snapshot() {
+            return host.graphics.snapshot;
+          },
+          setPost(patch) {
+            audioLive("Graphics");
+            host.graphics.setPost(patch);
+          },
+          setPreview(patch) {
+            audioLive("Graphics");
+            host.graphics.setPreview(patch);
+          },
+          setMaterial(id, patch) {
+            audioLive("Graphics");
+            if (host.fixed.pendingDestroy.has(id))
+              throw Error("Graphics target pending destruction");
+            host.graphics.setMaterial(id, patch);
+          },
+          setLight(id, patch) {
+            audioLive("Graphics");
+            if (host.fixed.pendingDestroy.has(id))
+              throw Error("Graphics target pending destruction");
+            host.graphics.setLight(id, patch);
+          },
+          invalidateShadows() {
+            audioLive("Graphics");
+            host.graphics.invalidateShadows();
+          },
+        },
         audio: {
           seek: (handle, seconds) => {
             audioLive();

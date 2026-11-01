@@ -84,7 +84,8 @@ function ColorDialog({
     [hex, setHex] = useState(initial),
     [channels, setChannels] = useState(() => hexToRgb(initial).map(String)),
     [error, setError] = useState(""),
-    [position, setPosition] = useState<PickerBounds | null>(null);
+    [position, setPosition] = useState<PickerBounds | null>(null),
+    [portalHost, setPortalHost] = useState<HTMLElement>(() => document.body);
   const panel = useRef<HTMLDivElement>(null),
     hexInput = useRef<HTMLInputElement>(null);
   const title = useId(),
@@ -110,6 +111,7 @@ function ColorDialog({
     const node = panel.current,
       button = anchor.current;
     if (!node || !button) return;
+    setPortalHost(button.closest("dialog") ?? document.body);
     const place = () =>
       setPosition(
         pickerBounds(
@@ -128,9 +130,11 @@ function ColorDialog({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [anchor]);
-  useEffect(() => {
+  }, [anchor, portalHost]);
+  useLayoutEffect(() => {
     hexInput.current?.focus({ preventScroll: true });
+  }, [portalHost]);
+  useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (
         !panel.current?.contains(event.target as Node) &&
@@ -372,6 +376,6 @@ function ColorDialog({
         </Button>
       </footer>
     </div>,
-    document.body,
+    portalHost,
   );
 }

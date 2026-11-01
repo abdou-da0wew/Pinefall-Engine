@@ -4,7 +4,7 @@
 
 **Create 3D games visually, extend them with TypeScript, and build/test them headlessly.**
 
-**Current development work:** desktop graphics settings without changing the UI appearance, plus larger-model admission. See [implemented behavior and remaining validation](docs/GRAPHICS-AND-LARGE-MODELS-STATUS.md). This is not a published 0.6.3 release.
+**Current development work:** desktop graphics preferences and larger-model admission, plus the [first Plan 03 implementation stage](docs/PLAN03-IMPLEMENTATION.md): scalar PBR/unlit authoring, independent lights/shadow budgets, an ordered post stack and [typed graphics SDK](docs/GRAPHICS-SDK.md). Preview controls remain in Rendering; the UI theme is unchanged. [Large-model and desktop validation limits](docs/GRAPHICS-AND-LARGE-MODELS-STATUS.md). The full Plan 03 is not complete, and this is not a published 0.6.3 release.
 
 **0.6.2 published:** searchable commands (F1), focus-safe shortcuts, scene/UI clipboards, disk-backed encoded assets, lazy model-library placement and actual-project Player preview (Ctrl+F5). [Release notes](docs/RELEASE-0.6.2.md) · [Shortcuts](docs/SHORTCUTS.md) · [Storage and limits](docs/DISK-ASSETS.md). [Published downloads](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/v0.6.2).
 

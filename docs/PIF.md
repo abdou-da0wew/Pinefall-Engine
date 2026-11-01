@@ -1,3 +1,5 @@
+> Development update: the current 0.6.3-dev.0 reader also supports **PIF7** for authored graphics/material/light fields. It writes v7 only when those fields are present; older projects still select their existing format. Published 0.6.2 reads through v6 and cannot open v7. See [graphics SDK and compatibility](GRAPHICS-SDK.md).
+
 # PIF project container — v1–v6 compatibility (0.6.2)
 
 **Current writers select v6 for authored audio, v5 for animator/root-motion data, v4 for recipe-v2/expanded provenance, v3 for legacy provenance and v2 otherwise. Readers support v1–v6. Older releases cannot necessarily open newer formats; keep backups.**

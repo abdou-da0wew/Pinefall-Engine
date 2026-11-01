@@ -1,3 +1,16 @@
+export type { GraphicsAPI, GraphicsSnapshot } from "../../runtime/src/graphics-api";
+export type {
+  Surface,
+  MaterialAsset,
+  LightDefinition,
+  PostSettings,
+  GraphicsDefinition,
+} from "../../runtime/src/graphics-definition";
+export {
+  DEFAULT_SURFACE,
+  DEFAULT_POST,
+  emptyGraphics,
+} from "../../runtime/src/graphics-definition";
 import type { UIAPI } from "../../ui/src/store";
 export { createUIElement, emptyUI } from "../../ui/src/schema";
 export type { UIElement, UIDocument, UIKind, UIStyle } from "../../ui/src/schema";
@@ -25,6 +38,7 @@ export interface AudioAPI {
   setBusGain(bus: import("../../audio/src/voices").Bus, db: number): void;
 }
 export interface ScriptContext {
+  readonly graphics: import("../../runtime/src/graphics-api").GraphicsAPI;
   readonly audio: AudioAPI;
   readonly animation: AnimationAPI;
   readonly ui: UIAPI;

@@ -1,3 +1,4 @@
+import { headlessGraphics } from "../../runtime/src/graphics-headless";
 import { AudioService, AudioCatalog } from "../../audio/src/service";
 import { NullAudioBackend } from "../../audio/src/null";
 import { FixedSimulation } from "../../runtime/src/fixed";
@@ -14,6 +15,7 @@ import type { Behavior, BehaviorFactory, SimulationHost } from "../../runtime/sr
 import { createBehaviorSession } from "../../scripting/src/runtime";
 /** DOM-free simulation: same physics, scene schema and behaviors as the graphical engine. */
 export class HeadlessEngine implements SimulationHost {
+  readonly graphics = headlessGraphics(() => this.document);
   readonly audio = new AudioService(new NullAudioBackend(), (message, data) =>
     this.events.emit("audio", message, data),
   );

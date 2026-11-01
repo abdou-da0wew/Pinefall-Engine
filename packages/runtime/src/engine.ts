@@ -1,3 +1,23 @@
+import {
+  surfaceMaterial,
+  updateSurface,
+  makeLight,
+  applyLight,
+  type SceneLight,
+} from "./graphics-material";
+import {
+  DEFAULT_POST,
+  DEFAULT_SURFACE,
+  parsePost,
+  parseSurface,
+  parseLight,
+  bounded,
+  choice,
+  type Surface,
+  type PostSettings,
+  type LightDefinition,
+} from "./graphics-definition";
+import type { GraphicsAPI, GraphicsSnapshot } from "./graphics-api";
 import { AudioService, AudioCatalog } from "../../audio/src/service";
 import { BrowserAudioBackend } from "../../audio/src/browser";
 import { FixedSimulation } from "./fixed";
@@ -25,7 +45,7 @@ interface WorldResources {
   objects: Map<string, T.Group>;
   physics: PhysicsSystem;
   geometries: Map<Primitive, T.BufferGeometry>;
-  materials: Map<string, T.MeshStandardMaterial>;
+  materials: Map<string, T.Material>;
   imported: Map<string, ModelLease>;
   beams: T.Mesh<T.BufferGeometry, T.ShaderMaterial>[];
 }
@@ -40,6 +60,9 @@ function disposeWorld(world: WorldResources) {
     b.material.dispose();
   }
   world.beams.length = 0;
+  world.root.traverse((o) => {
+    if (o instanceof T.Light && "shadow" in o) (o as SceneLight).shadow.dispose();
+  });
   world.root.clear();
   world.objects.clear();
   for (const g of world.geometries.values()) g.dispose();
@@ -49,6 +72,7 @@ function disposeWorld(world: WorldResources) {
   world.reservation?.release();
 }
 export interface Stats {
+  graphics?: GraphicsSnapshot;
   fps: number;
   drawCalls: number;
   triangles: number;
@@ -115,6 +139,189 @@ export class Engine {
   readonly gizmo: TransformControls;
   physics: PhysicsSystem;
   document!: SceneDocument;
+  readonly graphics: GraphicsAPI = this.createGraphicsAPI();
+  private runtimePost?: PostSettings;
+  private playSettingsSnapshot?: RenderSettings;
+  private runtimeSurfaces = new Map<string, Surface>();
+  private contextLost = false;
+  private shadowBytes = 0;
+  private shadowViews = 0;
+  private shadowReasons: string[] = [];
+  private shadowAllocation?: Reservation;
+  private requestedPost(): PostSettings {
+    return (
+      this.runtimePost ??
+      this.settings.previewPost ??
+      this.document?.graphics?.post ?? {
+        ...DEFAULT_POST,
+        enabled: this.settings.post,
+        bloom: this.settings.glow,
+        threshold: this.settings.threshold,
+        strength: this.settings.strength,
+        exposure: this.settings.exposure,
+      }
+    );
+  }
+  private createGraphicsAPI(): GraphicsAPI {
+    // oxlint-disable-next-line typescript/no-this-alias -- Stable API accessor captures its owning runtime.
+    const engine = this;
+    return {
+      get snapshot() {
+        const post = engine.requestedPost();
+        return {
+          available: !engine.dead && !engine.contextLost,
+          backend: "webgl2" as const,
+          adapter: engine.adapter,
+          hdr: engine.renderer?.extensions.has("EXT_color_buffer_float") ?? false,
+          requested: structuredClone(post),
+          effective: {
+            ...structuredClone(post),
+            enabled: post.enabled && !engine.contextLost,
+            bloom: post.enabled && post.bloom && !engine.contextLost,
+            fxaa: post.enabled && post.fxaa && !engine.contextLost,
+          },
+          postTargetBytes: engine.effects?.snapshot.targetBytes ?? 0,
+          shadowTargetBytes: engine.shadowBytes,
+          shadowViews: engine.shadowViews,
+          reasons: [
+            ...engine.shadowReasons,
+            ...(!engine.renderer?.extensions.has("EXT_color_buffer_float") && post.bloom
+              ? ["HDR unavailable: bloom uses an LDR approximation."]
+              : []),
+          ],
+          contextLost: engine.contextLost,
+        };
+      },
+      setPost(patch) {
+        engine.runtimePost = parsePost({ ...engine.requestedPost(), ...patch });
+        engine.applySettings(engine.settings);
+      },
+      setPreview(patch) {
+        if (
+          Object.keys(patch).some(
+            (k) => !["preset", "renderScale", "shadows", "viewDistance"].includes(k),
+          )
+        )
+          throw Error("Unsupported preview setting");
+        engine.applySettings({ ...engine.settings, ...patch });
+      },
+      setMaterial(id, patch) {
+        const entity = engine.document.entities.find((e) => e.id === id);
+        if (!entity?.mesh || !engine.objects.has(id)) throw Error("Material target missing");
+        const base = engine.runtimeSurfaces.get(id) ??
+          entity.mesh.surface ??
+          engine.document.graphics?.materials.find((m) => m.id === entity.mesh?.material) ?? {
+            ...DEFAULT_SURFACE,
+            color: entity.mesh.color,
+          };
+        const next = parseSurface({ ...base, ...patch });
+        const old = engine.materials.get("runtime:" + id);
+        const compatible =
+          (next.family === "pbr" && old instanceof T.MeshStandardMaterial) ||
+          (next.family === "unlit" && old instanceof T.MeshBasicMaterial);
+        const material = compatible
+          ? (old as T.MeshStandardMaterial | T.MeshBasicMaterial)
+          : surfaceMaterial(next);
+        if (compatible) updateSurface(material, next);
+        engine.assignSurface(id, material, engine.liveWorld());
+        if (old !== material) old?.dispose();
+        engine.materials.set("runtime:" + id, material);
+        engine.runtimeSurfaces.set(id, next);
+        engine.objects.get(id)?.traverse((o) => {
+          if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === id)
+            o.castShadow = entity.mesh?.castShadow ?? next.alphaMode !== "blend";
+        });
+        engine.invalidateShadows();
+      },
+      setLight(id, patch) {
+        const object = engine.objects.get(id),
+          light = object?.children.find((o) => o instanceof T.Light) as SceneLight | undefined;
+        if (!light) throw Error("Light target missing");
+        const next = parseLight({ ...light.userData.pinefallLight, ...patch });
+        if (next.type !== light.userData.pinefallLight.type)
+          throw Error("Changing runtime light type requires an authored scene edit");
+        applyLight(light, next);
+        engine.configureShadows();
+      },
+      invalidateShadows() {
+        engine.invalidateShadows();
+      },
+    };
+  }
+  private assignSurface(id: string, material: T.Material, world: WorldResources) {
+    world.objects.get(id)?.traverse((o) => {
+      if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === id)
+        o.material = material;
+    });
+  }
+  private authoredSurface(e: Entity, doc: SceneDocument, world: WorldResources) {
+    const surface =
+      e.mesh?.surface ?? doc.graphics?.materials.find((m) => m.id === e.mesh?.material);
+    if (surface) {
+      const material = surfaceMaterial(surface);
+      world.materials.set("surface:" + e.id, material);
+      this.assignSurface(e.id, material, world);
+    }
+    world.objects.get(e.id)?.traverse((o) => {
+      if (o instanceof T.Mesh && !o.userData.volume && o.userData.entityId === e.id) {
+        o.castShadow = e.mesh?.castShadow ?? surface?.alphaMode !== "blend";
+        o.receiveShadow = e.mesh?.receiveShadow ?? true;
+      }
+    });
+  }
+  private invalidateShadows() {
+    this.renderer.shadowMap.needsUpdate = true;
+    this.scene.traverse((o) => {
+      if (o instanceof T.Light && "shadow" in o) (o as SceneLight).shadow.needsUpdate = true;
+    });
+  }
+  private configureShadows() {
+    const enabled = this.settings.shadows ?? this.settings.preset === "high";
+    this.renderer.shadowMap.enabled = enabled;
+    this.shadowBytes = 0;
+    this.shadowViews = 0;
+    this.shadowReasons = [];
+    const budget = this.settings.preset === "low" ? 1 : 8;
+    const apply = (light: SceneLight, requested: boolean, size: number, label: string) => {
+      const views = light instanceof T.PointLight ? 6 : 1;
+      const side = Math.min(size, this.settings.preset === "low" ? 512 : 1024);
+      const bytes = side * side * 8 * (light instanceof T.PointLight ? 8 : 1);
+      const allowed =
+        enabled &&
+        requested &&
+        this.shadowViews + views <= budget &&
+        this.shadowBytes + bytes <= 64 * 1048576;
+      if (requested && !allowed)
+        this.shadowReasons.push(label + ": shadows disabled by preview profile/allocation budget");
+      if (requested && allowed && side !== size)
+        this.shadowReasons.push(label + ": shadow resolution capped to " + side);
+      if (light.castShadow !== allowed || light.shadow.mapSize.x !== side) {
+        light.shadow.map?.dispose();
+        light.shadow.map = null;
+      }
+      light.castShadow = allowed;
+      light.shadow.mapSize.set(side, side);
+      if (allowed) {
+        this.shadowViews += views;
+        this.shadowBytes += bytes;
+        light.shadow.needsUpdate = true;
+      }
+    };
+    apply(this.sun, enabled, 1024, "Environment sun");
+    this.root.traverse((o) => {
+      if (o instanceof T.Light && "shadow" in o) {
+        const light = o as SceneLight;
+        const definition = light.userData.pinefallLight as LightDefinition;
+        apply(
+          light,
+          definition?.castShadow ?? false,
+          definition?.shadowSize ?? 512,
+          light.parent?.name ?? "Light",
+        );
+      }
+    });
+    (this.shadowAllocation ??= assetMemory.reserve(0, "shadow-targets")).resize(this.shadowBytes);
+  }
   settings: RenderSettings = { ...LOW };
   loading = false;
   playing = false;
@@ -138,7 +345,7 @@ export class Engine {
   private ambient = new T.HemisphereLight("#c4ddd7", "#405344", 2);
   private sun = new T.DirectionalLight("#ffe1b0", 2);
   private geometries = new Map<Primitive, T.BufferGeometry>();
-  private materials = new Map<string, T.MeshStandardMaterial>();
+  private materials = new Map<string, T.Material>();
   private imported = new Map<string, ModelLease>();
   readonly assetCache = new ModelCache();
   private loadAbort?: AbortController;
@@ -177,6 +384,26 @@ export class Engine {
       alpha: false,
       powerPreference: "default",
       failIfMajorPerformanceCaveat: false,
+    });
+    const lost = (event: Event) => {
+      event.preventDefault();
+      this.contextLost = true;
+      this.input.clear();
+      this.events.emit("render", "WebGL context lost; rendering suspended; authored data retained");
+    };
+    const restored = () => {
+      this.contextLost = false;
+      this.last = 0;
+      this.effects?.dispose();
+      this.effects = null;
+      this.applySettings(this.settings);
+      this.events.emit("render", "WebGL context restored; graphics resources rebuilding");
+    };
+    canvas.addEventListener("webglcontextlost", lost);
+    canvas.addEventListener("webglcontextrestored", restored);
+    this.cleanup.push(() => {
+      canvas.removeEventListener("webglcontextlost", lost);
+      canvas.removeEventListener("webglcontextrestored", restored);
     });
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -292,7 +519,7 @@ export class Engine {
       }
     });
     this.listen(document, "visibilitychange", () => {
-      if (document.hidden) {
+      if (document.hidden || this.contextLost) {
         this.paused = true;
         this.input.clear();
         void this.audio.suspend().catch((error) => this.events.emit("error", String(error)));
@@ -462,6 +689,7 @@ export class Engine {
               new AnimationGraphPlayer(lease.root, e.animator, asset.import!),
             );
         }
+        this.authoredSurface(e, scene, world);
         if (performance.now() - slice > 2) {
           await new Promise((resolve) => setTimeout(resolve, 0));
           slice = performance.now();
@@ -500,6 +728,8 @@ export class Engine {
     }
     if (!world) return;
     // No awaited work between generation check and pointer/ownership swap.
+    if (this.playing && this.playSettingsSnapshot) this.settings = this.playSettingsSnapshot;
+    this.playSettingsSnapshot = undefined;
     this.playing = false;
     this.paused = false;
     this.input.clear();
@@ -518,6 +748,8 @@ export class Engine {
     this.animators = world.animators;
     this.beams = world.beams;
     this.document = cloneScene(scene);
+    this.runtimePost = undefined;
+    this.runtimeSurfaces.clear();
     this.ui.load(scene.ui);
     this.scene.background = new T.Color(scene.environment.background);
     this.scene.fog = new T.Fog(
@@ -585,16 +817,15 @@ export class Engine {
       object.add(mesh);
     }
     if (e.light) {
-      const light =
-        e.light.type === "spot"
-          ? new T.SpotLight(e.light.color, e.light.intensity, e.light.range, 0.5, 0.6, 2)
-          : new T.PointLight(e.light.color, e.light.intensity, e.light.range, 2);
+      const light = makeLight(e.light);
       object.add(light);
-      if (light instanceof T.SpotLight) {
+      if (light instanceof T.SpotLight || light instanceof T.DirectionalLight) {
         const target = new T.Object3D();
         target.position.set(0, -1, 0);
         object.add(target);
         light.target = target;
+      }
+      if (light instanceof T.SpotLight) {
         const volume = beam(e.light.color);
         volume.position.y = -e.light.range * 0.35;
         volume.scale.set(e.light.range * 0.4, e.light.range * 0.7, e.light.range * 0.4);
@@ -658,6 +889,7 @@ export class Engine {
     const createBehavior = createBehaviorSession(this, this.registry, this.allowSceneScripts);
     this.behaviorBuilder = createBehavior;
     this.playSnapshot = cloneScene(this.document);
+    this.playSettingsSnapshot = structuredClone(this.settings);
     this.fixed.clear();
     this.audio.reset(true);
     this.playing = true;
@@ -746,6 +978,8 @@ export class Engine {
         });
         this.objects.get(e.id)!.add(lease.root);
       }
+      this.authoredSurface(e, this.document, this.liveWorld());
+      this.configureShadows();
       if (animator) this.animators.set(e.id, animator);
     } catch (error) {
       animator?.dispose();
@@ -804,10 +1038,19 @@ export class Engine {
       this.animators.delete(key);
       this.imported.get(key)?.release();
       this.imported.delete(key);
+      this.objects.get(key)?.traverse((o) => {
+        if (o instanceof T.Light && "shadow" in o) (o as SceneLight).shadow.dispose();
+      });
+      for (const prefix of ["runtime:", "surface:"]) {
+        this.materials.get(prefix + key)?.dispose();
+        this.materials.delete(prefix + key);
+      }
+      this.runtimeSurfaces.delete(key);
       this.objects.get(key)?.removeFromParent();
       this.objects.delete(key);
     }
     this.document.entities = this.document.entities.filter((e) => !ids.has(e.id));
+    this.configureShadows();
   }
   spawnBox() {
     if (!this.playing || this.document.entities.length >= 200) return;
@@ -842,20 +1085,33 @@ export class Engine {
     this.events.emit("physics", "Applied impulses to dynamic bodies");
   }
   applySettings(settings: RenderSettings) {
+    choice(settings.preset, ["low", "high"]);
+    bounded(settings.viewDistance, 1, 500);
+    bounded(settings.renderScale ?? 1, 0.25, 1);
+    if (settings.shadows !== undefined && typeof settings.shadows !== "boolean")
+      throw Error("Invalid shadow preview flag");
+    if (settings.previewPost) parsePost(settings.previewPost);
     this.settings = { ...settings };
-    this.renderer.shadowMap.enabled = settings.preset === "high";
-    this.sun.castShadow = settings.preset === "high";
-    this.sun.shadow.needsUpdate = true;
+    this.configureShadows();
+    const post = parsePost(this.requestedPost());
+    this.renderer.toneMapping = {
+      aces: T.ACESFilmicToneMapping,
+      neutral: T.NeutralToneMapping,
+      reinhard: T.ReinhardToneMapping,
+      none: T.LinearToneMapping, // No artistic curve; retain linear exposure gain.
+    }[post.toneMapping];
+    this.renderer.toneMappingExposure = post.exposure;
     for (const b of this.beams) {
       b.visible = settings.volumetrics;
       b.material.uniforms.opacity.value = settings.beamOpacity;
     }
-    if (settings.post && !this.effects)
+    if (post.enabled && !this.effects)
       this.effects = new Effects(this.renderer, this.scene, this.camera);
-    if (!settings.post && this.effects) {
+    if (!post.enabled && this.effects) {
       this.effects.dispose();
       this.effects = null;
     }
+    this.effects?.configure(post);
     this.resize();
     this.events.emit("render", "Applied " + settings.preset + " preset", {
       post: settings.post,
@@ -871,8 +1127,8 @@ export class Engine {
         cap[0] / Math.max(1, rect.width),
         cap[1] / Math.max(1, rect.height),
       );
-    const width = Math.max(1, Math.round(rect.width * ratio)),
-      height = Math.max(1, Math.round(rect.height * ratio));
+    const width = Math.max(1, Math.round(rect.width * ratio * (this.settings.renderScale ?? 1))),
+      height = Math.max(1, Math.round(rect.height * ratio * (this.settings.renderScale ?? 1)));
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(width, height, false);
     this.camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
@@ -951,7 +1207,7 @@ export class Engine {
       }
     this.renderer.info.reset();
     try {
-      if (this.effects) this.effects.draw(dt, this.settings);
+      if (this.effects) this.effects.draw(dt);
       else this.renderer.render(this.scene, this.camera);
     } catch (error) {
       this.events.emit("error", "Render failed: " + String(error));
@@ -962,6 +1218,7 @@ export class Engine {
     this.hudClock += dt;
     if (this.hudClock >= 0.5) {
       this.options.onStats?.({
+        graphics: this.graphics.snapshot,
         fps: this.frames / this.elapsed,
         frameMs: performance.now() - start,
         drawCalls: this.renderer.info.render.calls,
@@ -993,6 +1250,8 @@ export class Engine {
     this.behaviors.clear();
     this.fixed.clear();
     disposeWorld(this.liveWorld());
+    this.runtimeSurfaces.clear();
+    this.runtimePost = undefined;
   }
   dispose() {
     this.loadAbort?.abort();
@@ -1009,6 +1268,7 @@ export class Engine {
     void this.audio.dispose();
     this.uiRenderer.dispose();
     this.ui.dispose();
+    this.shadowAllocation?.release();
     this.sun.shadow.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();

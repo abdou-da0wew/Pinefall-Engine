@@ -97,6 +97,23 @@ function base64(bytes: Uint8Array) {
     s += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return btoa(s);
 }
+function needsGraphicsFormat(scene: SceneDocument) {
+  return (
+    !!scene.graphics ||
+    scene.entities.some(
+      (e) =>
+        e.mesh?.surface ||
+        e.mesh?.material ||
+        e.mesh?.castShadow !== undefined ||
+        e.mesh?.receiveShadow !== undefined ||
+        (e.light &&
+          (e.light.type === "directional" ||
+            Object.keys(e.light).some(
+              (k) => !["type", "color", "intensity", "range"].includes(k),
+            ))),
+    )
+  );
+}
 export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8Array>) {
   const read = (data: string) => resources?.get(data) ?? fromDataURI(data);
   const checked = parseScene(resources ? scene : materializeScene(scene)),
@@ -156,24 +173,28 @@ export function projectFiles(scene: SceneDocument, resources?: Map<string, Uint8
     encoder.encode(
       JSON.stringify({
         format: "pinefall-project",
-        version: checked.audio
-          ? 6
-          : checked.version === 3 || checked.entities.some((e) => e.animator)
-            ? 5
-            : checked.assets.some((a) => a.import?.version === 2)
-              ? 4
-              : checked.assets.some((a) => a.import)
-                ? 3
-                : 2,
-        minimumReader: checked.audio
-          ? 6
-          : checked.version === 3 || checked.entities.some((e) => e.animator)
-            ? 5
-            : checked.assets.some((a) => a.import?.version === 2)
-              ? 4
-              : checked.assets.some((a) => a.import)
-                ? 3
-                : 2,
+        version: needsGraphicsFormat(checked)
+          ? 7
+          : checked.audio
+            ? 6
+            : checked.version === 3 || checked.entities.some((e) => e.animator)
+              ? 5
+              : checked.assets.some((a) => a.import?.version === 2)
+                ? 4
+                : checked.assets.some((a) => a.import)
+                  ? 3
+                  : 2,
+        minimumReader: needsGraphicsFormat(checked)
+          ? 7
+          : checked.audio
+            ? 6
+            : checked.version === 3 || checked.entities.some((e) => e.animator)
+              ? 5
+              : checked.assets.some((a) => a.import?.version === 2)
+                ? 4
+                : checked.assets.some((a) => a.import)
+                  ? 3
+                  : 2,
         scene: "scene.json",
         project: metadata,
       }),
@@ -213,7 +234,7 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
   const manifest = JSON.parse(decoder.decode(get("project.json")));
   if (
     manifest.format !== "pinefall-project" ||
-    ![1, 2, 3, 4, 5, 6].includes(manifest.version) ||
+    ![1, 2, 3, 4, 5, 6, 7].includes(manifest.version) ||
     manifest.scene !== "scene.json"
   )
     throw Error("Unsupported PIF manifest");
@@ -250,6 +271,8 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
     scene.entities.some((e: Record<string, unknown>) => e.animator !== undefined)
   )
     throw Error("Animator definitions require PIF v5");
+  if (needsGraphicsFormat(scene) && manifest.version < 7)
+    throw Error("Graphics definitions require PIF v7");
   if (scene.version === 3 && manifest.version < 5) throw Error("Scene v3 requires PIF v5");
   if (scene.audio !== undefined) {
     if (manifest.version < 6) throw Error("Authored audio requires PIF v6");
@@ -325,7 +348,7 @@ async function decodeFiles(files: Map<string, Uint8Array>): Promise<SceneDocumen
   if (refs.size && scene.version !== 3) scene.version = 2;
   return parseScene(scene);
 }
-export const PIF_VERSION = 6;
+export const PIF_VERSION = 7;
 export async function sha256(bytes: Uint8Array) {
   return [
     ...new Uint8Array(
@@ -370,7 +393,8 @@ export async function sceneFromFiles(
     if (files.has("integrity.json")) throw Error("Unexpected legacy integrity metadata");
     return decodeFiles(files);
   }
-  if (![2, 3, 4, 5, 6].includes(manifest.version)) throw Error("Unsupported PIF manifest version");
+  if (![2, 3, 4, 5, 6, 7].includes(manifest.version))
+    throw Error("Unsupported PIF manifest version");
   const proofBytes = files.get("integrity.json");
   if (!proofBytes || proofBytes.length > 32768) throw Error("Missing/oversized integrity proof");
   const proof = JSON.parse(decoder.decode(proofBytes));

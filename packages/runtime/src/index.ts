@@ -17,3 +17,21 @@ export { Events } from "./events";
 export type { ScriptAsset, ScriptAttachment, ScriptValue } from "./schema";
 
 export type { Collection } from "./schema";
+
+export {
+  DEFAULT_POST,
+  DEFAULT_SURFACE,
+  emptyGraphics,
+  parsePost,
+  parseSurface,
+  parseLight,
+  parseGraphicsDefinition,
+} from "./graphics-definition";
+export type {
+  Surface,
+  MaterialAsset,
+  PostSettings,
+  GraphicsDefinition,
+  LightDefinition,
+} from "./graphics-definition";
+export type { GraphicsAPI, GraphicsSnapshot } from "./graphics-api";

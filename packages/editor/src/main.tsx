@@ -1,3 +1,5 @@
+import { PreviewRendering, previewPost, SurfaceDialog } from "./render-controls";
+import { DEFAULT_SURFACE, emptyGraphics } from "../../runtime/src/graphics-definition";
 import { ARCHIVE_BYTES } from "../../assets/src/limits";
 import { openLocalSnapshot } from "../../project/src/local-snapshot";
 import { CommandPalette } from "./command-palette";
@@ -36,7 +38,7 @@ import { ScriptPanel, ScriptAttachments } from "./scripting";
 import { hasSceneScripts } from "../../scripting/src/runtime";
 import { createGame, placeModel } from "../../project/src";
 /* oxlint-disable react/refs -- Event-handler closures access runtime refs; no React Compiler is used. History is revision-driven. */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/dm-sans/400.css";
 import "@fontsource/dm-sans/500.css";
@@ -113,7 +115,7 @@ function App({
   const [homeBusy, setHomeBusy] = useState(false),
     [preferencesOpen, setPreferencesOpen] = useState(false),
     [importSettingsOpen, setImportSettingsOpen] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!homeBusy) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -147,6 +149,7 @@ function App({
   const [trustedSignature, setTrustedSignature] = useState<string | null>(null),
     [scriptId, setScriptId] = useState("");
   const [audioOpen, setAudioOpen] = useState(false);
+  const [materialEditor, setMaterialEditor] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false),
     [gameName, setGameName] = useState("My New Game"),
     [gameStarter, setGameStarter] = useState("blank");
@@ -764,7 +767,16 @@ function App({
         (prefab.collections || []).map((c) => [c.id, crypto.randomUUID()]),
       );
       commit((d) => {
-        d.version = 2;
+        d.version = d.version === 3 || prefab.version === 3 ? 3 : 2;
+        const materialMap = new Map<string, string>();
+        if (prefab.graphics?.materials.length) {
+          d.graphics ??= emptyGraphics();
+          for (const material of prefab.graphics.materials) {
+            const id = crypto.randomUUID();
+            materialMap.set(material.id, id);
+            d.graphics.materials.push({ ...material, id });
+          }
+        }
         if (prefab.collections?.length) {
           d.collections ??= [];
           d.collections.push(
@@ -784,6 +796,7 @@ function App({
         for (const e of prefab.entities) {
           const item = structuredClone(e);
           item.id = mapping.get(e.id)!;
+          if (item.mesh?.material) item.mesh.material = materialMap.get(item.mesh.material)!;
           item.parent = e.parent ? mapping.get(e.parent) : undefined;
           item.collection = e.collection ? collectionMap.get(e.collection) : undefined;
           d.entities.push(item);
@@ -1328,6 +1341,33 @@ function App({
           </div>
         </Dialog>
       )}
+      {materialEditor && chosen?.mesh && (
+        <SurfaceDialog
+          key={chosen.id}
+          initial={
+            chosen.mesh.surface ??
+            scene.graphics?.materials.find((m) => m.id === chosen.mesh?.material) ?? {
+              ...DEFAULT_SURFACE,
+              color: chosen.mesh.color,
+            }
+          }
+          onClose={() => setMaterialEditor(false)}
+          onApply={(surface, reusable) => {
+            commit((d) => {
+              const e = d.entities.find((e) => e.id === chosen.id);
+              if (!e?.mesh) return;
+              if (reusable) {
+                d.graphics ??= emptyGraphics();
+                const id = crypto.randomUUID();
+                d.graphics.materials.push({ ...surface, id, name: chosen.name + " material" });
+                e.mesh.material = id;
+                delete e.mesh.surface;
+              } else e.mesh.surface = surface;
+            });
+            setMaterialEditor(false);
+          }}
+        />
+      )}
       {preferencesOpen && <SettingsDialog onClose={() => setPreferencesOpen(false)} />}
       {importSettingsOpen && (
         <Dialog
@@ -1683,7 +1723,7 @@ function App({
           <div className="viewport-badge">
             <span className="dot" />
             {settings.preset === "low" ? "LOW / LEGACY GPU" : "HIGH / OPTIONAL FX"}
-            <small>{settings.volumetrics ? "BEAM VOLUMES ON" : "VOLUMETRICS OFF"}</small>
+            <small>{settings.volumetrics ? "FAKE BEAMS ON" : "FAKE BEAMS OFF"}</small>
           </div>
           {!playing && ready && !scene.ui?.elements.length && (
             <div className="scene-caption">
@@ -1871,8 +1911,74 @@ function App({
                         }
                       />
                     </label>
+                    <label>
+                      Reusable material
+                      <Select
+                        aria-label="Reusable material"
+                        disabled={playing}
+                        value={chosen.mesh.material ?? ""}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (e.mesh) {
+                              e.mesh.material = event.target.value || undefined;
+                              delete e.mesh.surface;
+                            }
+                          })
+                        }
+                      >
+                        <option value="">Original / imported material</option>
+                        {scene.graphics?.materials.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    {(["castShadow", "receiveShadow"] as const).map((key) => (
+                      <label className="row-field" key={key}>
+                        {key === "castShadow" ? "Cast shadow" : "Receive shadow"}
+                        <Input
+                          type="checkbox"
+                          aria-label={
+                            key === "castShadow" ? "Mesh casts shadow" : "Mesh receives shadow"
+                          }
+                          disabled={playing}
+                          checked={
+                            chosen.mesh?.[key] ??
+                            (key === "receiveShadow" ||
+                              (
+                                chosen.mesh?.surface ??
+                                scene.graphics?.materials.find(
+                                  (m) => m.id === chosen.mesh?.material,
+                                )
+                              )?.alphaMode !== "blend")
+                          }
+                          onChange={(event) =>
+                            patchEntity((e) => {
+                              if (e.mesh) e.mesh[key] = event.target.checked;
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                    <Button disabled={playing} onClick={() => setMaterialEditor(true)}>
+                      Edit material surface…
+                    </Button>
+                    {chosen.mesh.surface && (
+                      <Button
+                        disabled={playing}
+                        onClick={() =>
+                          patchEntity((e) => {
+                            if (e.mesh) delete e.mesh.surface;
+                          })
+                        }
+                      >
+                        Remove instance surface override
+                      </Button>
+                    )}
                     <small className="hint">
-                      Shared geometry & materials · standard lit shading
+                      Instance-safe scalar overrides. Imported texture/UV authoring is a later Plan
+                      03 gate.
                     </small>
                   </Panel>
                 )}
@@ -2070,6 +2176,108 @@ function App({
                     <h3>
                       <Icon name="light" /> Light
                     </h3>
+                    <label>
+                      Light type
+                      <Select
+                        aria-label="Light type"
+                        disabled={playing}
+                        value={chosen.light.type}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (e.light)
+                              e.light.type = event.target.value as "directional" | "point" | "spot";
+                          })
+                        }
+                      >
+                        {["directional", "point", "spot"].map((type) => (
+                          <option key={type}>{type}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label className="row-field">
+                      Cast shadow
+                      <Input
+                        aria-label="Light casts shadow"
+                        type="checkbox"
+                        disabled={playing}
+                        checked={chosen.light.castShadow ?? false}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (e.light) e.light.castShadow = event.target.checked;
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Requested shadow size
+                      <Select
+                        aria-label="Light shadow size"
+                        disabled={playing}
+                        value={chosen.light.shadowSize ?? 512}
+                        onChange={(event) =>
+                          patchEntity((e) => {
+                            if (e.light)
+                              e.light.shadowSize = Number(event.target.value) as 512 | 1024 | 2048;
+                          })
+                        }
+                      >
+                        {[512, 1024, 2048].map((size) => (
+                          <option key={size}>{size}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    {chosen.light.type === "spot" && (
+                      <>
+                        {num(
+                          "Spot cone degrees",
+                          chosen.light.angle ?? 28.65,
+                          (v) =>
+                            patchEntity((e) => {
+                              if (e.light) e.light.angle = v;
+                            }),
+                          1,
+                          89,
+                        )}
+                        {num(
+                          "Spot penumbra",
+                          chosen.light.penumbra ?? 0.6,
+                          (v) =>
+                            patchEntity((e) => {
+                              if (e.light) e.light.penumbra = v;
+                            }),
+                          0,
+                          1,
+                          0.05,
+                        )}
+                      </>
+                    )}
+                    {num(
+                      "Shadow bias",
+                      chosen.light.bias ?? -0.0005,
+                      (v) =>
+                        patchEntity((e) => {
+                          if (e.light) e.light.bias = v;
+                        }),
+                      -0.01,
+                      0.01,
+                      0.0001,
+                    )}
+                    {num(
+                      "Shadow normal bias",
+                      chosen.light.normalBias ?? 0.02,
+                      (v) =>
+                        patchEntity((e) => {
+                          if (e.light) e.light.normalBias = v;
+                        }),
+                      0,
+                      1,
+                      0.01,
+                    )}
+                    <small>
+                      Point/spot intensity is candela; directional intensity follows Three.js
+                      irradiance convention. Range is metres. Preview profiles cap shadows without
+                      changing these authored values.
+                    </small>
                     {num(
                       "Light intensity",
                       chosen.light.intensity,
@@ -2165,8 +2373,8 @@ function App({
                 <h3>Budget & lighting</h3>
                 <p>
                   {settings.preset === "low"
-                    ? "960 × 540 maximum · 30 FPS target · no shadow maps"
-                    : "1600 × 900 maximum · 60 FPS play target · sun shadows"}
+                    ? "960 × 540 maximum · 30 FPS target · shadows off by default"
+                    : "1600 × 900 maximum · 60 FPS play target · budgeted shadows"}
                 </p>
                 <label>
                   View distance <b>{settings.viewDistance}</b>
@@ -2187,52 +2395,22 @@ function App({
                   GPU-visible meshes.
                 </small>
               </Panel>
-              <Panel>
-                <h3>Post-processing</h3>
-                {(["post", "glow", "volumetrics"] as const).map((key) => (
-                  <label className="row-field" key={key}>
-                    {key === "post"
-                      ? "Enable post FX"
-                      : key === "glow"
-                        ? "Threshold glow"
-                        : "Volumetric-style beams"}
-                    <Input
-                      aria-label={key}
-                      type="checkbox"
-                      checked={settings[key]}
-                      onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.checked }))}
-                    />
-                  </label>
-                ))}
-                {(
-                  [
-                    ["threshold", "Glow threshold", 0.05, 1, 0.05],
-                    ["strength", "Glow intensity", 0, 0.6, 0.02],
-                    ["exposure", "Exposure", 0.7, 1.5, 0.05],
-                    ["beamOpacity", "Beam density", 0.01, 0.25, 0.01],
-                  ] as const
-                ).map(([key, label, min, max, step]) => (
-                  <label key={key}>
-                    {label}
-                    <b>{settings[key].toFixed(2)}</b>
-                    <Input
-                      aria-label={label}
-                      type="range"
-                      min={min}
-                      max={max}
-                      step={step}
-                      value={settings[key]}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, [key]: Number(e.target.value) }))
-                      }
-                    />
-                  </label>
-                ))}
-                <p className="hint">
-                  Beams are translucent cone approximations—not ray-marched volumetrics. Glow is a
-                  five-tap effect, not full bloom. Effects cost GPU time.
-                </p>
-              </Panel>
+              <PreviewRendering
+                settings={settings}
+                post={previewPost(settings, scene.graphics?.post)}
+                snapshot={stats?.graphics}
+                canAuthor={!playing}
+                onSettings={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+                onPost={(post) => setSettings((s) => ({ ...s, previewPost: post }))}
+                onReset={() => setSettings((s) => ({ ...s, previewPost: undefined }))}
+                onAuthor={() =>
+                  commit((d) => {
+                    d.graphics ??= emptyGraphics();
+                    d.graphics.post = previewPost(settings, scene.graphics?.post);
+                  })
+                }
+                onDesktop={() => setPreferencesOpen(true)}
+              />
               <Panel>
                 <h3>Adapter</h3>
                 <code>{stats?.adapter || "Not available"}</code>

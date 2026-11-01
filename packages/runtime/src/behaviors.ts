@@ -10,6 +10,7 @@ export interface Behavior {
 }
 export type SimulationHost = Pick<
   Engine,
+  | "graphics"
   | "ui"
   | "paused"
   | "input"

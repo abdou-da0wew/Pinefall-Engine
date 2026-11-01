@@ -1,3 +1,12 @@
+import {
+  parseGraphicsDefinition,
+  parseSurface,
+  parseLight,
+  type GraphicsDefinition,
+  type Surface,
+  type LightDefinition,
+  type PostSettings,
+} from "./graphics-definition";
 import { BASE64_MODEL_CHARS, BASE64_PROJECT_CHARS } from "../../assets/src/limits";
 import { parseAudio, audioId, type AudioDefinition } from "../../audio/src/definition";
 import { parseAnimator, type AnimatorDefinition } from "../../animation/src/definition";
@@ -43,7 +52,15 @@ export interface Entity {
   enabled: boolean;
   parent?: string;
   transform: { position: Vec3; rotation: Vec3; scale: Vec3 };
-  mesh?: { primitive: Primitive; color: string; asset?: string };
+  mesh?: {
+    primitive: Primitive;
+    color: string;
+    asset?: string;
+    material?: string;
+    surface?: Surface;
+    castShadow?: boolean;
+    receiveShadow?: boolean;
+  };
   physics?: {
     type: "fixed" | "dynamic" | "kinematic";
     shape: "box" | "sphere" | "capsule";
@@ -52,7 +69,7 @@ export interface Entity {
     restitution: number;
     sensor: boolean;
   };
-  light?: { type: "point" | "spot"; color: string; intensity: number; range: number };
+  light?: LightDefinition;
   behavior?: string;
   tag?: string;
 }
@@ -63,6 +80,7 @@ export interface Asset {
   data: string;
 }
 export interface SceneDocument {
+  graphics?: GraphicsDefinition;
   audio?: AudioDefinition;
   project?: ProjectMetadata;
   ui?: UIDocument;
@@ -83,6 +101,9 @@ export interface SceneDocument {
   };
 }
 export interface RenderSettings {
+  previewPost?: PostSettings;
+  renderScale?: number;
+  shadows?: boolean;
   preset: "low" | "high";
   post: boolean;
   glow: boolean;
@@ -173,6 +194,8 @@ export function parseScene(value: unknown): SceneDocument {
     !record(value.environment)
   )
     fail("root/version/limits");
+  const graphics =
+    value.graphics === undefined ? undefined : parseGraphicsDefinition(value.graphics);
   const assets: Asset[] = value.assets.map((a) => {
     if (!record(a)) fail("asset");
     const data = text(a.data, "asset data", BASE64_MODEL_CHARS);
@@ -293,6 +316,17 @@ export function parseScene(value: unknown): SceneDocument {
         ]),
         color: color(e.mesh.color),
       };
+      if (e.mesh.material !== undefined) {
+        out.mesh.material = text(e.mesh.material, "material reference");
+        if (!graphics?.materials.some((m) => m.id === out.mesh?.material))
+          fail("Missing material asset");
+      }
+      if (e.mesh.surface !== undefined) out.mesh.surface = parseSurface(e.mesh.surface);
+      for (const key of ["castShadow", "receiveShadow"] as const)
+        if (e.mesh[key] !== undefined) {
+          if (typeof e.mesh[key] !== "boolean") fail("shadow flag");
+          out.mesh[key] = e.mesh[key];
+        }
       if (e.mesh.asset !== undefined) out.mesh.asset = text(e.mesh.asset, "asset reference");
       if (out.mesh.primitive === "asset" && !assets.some((a) => a.id === out.mesh?.asset))
         fail("missing asset");
@@ -335,12 +369,7 @@ export function parseScene(value: unknown): SceneDocument {
     }
     if (e.light !== undefined) {
       if (!record(e.light)) fail("light");
-      out.light = {
-        type: oneOf(e.light.type, ["point", "spot"]),
-        color: color(e.light.color),
-        intensity: number(e.light.intensity, "intensity", 0, 200),
-        range: number(e.light.range, "range", 1, 100),
-      };
+      out.light = parseLight(e.light);
     }
     return out;
   });
@@ -383,6 +412,7 @@ export function parseScene(value: unknown): SceneDocument {
     template: oneOf(value.template, ["adventure", "first-person", "driving", "sandbox"]),
     entities,
     assets,
+    ...(graphics ? { graphics } : {}),
     ...(scripts ? { scripts } : {}),
     ...(audio ? { audio } : {}),
     ...(collections ? { collections } : {}),
