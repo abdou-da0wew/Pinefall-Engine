@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { allowsGamePermission } from "./game-permissions";
 import { installWorkspaceBridge } from "./workspace";
 import { defaultGraphics, parseGraphics, graphicsSwitches } from "../packages/editor/src/graphics";
 import { ARCHIVE_BYTES } from "../packages/assets/src/limits";
@@ -64,8 +66,21 @@ void app.whenReady().then(() => {
   win.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith("file:")) event.preventDefault();
   });
-  win.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) =>
-    callback(false),
+  const gamePages = new Set(
+    ["index.html", "game.html", "nightfall.html"].map(
+      (name) => pathToFileURL(join(import.meta.dirname, "../dist", name)).href,
+    ),
+  );
+  win.webContents.session.setPermissionRequestHandler((wc, permission, callback, details) =>
+    callback(
+      wc === win.webContents &&
+        allowsGamePermission(permission, details.requestingUrl, details.isMainFrame, gamePages),
+    ),
+  );
+  win.webContents.session.setPermissionCheckHandler(
+    (wc, permission, _origin, details) =>
+      wc === win.webContents &&
+      allowsGamePermission(permission, details.requestingUrl, details.isMainFrame, gamePages),
   );
   win.webContents.on("render-process-gone", (_e, details) => log("crash", JSON.stringify(details)));
   win.webContents.on("console-message", (_event, _level, message) => log("renderer", message));

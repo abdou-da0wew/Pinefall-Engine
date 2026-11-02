@@ -1,4 +1,6 @@
-# Pinefall Engine 0.7.1
+# Pinefall Engine 0.8.0-dev.0 (development source)
+
+**New working-tree game: [Nightfall Keep](docs/NIGHTFALL-KEEP.md)** — playable forest/castle survival-horror FPS using Pinefall's physics, animation, audio and UI. Run `bun run dev:nightfall`, or use **Play Nightfall Keep** on Home in a current desktop build. Nightfall is released separately as `nightfall-v0.1.0`, with a PIF and standalone game executables. It is sample content, not engine-core gameplay. The stable engine release below remains v0.7.1.
 
 <img src="public/pinefall-app-icon.svg" alt="Pinefall diamond logo" width="88" />
 

@@ -95,6 +95,8 @@ export interface SceneDocument {
     fogNear: number;
     fogFar: number;
     sun: number;
+    ambient?: number;
+    sunColor?: string;
     gravity: number;
   };
 }
@@ -475,6 +477,8 @@ export function parseScene(value: unknown): SceneDocument {
       fogNear: number(env.fogNear, "fog near", 0, 200),
       fogFar: number(env.fogFar, "fog far", 10, 500),
       sun: number(env.sun, "sun", 0, 5),
+      ...(env.ambient === undefined ? {} : { ambient: number(env.ambient, "ambient", 0, 5) }),
+      ...(env.sunColor === undefined ? {} : { sunColor: color(env.sunColor) }),
       gravity: number(env.gravity, "gravity", -30, 0),
     },
   };

@@ -1,3 +1,5 @@
+export type { InputOptions } from "../../runtime/src/input-options";
+export { DEFAULT_INPUT_OPTIONS } from "../../runtime/src/input-options";
 export type { GraphicsImage, TextureBinding, MapRole } from "../../runtime/src/image-definition";
 export { textureBinding, MAP_ROLES } from "../../runtime/src/image-definition";
 export type {

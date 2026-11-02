@@ -1,6 +1,10 @@
 # Current implementation and release status
 
-Reviewed 2026-11-02. Current source version: **0.7.1**. This page supersedes historical checkpoint inventories.
+Reviewed 2026-11-03. Published base version: **0.7.1**, current source is **0.8.0-dev.0**, an unreleased Nightfall game/FPS-input update. This page supersedes historical checkpoint inventories.
+
+## Nightfall Keep — separate game release
+
+[Nightfall Keep](NIGHTFALL-KEEP.md) is now a playable Pinefall Engine FPS with a forest/castle map, pooled wave enemies/projectiles, two weapons, supplies, skeletal animation, synthesized audio, HUD, pause and death/restart. Reusable mouse/key press latching, configurable recover-key/pointer capture, night ambient/sun-color authoring, desktop permission scoping and Home launch are included. The separate `nightfall-v0.1.0` game release has a PIF, standalone Windows/Linux game executables, web and editable-folder exports, source and a creation guide. It is pre-shipped sample content, not engine-core gameplay. See [evidence](evidence/nightfall/README.md) for actual gates and remaining limits; no new stable engine release is implied. General-purpose game export improvements follow separately.
 
 ## Publication
 

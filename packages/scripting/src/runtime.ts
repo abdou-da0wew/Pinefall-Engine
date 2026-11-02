@@ -313,7 +313,9 @@ export function createBehaviorSession(
         body: (id = entity.id) => host.physics.bodies.get(id),
         teleport(position, id = entity.id) {
           const body = host.physics.bodies.get(id);
-          body?.setTranslation({ x: position[0], y: position[1], z: position[2] }, true);
+          const target = { x: position[0], y: position[1], z: position[2] };
+          body?.setTranslation(target, true);
+          if (body?.isKinematic()) body.setNextKinematicTranslation(target);
           host.objects.get(id)?.position.fromArray(position);
         },
         impulse(force, id = entity.id) {

@@ -1,0 +1,29 @@
+  • electron-builder  version=26.18.0 os=6.1.158+
+  • loaded configuration  file=package.json ("build" field)
+  • packageManager not detected by file, falling back to environment detection  resolvedPackageManager=npm detected=/home/user/pinefall-engine
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=linux arch=x64 electron=45.2.1 appOutDir=build/nightfall/releases/linux-unpacked
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/home/user/pinefall-engine/build/nightfall/releases/linux-unpacked
+  • searching for node modules  pm=npm searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • searching for node modules  pm=traversal searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • no node modules returned while searching directories  searchDirectories=["build/nightfall/desktop"]
+  • building        target=AppImage arch=x64 file=build/nightfall/releases/Nightfall Keep-0.1.0.AppImage
+  • electron uses desktopName as app_id / WM_CLASS for window association. Without it desktop environments may not link running windows to this .desktop entry. Set desktopName in package.json and linux.syncDesktopName: true to fix.  reason=desktopName is not set in package.json docs=https://www.electron.build/linux#window-association-desktopname--syncdesktopname
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=win32 arch=x64 electron=45.2.1 appOutDir=build/nightfall/releases/win-unpacked
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/home/user/pinefall-engine/build/nightfall/releases/win-unpacked
+  • searching for node modules  pm=npm searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • no node modules found in collection, trying next search directory  pm=npm searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • searching for node modules  pm=traversal searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • using manual traversal of node_modules to build dependency tree
+  • no node modules found in collection, trying next search directory  pm=traversal searchDir=/home/user/pinefall-engine/build/nightfall/desktop
+  • no node modules returned while searching directories  searchDirectories=["build/nightfall/desktop"]
+  • updating asar integrity executable resource  executablePath=build/nightfall/releases/win-unpacked/Nightfall Keep.exe
+  • no code signing certificate configured, signing is skipped  path=build/nightfall/releases/win-unpacked/Nightfall Keep.exe
+  • building        target=zip arch=x64 file=build/nightfall/releases/Nightfall Keep-0.1.0-win.zip
+  • building embedded block map  file=build/nightfall/releases/Nightfall Keep-0.1.0.AppImage

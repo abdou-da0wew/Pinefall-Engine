@@ -1,0 +1,1 @@
+PASS production standalone: locally packaged worker/WASM dependencies, PIF load, high profile, trust, fire, HUD, zero page errors or missing resources.

@@ -75,7 +75,8 @@ export class FixedSimulation {
           a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
         ),
         active = (id: string) => !this.pendingDestroy.has(id);
-      this.inputSnapshot = new Set(host.input);
+      this.inputSnapshot = new Set([...host.input, ...host.inputPressed]);
+      host.inputPressed.clear();
       host.physics.beginMotion();
       host.audio.setTime(this.ticks / 60);
       this.trace.push("fixed");

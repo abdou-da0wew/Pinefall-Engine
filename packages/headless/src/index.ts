@@ -1,3 +1,8 @@
+import {
+  DEFAULT_INPUT_OPTIONS,
+  parseInputOptions,
+  type InputOptions,
+} from "../../runtime/src/input-options";
 import { headlessGraphics } from "../../runtime/src/graphics-headless";
 import { AudioService, AudioCatalog } from "../../audio/src/service";
 import { NullAudioBackend } from "../../audio/src/null";
@@ -29,6 +34,10 @@ export class HeadlessEngine implements SimulationHost {
   }
   set paused(value: boolean) {
     this._paused = value;
+    if (value) {
+      this.input.clear();
+      this.inputPressed.clear();
+    }
     this.audio.setPaused(value);
   }
   readonly ui = new UIStore((error) =>
@@ -36,6 +45,11 @@ export class HeadlessEngine implements SimulationHost {
   );
   private behaviorBuilder?: (entity: Entity) => Behavior;
   readonly input = new Set<string>();
+  readonly inputPressed = new Set<string>();
+  inputOptions = { ...DEFAULT_INPUT_OPTIONS };
+  configureInput(patch: Partial<InputOptions>) {
+    this.inputOptions = parseInputOptions({ ...this.inputOptions, ...patch });
+  }
   readonly objects = new Map<string, Group>();
   readonly events = new Events();
   readonly registry = new Map<string, BehaviorFactory>();

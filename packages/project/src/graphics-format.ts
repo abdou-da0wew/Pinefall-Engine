@@ -11,6 +11,8 @@ export function needsPIF9(input: unknown) {
       (key) => record(v)[key] !== undefined,
     );
   return (
+    record(scene.environment).ambient !== undefined ||
+    record(scene.environment).sunColor !== undefined ||
     graphics.images !== undefined ||
     ["resolution", "lighting", "transparentDepth", "temporal", "historyWeight"].some(
       (key) => scattering[key] !== undefined,

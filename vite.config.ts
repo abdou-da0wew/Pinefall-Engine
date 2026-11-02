@@ -2,6 +2,20 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 export default defineConfig({
   base: "./",
+  plugins:
+    process.env.NIGHTFALL === "1"
+      ? [
+          {
+            name: "nightfall-entry",
+            configureServer(server) {
+              server.middlewares.use((req, _res, next) => {
+                if (req.url === "/") req.url = "/nightfall.html";
+                next();
+              });
+            },
+          },
+        ]
+      : [],
   optimizeDeps: {
     include: [
       "three",
@@ -22,6 +36,7 @@ export default defineConfig({
       input: {
         editor: resolve(import.meta.dirname, "index.html"),
         game: resolve(import.meta.dirname, "game.html"),
+        nightfall: resolve(import.meta.dirname, "nightfall.html"),
       },
     },
   },

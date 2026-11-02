@@ -11,7 +11,7 @@ Write actual game logic, not a fixed list of behavior choices. Script assets tra
 5. Saved external edits trigger syntax and semantic diagnostics. Resolve errors, then explicitly **Apply validated changes**. This does not execute scripts. Apply verifies disk hashes and retains the prior runtime on failures.
 6. Review the source, approve trusted scripts, then Play. Stop restores authored state. Source changes/cold reopening revoke UI trust. Logs/errors remain in Console.
 
-Browser mode can import/update `.ts` files but has no native folder watcher or external-process launcher. GLSL fragment and uniform JSON file exchange is also available from a selected mesh’s Custom shader dialog; see [graphics SDK](GRAPHICS-SDK.md#browser-glsl-file-exchange). Native Save project backs up raw PIF8 files, including unregistered and invalid drafts; legacy/browser exports remain PIF1–7. Unregistering a script detaches it but does not delete its disk file. Export .ts exports the currently adopted asset source; the working-folder file may contain newer unapplied edits. There is no silent code hot reload.
+Browser mode can import/update `.ts` files but has no native folder watcher or external-process launcher. GLSL fragment and uniform JSON file exchange is also available from a selected mesh’s Custom shader dialog; see [graphics SDK](GRAPHICS-SDK.md#browser-glsl-file-exchange). Native Save project backs up raw PIF8 files, including unregistered and invalid drafts; portable exports use PIF1–7 or PIF9 according to their features. Unregistering a script detaches it but does not delete its disk file. Export .ts exports the currently adopted asset source; the working-folder file may contain newer unapplied edits. There is no silent code hot reload.
 
 ## A simple script
 
@@ -183,3 +183,11 @@ Scripts now expose `ctx.ui` for typed widget queries, creation/removal, text/val
 In desktop Project files, select a file and expand **Register existing authored source**. Supply a unique module/new-shader name, then **Register selected source**. `.ts` modules and `.glsl` fragments keep their existing paths. GLSL registration creates separate uniform and metadata JSON files with the default `uTint` declaration; edit those externally for other uniforms. Existing shader metadata JSON (`id`, `name`, `version`, `source`, `uniforms`) and material asset JSON can also be registered. Existing metadata supplies its own ID/name. Declaration files and SDK files are not runtime modules. A uniform JSON file alone is not a separately registered asset.
 
 Registration modifies only the disk catalog; automatic validation follows and explicit Apply is still required. It never runs top-level TypeScript or attaches a shader. Registered shaders are selectable in the mesh Inspector after explicit Rendering trust, and selection stages compilation before replacing the working runtime. Invalid source remains on disk for correction and raw PIF8 backup. Models/audio continue through their existing import paths, not this source-registration control.
+
+## FPS controls (Nightfall working-tree update)
+
+`ctx.engine.configureInput({ recoverKey: null, pointerLockOnClick: true, sensitivity: 0.0022 })` disables the legacy R/recover shortcut for a reload-based game and requests mouse capture on canvas click. Preserve `ctx.engine.inputOptions` and restore it in `dispose`. Defaults retain KeyR/recover, double-click/drag camera look and sensitivity 0.003. Sensitivity is finite, bounded to 0.0001–0.02; recoverKey is a KeyA–KeyZ code or null.
+
+`ctx.input` contains fixed-tick KeyboardEvent codes plus `Mouse0`, `Mouse1`, `Mouse2`, etc. A down/up wholly between fixed ticks is latched for one tick. Pausing, blur and UI focus clear pending presses; pause releases pointer capture. Scripts can compare the current snapshot to their previous snapshot for action edges. Pointer capture denial leaves drag-to-look available. This is trusted gameplay input, not a general keyboard hook.
+
+See `examples/nightfall/scripts/Director.ts` for an actual physics-driven FPS, `Rules.ts` for combat/navigation, and [the game guide](NIGHTFALL-KEEP.md) for reproduction.

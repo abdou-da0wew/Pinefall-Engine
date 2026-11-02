@@ -449,6 +449,14 @@ export function Home({
               >
                 <Icon name="folderOpen" /> Open project
               </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                disabled={busy}
+                onClick={() => location.assign(new URL("./nightfall.html", location.href).href)}
+              >
+                Play Nightfall Keep
+              </Button>
             </div>
           </div>
           <div className="pf-world-art" aria-hidden="true">

@@ -1,6 +1,6 @@
 {
   "name": "pinefall-engine",
-  "version": "0.7.1",
+  "version": "0.8.0-dev.0",
   "private": true,
   "type": "module",
   "main": "build-desktop/main.mjs",
@@ -54,7 +54,12 @@
     "format:check": "prettier --check .",
     "lint:oxlint": "oxlint --deny-warnings",
     "lint:biome": "biome lint --error-on-warnings .",
-    "lint:fix": "oxlint --fix && biome lint --write ."
+    "lint:fix": "oxlint --fix && biome lint --write .",
+    "generate:nightfall": "bun scripts/generate-nightfall.ts",
+    "dev:nightfall": "NIGHTFALL=1 node node_modules/vite/bin/vite.js --host 0.0.0.0",
+    "test:nightfall": "bun test tests/nightfall.test.ts && bun tests/nightfall-browser.ts",
+    "export:nightfall": "bun scripts/export-nightfall.ts",
+    "test:nightfall:native": "xvfb-run -a bun tests/nightfall-native.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",

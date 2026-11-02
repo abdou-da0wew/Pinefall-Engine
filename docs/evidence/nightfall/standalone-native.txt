@@ -1,0 +1,1 @@
+PASS Linux Electron game/player: PIF load, trust/audio start, allowed pointer capture, shot and pause. Production sandbox unchanged; test runner uses root-only no-sandbox.

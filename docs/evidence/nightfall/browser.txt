@@ -1,0 +1,1 @@
+PASS Nightfall real browser: load/trust, render, mouse shot, reload, weapon switch, movement, live wave, nonzero audio signal, accelerated death, restart and pause.

@@ -1,3 +1,4 @@
+import { DEFAULT_INPUT_OPTIONS, parseInputOptions, type InputOptions } from "./input-options";
 import { invalidateObjectGPU } from "../../assets/src/gpu-reset";
 import { materialSlots, inspectSlotUV } from "./material-slots";
 import { GraphicsImages } from "./graphics-images";
@@ -140,6 +141,11 @@ export class Engine {
 
   readonly events = new Events();
   readonly input = new Set<string>();
+  readonly inputPressed = new Set<string>();
+  inputOptions = { ...DEFAULT_INPUT_OPTIONS };
+  configureInput(patch: Partial<InputOptions>) {
+    this.inputOptions = parseInputOptions({ ...this.inputOptions, ...patch });
+  }
   readonly objects = new Map<string, T.Group>();
   readonly behaviors = new Map<string, Behavior>();
   readonly registry = new Map<string, BehaviorFactory>();
@@ -521,7 +527,12 @@ export class Engine {
   }
   set paused(value: boolean) {
     this._paused = value;
+    if (value) {
+      this.input.clear();
+      this.inputPressed.clear();
+    }
     this.audio.setPaused(value);
+    if (value && document.pointerLockElement === this.canvas) document.exitPointerLock();
   }
   jump = false;
   look = { yaw: 0, pitch: 0 };
@@ -586,6 +597,7 @@ export class Engine {
       this.assetCache.invalidateGPU();
       invalidateObjectGPU(this.scene);
       this.input.clear();
+      this.inputPressed.clear();
       this.audio.setPaused(true);
       this.events.emit("render", "WebGL context lost; rendering suspended; authored data retained");
     };
@@ -664,7 +676,10 @@ export class Engine {
       this.ui,
       canvas,
       options.onUISelect,
-      () => this.input.clear(),
+      () => {
+        this.input.clear();
+        this.inputPressed.clear();
+      },
       options.onUITransform,
     );
     this.bindInput();
@@ -691,6 +706,7 @@ export class Engine {
         if (!e.repeat) {
           this.paused = !this.paused;
           this.input.clear();
+          this.inputPressed.clear();
           this.jump = false;
           this.events.emit("gameplay", this.paused ? "Paused" : "Resumed");
         }
@@ -705,9 +721,10 @@ export class Engine {
         return;
       if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code))
         e.preventDefault();
-      if (e.code === "KeyR") this.respawn();
+      if (e.code === this.inputOptions.recoverKey) this.respawn();
       if (e.code === "Space" && !e.repeat) this.jump = true;
       this.input.add(e.code);
+      if (!e.repeat && this.playing && !this.paused) this.inputPressed.add(e.code);
       if (e.shiftKey) this.input.add("Shift");
     });
     this.listen(window, "focusin", (event) => {
@@ -718,6 +735,7 @@ export class Engine {
         )
       ) {
         this.input.clear();
+        this.inputPressed.clear();
         this.jump = false;
       }
     });
@@ -728,6 +746,7 @@ export class Engine {
     });
     this.listen(window, "blur", () => {
       this.input.clear();
+      this.inputPressed.clear();
       if (this.playing) {
         this.paused = true;
         this.events.emit("gameplay", "Paused while unfocused");
@@ -737,6 +756,7 @@ export class Engine {
       if (document.hidden || this.contextLost) {
         this.paused = true;
         this.input.clear();
+        this.inputPressed.clear();
         void this.audio.suspend().catch((error) => this.events.emit("error", String(error)));
       }
     });
@@ -746,10 +766,25 @@ export class Engine {
       this.down = { x: e.clientX, y: e.clientY };
       this.dragging = true;
       this.canvas.focus();
+      if (this.playing && !this.paused) {
+        this.input.add("Mouse" + e.button);
+        this.inputPressed.add("Mouse" + e.button);
+        if (
+          this.inputOptions.pointerLockOnClick &&
+          this.cameraRig === "first-person" &&
+          document.pointerLockElement !== this.canvas
+        )
+          void this.canvas
+            .requestPointerLock()
+            ?.catch(() =>
+              this.events.emit("input", "Pointer lock unavailable; drag to look instead."),
+            );
+      }
     });
     this.listen(window, "pointerup", (event) => {
       const e = event as PointerEvent;
       this.dragging = false;
+      this.input.delete("Mouse" + e.button);
       if (this.playing) return;
       if (
         Math.hypot(e.clientX - this.down.x, e.clientY - this.down.y) < 4 &&
@@ -758,13 +793,34 @@ export class Engine {
       )
         this.options.onSelect?.(this.pick(e.clientX, e.clientY));
     });
+    this.listen(window, "pointercancel", () => {
+      this.dragging = false;
+      for (const key of this.input) if (key.startsWith("Mouse")) this.input.delete(key);
+      for (const key of this.inputPressed)
+        if (key.startsWith("Mouse")) this.inputPressed.delete(key);
+    });
     this.listen(window, "pointermove", (event) => {
       if (!this.playing || this.paused || this.cameraRig === "orbit") return;
       const e = event as PointerEvent;
       if (document.pointerLockElement === this.canvas || this.dragging) {
-        this.look.yaw -= e.movementX * 0.003;
-        this.look.pitch = T.MathUtils.clamp(this.look.pitch - e.movementY * 0.003, -1.2, 1.2);
+        this.look.yaw -= e.movementX * this.inputOptions.sensitivity;
+        this.look.pitch = T.MathUtils.clamp(
+          this.look.pitch - e.movementY * this.inputOptions.sensitivity,
+          -1.2,
+          1.2,
+        );
       }
+    });
+    let locked = false;
+    this.listen(document, "pointerlockchange", () => {
+      const next = document.pointerLockElement === this.canvas;
+      if (locked && !next && this.playing && this.inputOptions.pointerLockOnClick) {
+        this.paused = true;
+        this.input.clear();
+        this.inputPressed.clear();
+        this.events.emit("gameplay", "Paused after pointer unlock");
+      }
+      locked = next;
     });
     this.listen(this.canvas, "dblclick", () => {
       if (this.playing && this.cameraRig === "first-person")
@@ -999,6 +1055,7 @@ export class Engine {
     this.playing = false;
     this.paused = false;
     this.input.clear();
+    this.inputPressed.clear();
     this.gizmo.detach();
     this.clear(true);
     this.audio.adopt(audio!);
@@ -1028,6 +1085,8 @@ export class Engine {
       Math.max(scene.environment.fogNear + 1, scene.environment.fogFar),
     );
     this.sun.intensity = scene.environment.sun;
+    this.ambient.intensity = scene.environment.ambient ?? 2;
+    this.sun.color.set(scene.environment.sunColor ?? "#ffe1b0");
     this.goalCount = scene.entities.filter((e) => e.behavior === "collectible" && e.enabled).length;
     this.collected.clear();
     this.won = false;

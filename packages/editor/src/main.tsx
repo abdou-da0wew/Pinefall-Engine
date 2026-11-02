@@ -3038,6 +3038,43 @@ function App({
                 </Button>
               </Panel>
               <Panel>
+                <h3>Scene atmosphere (authored)</h3>
+                {(["sun", "ambient"] as const).map((key) => (
+                  <label key={key}>
+                    {key === "sun" ? "Sun intensity" : "Ambient intensity"}
+                    <Input
+                      aria-label={"Authored " + key + " intensity"}
+                      disabled={playing || projectBusy || loadBusy}
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={scene.environment[key] ?? 2}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        void applyGraphicsEdit((d) => {
+                          d.environment[key] = value;
+                        }).catch((error) => setStatus(String(error)));
+                      }}
+                    />
+                  </label>
+                ))}
+                <ColorPicker
+                  label="Sun color"
+                  value={scene.environment.sunColor ?? "#ffe1b0"}
+                  disabled={playing || projectBusy || loadBusy}
+                  onChange={(color) => {
+                    void applyGraphicsEdit((d) => {
+                      d.environment.sunColor = color;
+                    }).catch((error) => setStatus(String(error)));
+                  }}
+                />
+                <p className="hint">
+                  Legacy scenes default to ambient intensity 2 and warm sunlight. Saved atmosphere
+                  is independent of device quality.
+                </p>
+              </Panel>
+              <Panel>
                 <h3>Scene reflection lighting (authored)</h3>
                 <Button
                   disabled={playing || projectBusy || loadBusy}
@@ -3149,7 +3186,7 @@ function App({
                 )}
                 <p className="hint">
                   Filtered linear reflections, shared between staged worlds. Requires floating-point
-                  targets. External HDR image environments are not yet supported.
+                  targets. External Radiance HDR images can be selected above.
                 </p>
               </Panel>
               <PreviewRendering
