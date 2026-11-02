@@ -122,3 +122,7 @@ image/GLTF export APIs. The standalone player loads cooked GLB, not original FBX
 ## 0.7.0 source update
 
 Texture/UV/packing/per-slot authoring, external HDR and advanced scattering are now implemented. Native opening additionally supports portable PIF9; raw-folder backups remain PIF8. See [current status](CURRENT-STATUS.md) and [graphics authoring](GRAPHICS-AUTHORING.md) for the current contract and release state; older checkpoint descriptions above are historical.
+
+## Export profile preflight (development foundation)
+
+`bun run game export-plan game.pif [profile.json]` validates a strict game-independent export profile and compiles script syntax without executing it. It reports content counts and trust requirements; `status: "preflight-only"` and `artifact: null` explicitly mean that no executable was built. Profile targets describe intent, not completed generic packaging. The existing `export-web` command is retained. Transactional assembly, general desktop packaging and editor export UI follow the [separate export update plan](GAME-EXPORT-UPDATE-PLAN.md).

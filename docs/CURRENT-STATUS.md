@@ -38,3 +38,7 @@ Release packaging and physical acceptance are separate: Windows is packaged but 
 ## Code-quality update
 
 Prettier formats supported authored files repo-wide; Biome formatter/assist are disabled. Both linters reject warnings. `bun run check` now includes the formatting gate. Oxfmt has been removed. [Configuration and rule policy](CODE-QUALITY.md) · [0.7.1 notes](RELEASE-0.7.1.md).
+
+## Export workflow follow-up
+
+Nightfall Keep 0.1.0 was published separately with eight verified assets at [its game release](https://github.com/abdou-da0wew/Pinefall-Engine/releases/tag/nightfall-v0.1.0). The next engine export update has begun: strict game-independent profiles and non-executing `export-plan` preflight are implemented. Assembly, generic executable packaging and the editor workflow are still pending under [the dedicated plan](GAME-EXPORT-UPDATE-PLAN.md). This is not a second completed engine release.

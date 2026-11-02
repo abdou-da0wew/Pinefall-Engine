@@ -1,0 +1,11 @@
+$ bun run format:check && bun run typecheck && bun run lint
+$ prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+$ bun node_modules/typescript/bin/tsc --noEmit
+$ bun run lint:oxlint && bun run lint:biome
+$ oxlint --deny-warnings
+Found 0 warnings and 0 errors.
+Finished in 516ms on 289 files with 102 rules using 2 threads.
+$ biome lint --error-on-warnings .
+Checked 375 files in 455ms. No fixes applied.

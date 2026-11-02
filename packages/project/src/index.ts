@@ -70,3 +70,5 @@ export function placeModel(scene: SceneDocument, assetId: string, name?: string)
   next.entities.push(item);
   return { scene: parseScene(next), entity: item };
 }
+export { parseExportProfile, defaultExportProfile, type ExportProfile } from "./export-profile";
+export { preflightExport } from "./export-preflight";

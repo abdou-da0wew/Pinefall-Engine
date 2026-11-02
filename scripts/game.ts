@@ -1,3 +1,5 @@
+import { defaultExportProfile, parseExportProfile } from "../packages/project/src/export-profile";
+import { preflightExport } from "../packages/project/src/export-preflight";
 import { MODEL_BYTES } from "../packages/assets/src/limits";
 import { atomicWrite } from "../packages/project/src/atomic-file";
 import { defaultRecipe, parseRecipe } from "../packages/assets/src/recipe";
@@ -29,7 +31,7 @@ async function main() {
   }
   if (!path)
     throw Error(
-      "Commands: new, inspect, validate, import, place, edit, simulate, export-web. See docs/CREATING-GAMES.md",
+      "Commands: new, inspect, validate, import, place, edit, simulate, export-plan, export-web. See docs/CREATING-GAMES.md",
     );
   if (command === "verify-pif") {
     const hashIndex = args.indexOf("--sha256");
@@ -51,6 +53,13 @@ async function main() {
   const scene = path.toLowerCase().endsWith(".pif")
     ? await unpackProject(await Bun.file(path).bytes())
     : parseScene(await Bun.file(path).json());
+  if (command === "export-plan")
+    return preflightExport(
+      scene,
+      args[0]
+        ? parseExportProfile(await Bun.file(args[0]).json())
+        : defaultExportProfile(scene.name),
+    );
   if (command === "metadata") {
     if (!args[0]) return scene.project || { metadata: "absent in legacy project" };
     const patch = JSON.parse(args[0]);
